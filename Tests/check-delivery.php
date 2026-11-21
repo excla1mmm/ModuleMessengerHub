@@ -261,7 +261,8 @@ check($row($db, $outboxId)['status'] === 'failed', 'the TLS row fails once, it i
 
 $db->execute(
     'UPDATE ' . OutboxRepository::TABLE . " SET status = 'pending', attempts = 0, next_attempt_at = 0,"
-    . " lease_owner = '', lease_until = NULL, last_error_code = '' WHERE id = :id",
+    . " lease_owner = '', lease_until = NULL, last_error_code = '', delivery_parts_json = NULL,"
+    . " external_message_ids = '[]' WHERE id = :id",
     ['id' => $outboxId]
 );
 $channel->results = [SendResult::sent(['43'])];
@@ -279,7 +280,7 @@ serviceFor($db, $channel)->runOnce(1790945000);
 check($row($db, $outboxId)['status'] === 'failed', 'the seventh attempt gives up');
 check((int)$row($db, $outboxId)['attempts'] === 7, 'attempts counted');
 
-// ---------- unknown outcome: the text is at-most-once (stage 3a, Plan/08) ----------
+// ---------- unknown outcome retried once (stage 2, Plan/08) ----------
 
 $db = hubTestDatabase();
 [, , , $outboxId] = seedDelivery($db, ['attempts' => 1]);
@@ -287,14 +288,26 @@ $channel = new FakeChannel();
 $channel->results = [SendResult::retry(10, 'http.timeout', true)];
 serviceFor($db, $channel)->runOnce(1790945000);
 $uncertainRow = $row($db, $outboxId);
-check($uncertainRow['status'] === 'sent', 'an unknown text outcome is not retried (no duplicate)');
+check($uncertainRow['status'] === 'pending', 'first unknown outcome is retried');
+check((int)$uncertainRow['uncertain_attempts'] === 1, 'uncertain attempt counted');
 $parts = json_decode((string)$uncertainRow['delivery_parts_json'], true);
-check(($parts['text']['state'] ?? '') === 'sent', 'the text part is marked sent');
-check(($parts['text']['code'] ?? '') === 'delivery.uncertain', 'the unknown outcome is visible as a code');
+check(($parts['text']['state'] ?? '') === 'pending', 'the text part stays pending for the single retry');
 
-$channel->results = [SendResult::sent(['99'])];
-serviceFor($db, $channel)->runOnce(1790945100);
-check($channel->sends === 1, 'a later pass never sends the same text again');
+$db = hubTestDatabase();
+[, , , $outboxId] = seedDelivery($db, ['attempts' => 2, 'uncertain_attempts' => 1]);
+$channel = new FakeChannel();
+$channel->results = [SendResult::retry(10, 'http.timeout', true)];
+serviceFor($db, $channel)->runOnce(1790945000);
+check($row($db, $outboxId)['status'] === 'failed', 'second unknown outcome fails without more retries');
+
+// a connect failure is a definite retry, not an unknown outcome
+$db = hubTestDatabase();
+[, , , $outboxId] = seedDelivery($db, ['attempts' => 1]);
+$channel = new FakeChannel();
+$channel->results = [SendResult::retry(10, 'http.connect_failed', false)];
+serviceFor($db, $channel)->runOnce(1790945000);
+$connectRow = $row($db, $outboxId);
+check($connectRow['status'] === 'pending' && (int)$connectRow['uncertain_attempts'] === 0, 'a connect failure is retried without uncertain');
 
 // ---------- recipient gone drops the whole chat ----------
 

@@ -243,6 +243,25 @@ check($result->outcome === SendResult::SENT, 'channel sends the rendered text');
 check($channel->limits()->maxTextLength === 4096, 'Telegram limits exposed');
 check($channel->id() === 'telegram', 'channel id');
 
+// ---------- transport outcomes: connect failure vs read timeout ----------
+
+$http = new ScriptedHttp();
+$http->queueTransportError('http.connect_failed');
+$result = (new TelegramApi($http, 'https://tg.local'))->sendMessage($bot, '1', 'hi');
+check($result->outcome === SendResult::RETRY && !$result->uncertain, 'a connect failure is retried without uncertain');
+
+$http = new ScriptedHttp();
+$http->queueTransportError('http.timeout');
+$result = (new TelegramApi($http, 'https://tg.local'))->sendMessage($bot, '1', 'hi');
+check($result->outcome === SendResult::RETRY && $result->uncertain, 'a read timeout after the request is uncertain');
+
+// ---------- a locally unavailable file is permanent, not uncertain ----------
+
+$http = new ScriptedHttp();
+$http->queueTransportError('file.unavailable');
+$result = (new TelegramApi($http, 'https://tg.local'))->sendAudio($bot, '1', '/nope.mp3');
+check($result->outcome === SendResult::PERMANENT && $result->code === 'telegram.file_unavailable', 'a missing local file is permanent');
+
 // ---------- audio attachment (stage 3a) ----------
 
 $http = new ScriptedHttp();

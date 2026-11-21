@@ -75,7 +75,7 @@ final class AttachmentService implements AttachmentPipeline
             }
         }
 
-        if (!$this->prepared->claim($eventId, $cacheKey, $owner, $now, 900)) {
+        if (!$this->prepared->claim($eventId, $cacheKey, $owner, $now, 1800)) {
             return PrepareResult::busy();
         }
         $row = $this->prepared->find($cacheKey);
@@ -89,9 +89,11 @@ final class AttachmentService implements AttachmentPipeline
                 return false;
             }
 
-            return $this->prepared->extend($id, $owner, time() + 900, time());
+            return $this->prepared->extend($id, $owner, time() + 1800, time());
         };
         if (!$alive()) {
+            $this->prepared->discard($cacheKey, $owner, time());
+
             return PrepareResult::busy();
         }
         $source = $this->tempDir->tempPath('source');
@@ -109,6 +111,9 @@ final class AttachmentService implements AttachmentPipeline
             return PrepareResult::failed($located->code);
         }
         if (!$alive()) {
+            $this->tempDir->remove($source);
+            $this->prepared->discard($cacheKey, $owner, time());
+
             return PrepareResult::busy();
         }
 
@@ -131,8 +136,9 @@ final class AttachmentService implements AttachmentPipeline
                         $this->tempDir->remove($file['path']);
                     }
                 }
+                $this->prepared->discard($cacheKey, $owner, time());
 
-                return PrepareResult::retry('delivery.lease_lost');
+                return PrepareResult::busy();
             }
             if (!$converted->ok()) {
                 $this->tempDir->remove($output);
@@ -141,6 +147,12 @@ final class AttachmentService implements AttachmentPipeline
                     if (is_string($file['path'] ?? null)) {
                         $this->tempDir->remove($file['path']);
                     }
+                }
+                if ($converted->code === Converter::CODE_TIMEOUT) {
+                    // a timeout is transient (load, slow disk): retry with a fresh cache row
+                    $this->prepared->discard($cacheKey, $owner, time());
+
+                    return PrepareResult::retry($converted->code);
                 }
                 $this->prepared->markFailed($id, $owner, $converted->code, time());
 
@@ -177,6 +189,13 @@ final class AttachmentService implements AttachmentPipeline
         if ((int)($active['c'] ?? 0) > 0) {
             return;
         }
+        foreach ($this->prepared->forEvent($eventId) as $row) {
+            $this->dropRow($row);
+        }
+    }
+
+    public function releaseEvent(int $eventId): void
+    {
         foreach ($this->prepared->forEvent($eventId) as $row) {
             $this->dropRow($row);
         }

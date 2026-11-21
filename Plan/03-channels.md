@@ -56,13 +56,14 @@ interface ChannelInterface
   длинный абзац с многоточием, ID звонка и кнопка сохраняются; кнопки только с `http(s)`-ссылками.
 - Нормализованные коды: `telegram.429.rate_limit` (+ `retry_after`), `telegram.403.blocked`,
   `telegram.403.kicked`, `telegram.400.chat_not_found`, `telegram.400.migrate`,
-  `telegram.401.unauthorized`, `telegram.409.webhook_set`; сеть — `http.timeout`, `http.tls`,
-  `http.unavailable`. Токен, URL и тело запроса не попадают ни в код, ни в лог.
+  `telegram.401.unauthorized`, `telegram.409.webhook_set`; сеть — `http.timeout`, `http.connect_failed`
+  (запрос не ушёл), `http.tls`, `http.unavailable`. Токен, URL и тело запроса не попадают ни в код, ни в лог.
 - `deleteMessage` идемпотентен: «message to delete not found» считается успехом (этап 2d).
 - Вложения — этап 3a: в этапе 2 `send()` доставляет текст, `sendAudio`/`sendDocument` уже реализованы
   в клиенте; файл больше лимита канала в этапе 3a заменится ссылкой в тексте.
-- Неизвестный исход (таймаут после отправки) — не более одного повтора (`uncertain`, Plan/08); с этапа 3a
-  текст и аудио-части — at-most-once (неизвестный исход фиксируется, но не повторяется).
+- Неизвестный исход (таймаут после отправки) — не более одного повтора (`uncertain`, Plan/08); ошибка
+  соединения до отправки (`http.connect_failed`) — обычный повтор. С этапа 3a: текст/примечание — один
+  повтор, затем `failed`; аудио-части — at-most-once (неизвестный исход пропускается, строка остаётся `sent`).
 
 ## MAX Bot API
 
@@ -133,7 +134,8 @@ OpenAPI-схема `max-messenger/api-schema` 0.0.34. **Живая провер�
 - Коды: `max.401.unauthorized`, `max.403.chat_denied`, `max.403.forbidden`, `max.404.not_found`,
   `max.404.unknown`, `max.405.not_allowed`, `max.405.webhook_set`, `max.429.rate_limit` (+ `Retry-After`),
   `max.200.<code>`, `max.<5xx>.server_error`, `max.attachment.not_ready`, `max.200.malformed`,
-  `max.tls.untrusted_ca`, `max.upload.failed`; сеть — `http.timeout`, `http.unavailable`.
+  `max.tls.untrusted_ca`, `max.upload.failed`; сеть — `http.timeout`, `http.connect_failed` (запрос не ушёл),
+  `http.unavailable`.
 
 ### Сопоставление ответов MAX → SendResult
 
@@ -227,7 +229,9 @@ OpenAPI-схема `max-messenger/api-schema` 0.0.34. **Живая провер�
   `GET /api/v3/cdr/{id}` (если ИИ Супервайзер отдал `recording_access.cdr_id`) либо
   `GET /api/v3/cdr?linkedid=…`; в ответе `download_url`/`playback_url` с одноразовым токеном,
   затем `GET /api/v3/cdr:download?token=…`. Это `read`-путь `/api/v3/cdr` в ключе хаба (Q15;
-  playback/download у ядра публичные по токену, ключ нужен для списка/записи CDR).
+  playback/download у ядра публичные по токену, ключ нужен для списка/записи CDR). Путь добавляется
+  только пока есть включённое правило с `attachments != none` для `attention_call` и включён источник
+  ИИ Супервизора; при выключении правила путь снимается (Q15).
   Таблицы и внутренние файлы ИИ Супервизера не читаются. Если ИИ Супервизер вернул `cdr_id` —
   он используется; иначе ищется любой сегмент разговора с записью.
 - Путь и URL с токеном живут только в памяти/БД модуля; в логи и коды ошибок не попадают.
@@ -279,10 +283,12 @@ OpenAPI-схема `max-messenger/api-schema` 0.0.34. **Живая провер�
 - Одна строка Outbox = текст + N аудио-частей (+ при необходимости строка-примечание). Прогресс
   каждой части (`pending/sending/sent/skipped`, id, код, MAX-токен) хранится в
   `delivery_parts_json`; повтор **никогда** не отправляет уже отправленный текст или часть.
-- Текст и аудио — **at-most-once** на уровне части: состояние `sending`, сохранённое перед вызовом,
-  после перезапуска/истечения лизинга не переводится обратно в `pending` (текст не дублируется;
-  неизвестный исход помечается `delivery.uncertain`, аудио — `attachment.uncertain`). Явный `retry`
-  (429/5xx, без `uncertain`) повторяется по общей политике.
+- **Текст и примечание:** неизвестный исход (таймаут/обрыв после отправки) — один повтор, затем
+  `failed`; ошибка до отправки (`http.connect_failed`) — обычный повтор. Состояние `sending`, сохранённое
+  перед вызовом, после перезапуска/истечения лизинга не переводится в `pending` автоматически: это
+  неизвестный исход и он идёт по правилу одного повтора. **Аудио-части:** at-most-once — неизвестный
+  исход → `attachment.uncertain` и пропуск; явный `retry` (429/5xx) повторяется по своей политике,
+  исчерпание попыток части → `skipped` + примечание, строка остаётся `sent`.
 - Конвертация — в воркере доставки, но лизинг строки **продлевается** перед подготовкой и во время неё,
   поэтому долгая запись не даёт второму воркеру отправить ту же строку. Подготовленные файлы кэшируются
   на событие (`cache_key` = событие + режим + источник + фрагменты): одна конвертация на все чаты.

@@ -10,12 +10,21 @@ require __DIR__ . '/support/bootstrap.php';
 
 use Modules\ModuleMessengerHub\Lib\Channels\HttpTransport;
 
+check(HttpTransport::uploadTimeout(0) === 60, 'upload timeout: small file gets the 60 s floor');
+check(HttpTransport::uploadTimeout(50 * 1024 * 1024) === 800, 'upload timeout grows with the file size');
+check(HttpTransport::uploadTimeout(1024 * 1024 * 1024) === 900, 'upload timeout is capped at 15 min');
+
 $dir = sys_get_temp_dir() . '/mh-http-transport-' . getmypid();
 @mkdir($dir, 0777, true);
 $router = $dir . '/router.php';
 file_put_contents($router, <<<'PHP'
 <?php
 $path = $_SERVER['REQUEST_URI'] ?? '/';
+if (str_starts_with($path, '/slow')) {
+    sleep(3);
+    echo '{}';
+    exit;
+}
 if (str_starts_with($path, '/limited')) {
     // the header is untrusted input: the transport must keep the number and clamp it
     header('Content-Type: application/json');
@@ -68,6 +77,10 @@ check($server !== null, 'local test server started');
 
 if ($server !== null) {
     $transport = new HttpTransport('', '', 5, 2);
+    $slow = (new HttpTransport('', '', 1, 1))->get('http://127.0.0.1:' . $port . '/slow');
+    check($slow->errorCode === 'http.timeout', 'a read timeout is http.timeout');
+    $badProxy = (new HttpTransport('http://127.0.0.1:1', '', 5, 5))->get('http://pbx.invalid/');
+    check($badProxy->errorCode === 'http.connect_failed', 'a dead proxy is a pre-send connect failure');
     $response = $transport->postJson('http://127.0.0.1:' . $port . '/', ['chat_id' => '1', 'text' => 'hi']);
     check($response->status === 200 && !$response->failed(), 'postJson gets the server answer');
 

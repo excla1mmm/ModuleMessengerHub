@@ -412,8 +412,9 @@ final class MaxApi
             return SendResult::permanent(self::PREFIX . '.400.bad_request');
         }
 
-        // the messenger may have accepted the request before the answer was lost
-        return SendResult::retry(10, $response->errorCode, true);
+        // the messenger may have accepted the request before the answer was lost, unless the request
+        // never left the station (DNS/proxy/connect)
+        return SendResult::retry(10, $response->errorCode, !$response->isRequestNotSent());
     }
 
     private static function transportCode(HttpResponse $response): string

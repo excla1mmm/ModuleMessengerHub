@@ -12,6 +12,7 @@ use Modules\ModuleMessengerHub\Lib\Api\HubApiKey;
 use Modules\ModuleMessengerHub\Lib\Api\LocalRestClient;
 use Modules\ModuleMessengerHub\Lib\Delivery\BeanstalkDeliveryWaker;
 use Modules\ModuleMessengerHub\Lib\Events\EventStore;
+use Modules\ModuleMessengerHub\Lib\Routing\RuleRepository;
 use Modules\ModuleMessengerHub\Lib\Settings\HubSettings;
 use Modules\ModuleMessengerHub\Lib\Sources\ApiKeyPaths;
 use Modules\ModuleMessengerHub\Lib\Sources\Collector;
@@ -81,6 +82,11 @@ class WorkerMessengerHubCollector extends WorkerBase
                         $registry->pollSources(),
                         static fn (string $id): bool => in_array($id, $enabled, true),
                         static fn (string $module): string => $probe->status($module)
+                    );
+                    // the CDR grant follows enabled attachment rules, not just the AI source (3a-1)
+                    $paths = ApiKeyPaths::attentionCdr(
+                        $paths,
+                        (new RuleRepository($db))->needsAttentionAttachments()
                     );
                     $plainKey = $apiKey->sync($paths);
                     $context->rest = new LocalRestClient($plainKey);

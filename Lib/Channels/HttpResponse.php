@@ -26,6 +26,15 @@ final class HttpResponse
         return $this->errorCode !== '';
     }
 
+    /**
+     * True when the request certainly never left the station (DNS/proxy/connect failure, malformed
+     * URL). Such a retry cannot duplicate a notification, so the queue must not mark it `uncertain`.
+     */
+    public function isRequestNotSent(): bool
+    {
+        return in_array($this->errorCode, ['http.connect_failed', 'http.bad_request'], true);
+    }
+
     /** True when the body is a JSON object (a 200 with a broken body is not a success proof). */
     public function isJson(): bool
     {

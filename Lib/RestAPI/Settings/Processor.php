@@ -13,6 +13,7 @@ use Modules\ModuleMessengerHub\Lib\RestAPI\Common\Responder;
 use Modules\ModuleMessengerHub\Lib\RestAPI\Common\Translator;
 use Modules\ModuleMessengerHub\Lib\RestAPI\Common\UnknownActionException;
 use Modules\ModuleMessengerHub\Lib\RestAPI\Common\ValidationException;
+use Modules\ModuleMessengerHub\Lib\Routing\RuleRepository;
 use Modules\ModuleMessengerHub\Lib\Settings\HubSettings;
 use Modules\ModuleMessengerHub\Lib\Sources\ApiKeyPaths;
 use Modules\ModuleMessengerHub\Lib\Sources\CoreModuleStatusProbe;
@@ -44,6 +45,7 @@ final class Processor
     private ?ModuleStatusProbe $modules;
     private ?Translator $translator;
     private ?ApiKeySync $apiKeySync;
+    private ?HubDatabase $db;
 
     public function __construct(
         ?HubSettings $settings = null,
@@ -51,12 +53,14 @@ final class Processor
         ?ModuleStatusProbe $modules = null,
         ?Translator $translator = null,
         ?ApiKeySync $apiKeySync = null,
+        ?HubDatabase $db = null,
     ) {
         $this->settings = $settings;
         $this->states = $states;
         $this->modules = $modules;
         $this->translator = $translator;
         $this->apiKeySync = $apiKeySync;
+        $this->db = $db;
     }
 
     /** Entry point used by Core (WorkerApiCommands). */
@@ -261,11 +265,17 @@ final class Processor
             if ($probe === null) {
                 return;
             }
-            $this->apiKeySync->sync(ApiKeyPaths::compute(
+            $paths = ApiKeyPaths::compute(
                 SourceRegistry::default()->pollSources(),
                 fn (string $id): bool => $this->states()->isEnabled($id),
                 static fn (string $module): string => $probe->status($module)
-            ));
+            );
+            // the CDR grant exists only while an enabled rule can attach the attention-call audio
+            $paths = ApiKeyPaths::attentionCdr(
+                $paths,
+                (new RuleRepository($this->database()))->needsAttentionAttachments()
+            );
+            $this->apiKeySync->sync($paths);
         } catch (Throwable) {
             // the collector worker reconciles the key within a minute
         }
@@ -474,6 +484,6 @@ final class Processor
 
     private function database(): HubDatabase
     {
-        return new PhalconHubDatabase();
+        return $this->db ?? new PhalconHubDatabase();
     }
 }

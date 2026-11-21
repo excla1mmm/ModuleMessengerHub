@@ -123,7 +123,7 @@ final class TelegramApi
     {
         $response = $this->call($bot, 'deleteMessage', ['chat_id' => $chatId, 'message_id' => $messageId]);
         if ($response->failed()) {
-            return SendResult::retry(10, $response->errorCode, true);
+            return SendResult::retry(10, $response->errorCode, !$response->isRequestNotSent());
         }
         $json = $response->json();
         if ($response->status === 200 && ($json['ok'] ?? false) === true) {
@@ -187,8 +187,12 @@ final class TelegramApi
     private static function result(HttpResponse $response): SendResult
     {
         if ($response->failed()) {
-            // the messenger may have accepted the request before the answer was lost
-            return SendResult::retry(10, $response->errorCode, true);
+            if ($response->errorCode === 'file.unavailable') {
+                return SendResult::permanent('telegram.file_unavailable');
+            }
+            // the messenger may have accepted the request before the answer was lost, unless the
+            // request never left the station (DNS/proxy/connect)
+            return SendResult::retry(10, $response->errorCode, !$response->isRequestNotSent());
         }
         $json = $response->json();
         if ($response->status === 200 && ($json['ok'] ?? false) === true) {

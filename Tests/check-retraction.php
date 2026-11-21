@@ -359,6 +359,32 @@ check($channel->deleted === ['10', '11'], 'retraction: text and attachment ids a
 $row = $db->fetchOne('SELECT * FROM ' . OutboxRepository::TABLE . ' WHERE event_id = 1');
 check($row['status'] === 'retracted' && (int)$row['retracted_at'] === T + 603, 'retraction: status retracted');
 
+// 1b. a pending row whose text is already delivered is retracted, not cancelled
+$db = hubTestDatabase();
+seedBotAndChats($db);
+addRule($db, ['retract_on_callback' => ['enabled' => true, 'window_min' => 20, 'count_incoming_answered' => true]]);
+$settings = settingsFor($db);
+$router = routerFor($db, $settings);
+(new EventStore($db))->record(new HubEvent('core.missed_call', 'core.missed_call', 'warning', 'missed:m1b', T, missedPayload('m1b', T)), T);
+$router->runOnce(T + 1);
+$parts = json_encode([
+    'text' => ['state' => 'sent', 'id' => '20', 'code' => ''],
+    'note' => ['state' => 'none'],
+    'attachment' => ['state' => 'pending'],
+    'audio' => [['state' => 'pending', 'id' => '', 'code' => '', 'token' => '', 'not_ready' => 0, 'attempts' => 0, 'start_ms' => 0, 'end_ms' => 0]],
+], JSON_THROW_ON_ERROR);
+$db->execute(
+    'UPDATE ' . OutboxRepository::TABLE . " SET delivery_parts_json = :parts, external_message_ids = '[\"20\"]' WHERE event_id = 1",
+    ['parts' => $parts]
+);
+(new EventStore($db))->record(new HubEvent('core.missed_call', 'core.missed_call_resolved', 'info', 'resolved:m1b', T + 60, resolvedPayload('m1b')), T + 60);
+$router->runOnce(T + 61);
+$row = $db->fetchOne('SELECT * FROM ' . OutboxRepository::TABLE . ' WHERE event_id = 1');
+check($row['status'] === 'sent' && (int)$row['retract_requested_at'] === T + 61, 'planner: a delivered text is retracted, not cancelled');
+check($row['retract_reason'] === 'resolved_after_send', 'planner: resolved_after_send reason kept');
+$parts = json_decode((string)$row['delivery_parts_json'], true);
+check(($parts['audio'][0]['code'] ?? '') === 'resolved_after_send', 'planner: unfinished audio is skipped');
+
 // 2. callback 25 minutes later with a 20-minute window -> message stays
 $db = hubTestDatabase();
 seedBotAndChats($db);

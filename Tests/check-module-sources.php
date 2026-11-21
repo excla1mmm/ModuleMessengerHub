@@ -135,7 +135,6 @@ foreach ($moduleIds as $mid) {
 }
 check($registry->apiReadPaths(array_merge(['core.advice'], $moduleIds)) === [
     '/api/v3/advice',
-    '/api/v3/cdr',
     '/api/v3/module-ai-supervisor/calls',
     '/api/v3/module-ai-supervisor/workers',
     '/api/v3/module-voice-agent/callbacks',
@@ -151,10 +150,7 @@ $rest = new FixtureRestReader(attentionRoutes($listFixture));
 $attention = new AiAttentionCallSource(static fn (): array => MAP);
 check($attention->id() === 'ai_supervisor.attention_call', 'attention: id');
 check($attention->requiredModule() === 'ModuleAISupervisor', 'attention: module');
-check(
-    $attention->apiReadPaths() === [AiAttentionCallSource::API_READ_PATH, AiAttentionCallSource::CDR_READ_PATH],
-    'attention: read paths are the calls list and the CDR (recording by linkedid)'
-);
+check($attention->apiReadPaths() === [AiAttentionCallSource::API_READ_PATH], 'attention: the CDR path is conditional');
 
 // baseline: no events, no detail fetches
 $now = 1791073000;

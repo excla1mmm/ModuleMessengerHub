@@ -73,12 +73,13 @@ final class HttpTransport implements HttpClient
         $file = new \CURLFile($filePath, $mimeType, $filename !== '' ? $filename : basename($filePath));
         $payload = $fields;
         $payload[$fileField] = $file;
+        $bytes = (int)(@filesize($filePath) ?: 0);
 
         return $this->request($url, [
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => $payload,
             CURLOPT_HTTPHEADER => self::mergeHeaders($headers),
-        ]);
+        ], self::uploadTimeout($bytes));
     }
 
     /** @param list<string> $headers */
@@ -121,8 +122,17 @@ final class HttpTransport implements HttpClient
         return array_values($merged);
     }
 
+    /**
+     * Upload timeout from the file size (Plan/03): at ~64 KB/s, at least 60 s, at most 15 min.
+     * A 50 MB Telegram upload gets more than the default 15 s; a tiny voice file stays fast.
+     */
+    public static function uploadTimeout(int $bytes): int
+    {
+        return min(900, max(60, (int)ceil(max(0, $bytes) / 65536)));
+    }
+
     /** @param array<int, mixed> $extraOptions */
-    private function request(string $url, array $extraOptions): HttpResponse
+    private function request(string $url, array $extraOptions, ?int $timeoutSec = null): HttpResponse
     {
         $curl = curl_init($url);
         if ($curl === false) {
@@ -130,7 +140,7 @@ final class HttpTransport implements HttpClient
         }
         $options = [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => max(1, $this->timeoutSec),
+            CURLOPT_TIMEOUT => max(1, $timeoutSec ?? $this->timeoutSec),
             CURLOPT_CONNECTTIMEOUT => max(1, $this->connectTimeoutSec),
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
@@ -161,18 +171,30 @@ final class HttpTransport implements HttpClient
         $body = curl_exec($curl);
         $status = (int)curl_getinfo($curl, CURLINFO_HTTP_CODE);
         $errno = curl_errno($curl);
+        $connectTime = (float)curl_getinfo($curl, CURLINFO_CONNECT_TIME);
 
         if ($errno !== 0 || $body === false) {
-            return new HttpResponse(0, '', self::errorCode($errno));
+            return new HttpResponse(0, '', self::errorCode($errno, $connectTime));
         }
 
         return new HttpResponse($status, (string)$body, '', $retryAfter);
     }
 
-    private static function errorCode(int $errno): string
+    private static function errorCode(int $errno, float $connectTime = 0.0): string
     {
+        // 5/6/7 = proxy resolve / host resolve / connect: the request certainly never left the station
+        if (in_array($errno, [5, 6, 7], true)) {
+            return 'http.connect_failed';
+        }
+        if ($errno === CURLE_URL_MALFORMAT) {
+            return 'http.bad_request';
+        }
+        if ($errno === CURLE_OPERATION_TIMEDOUT) {
+            // a connect timeout did not send anything; a read timeout may be after the request
+            return $connectTime > 0 ? 'http.timeout' : 'http.connect_failed';
+        }
+
         return match (true) {
-            $errno === CURLE_OPERATION_TIMEDOUT => 'http.timeout',
             in_array($errno, self::CURL_SSL_ERRORS, true) => 'http.tls',
             default => 'http.unavailable',
         };

@@ -377,6 +377,18 @@ $http = new ScriptedMaxHttp();
 $http->queue('uploads_foreign');
 check($api($http)->requestUpload($bot, 'audio') === null, 'a foreign upload host is rejected (fail closed)');
 
+// ---------- transport outcomes: connect failure vs read timeout ----------
+
+$http = new ScriptedMaxHttp();
+$http->queueTransportError('http.connect_failed');
+$result = $api($http)->sendMessage($bot, $group, 'hi');
+check($result->outcome === SendResult::RETRY && !$result->uncertain, 'max: a connect failure is retried without uncertain');
+
+$http = new ScriptedMaxHttp();
+$http->queueTransportError('http.timeout');
+$result = $api($http)->sendMessage($bot, $group, 'hi');
+check($result->outcome === SendResult::RETRY && $result->uncertain, 'max: a read timeout after the request is uncertain');
+
 // ---------- audio attachment (stage 3a) ----------
 
 $http = new ScriptedMaxHttp();

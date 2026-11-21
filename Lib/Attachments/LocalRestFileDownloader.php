@@ -60,8 +60,10 @@ final class LocalRestFileDownloader implements RestFileDownloader
 
                 return $saved;
             },
-            CURLOPT_TIMEOUT => max(1, $this->timeoutSec),
+            CURLOPT_TIMEOUT => 900, // 15 min hard ceiling for one recording
             CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_LOW_SPEED_LIMIT => 1024, // a stalled CDR/S3 transfer aborts instead of hanging
+            CURLOPT_LOW_SPEED_TIME => 60,
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
             CURLOPT_SSL_VERIFYPEER => true,

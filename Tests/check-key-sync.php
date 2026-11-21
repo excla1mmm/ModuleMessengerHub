@@ -100,7 +100,6 @@ check(
 
 const ALL_POLL_PATHS = [
     '/api/v3/advice',
-    '/api/v3/cdr',
     '/api/v3/module-ai-supervisor/calls',
     '/api/v3/module-ai-supervisor/workers',
     '/api/v3/module-voice-agent/callbacks',
@@ -114,14 +113,14 @@ $processor = new SettingsProcessor(
     new SourceStateRepository($db),
     new AllAvailableProbe(),
     new ArrayTranslator([]),
-    $spy
+    $spy,
+    $db
 );
 
 // fresh database: every registered source is enabled, so the first toggle already knows the full set
 $result = $processor->process(['action' => 'patch', 'data' => ['sources' => ['core.advice' => false]]]);
 check($result->success, 'patch disables core.advice');
 check($spy->calls === [[
-    '/api/v3/cdr',
     '/api/v3/module-ai-supervisor/calls',
     '/api/v3/module-ai-supervisor/workers',
     '/api/v3/module-voice-agent/callbacks',
@@ -157,10 +156,29 @@ $paths = ApiKeyPaths::compute(
 );
 check($paths === [
     '/api/v3/advice',
-    '/api/v3/cdr',
     '/api/v3/module-ai-supervisor/calls',
     '/api/v3/module-ai-supervisor/workers',
 ], 'PATCH-time compute matches the collector compute (module off -> paths out)');
+
+// /api/v3/cdr follows enabled attachment rules, not the AI source alone (stage 3a-1)
+$spy->calls = [];
+$db->execute(
+    'INSERT INTO m_MessengerHubRules (title, enabled, event_types, min_severity, filters_json, target_mode,'
+    . ' chat_ids_json, template_key, options_json, quiet_hours_json, sort, created_at, updated_at)'
+    . " VALUES ('Audio', '1', '[\"ai_supervisor.attention_call\"]', 'info', '{}', 'recipients', '[]', '',"
+    . " '{\"attachments\":\"fragments\"}', '{}', 10, 1, 1)"
+);
+$processor->process(['action' => 'patch', 'data' => ['sources' => ['core.advice' => false]]]);
+check(in_array('/api/v3/cdr', $spy->calls[0] ?? [], true), 'an enabled attention-audio rule adds the CDR read path');
+
+$spy->calls = [];
+$db->execute("UPDATE m_MessengerHubRules SET enabled = '0'");
+$processor->process(['action' => 'patch', 'data' => ['sources' => ['core.advice' => true]]]);
+check(!in_array('/api/v3/cdr', $spy->calls[0] ?? [], true), 'disabling the rule removes the CDR read path');
+check(
+    ApiKeyPaths::attentionCdr(['/api/v3/advice'], true) === ['/api/v3/advice'],
+    'the CDR path is never added without the AI calls path'
+);
 
 finish('key sync OK');
 }

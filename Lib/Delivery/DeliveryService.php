@@ -13,6 +13,7 @@ use Modules\ModuleMessengerHub\Lib\Channels\BotCredentials;
 use Modules\ModuleMessengerHub\Lib\Channels\ChannelInterface;
 use Modules\ModuleMessengerHub\Lib\Channels\ChannelLimits;
 use Modules\ModuleMessengerHub\Lib\Channels\ChannelRegistry;
+use Modules\ModuleMessengerHub\Lib\Channels\HttpTransport;
 use Modules\ModuleMessengerHub\Lib\Channels\Recipient;
 use Modules\ModuleMessengerHub\Lib\Channels\SendResult;
 use Modules\ModuleMessengerHub\Lib\Routing\RenderedMessage;
@@ -73,10 +74,15 @@ final class DeliveryService
             try {
                 $outcome = $this->deliver($id, $now);
             } catch (Throwable $exception) {
-                // never let one row kill the batch; the code, not the message, goes to the log
-                $this->outbox->markFailed($id, 0, 'internal_error', $now, $this->owner);
-                HubLogger::event('delivery', 'row_failed', ['id' => $id, 'error' => $exception::class], LOG_ERR);
-                $outcome = 'failed';
+                // never let one row kill the batch; a delivered text must not become failed
+                if ($this->outbox->finalizeTextSentRow($id, 'internal_error', $now, $this->owner)) {
+                    HubLogger::event('delivery', 'row_finalized_after_text', ['id' => $id, 'error' => $exception::class], LOG_WARNING);
+                    $outcome = 'sent';
+                } else {
+                    $this->outbox->markFailed($id, 0, 'internal_error', $now, $this->owner);
+                    HubLogger::event('delivery', 'row_failed', ['id' => $id, 'error' => $exception::class], LOG_ERR);
+                    $outcome = 'failed';
+                }
             }
             if (isset($stats[$outcome])) {
                 $stats[$outcome]++;
@@ -98,13 +104,35 @@ final class DeliveryService
         }
         $botId = (int)$row['bot_id'];
         $attempts = (int)$row['attempts'];
+        $state = DeliveryState::fromJson((string)($row['delivery_parts_json'] ?? ''));
+        $legacyIds = json_decode((string)($row['external_message_ids'] ?? '[]'), true);
+        $legacyApplied = false;
+        if (($row['delivery_parts_json'] ?? null) === null
+            && is_array($legacyIds)
+            && isset($legacyIds[0])
+            && is_string($legacyIds[0])
+            && $legacyIds[0] !== ''
+        ) {
+            // a pre-3a row that already delivered its text: never send it again after the upgrade
+            $state->markTextSent($legacyIds[0]);
+            $legacyApplied = true;
+        }
+        if ($legacyApplied && !$this->save($id, $state, $now)) {
+            return 'retried';
+        }
 
         if ((string)$row['chat_enabled'] !== '1' || (string)$row['chat_state'] !== 'active') {
+            if ($this->outbox->finalizeTextSentRow($id, 'chat_unavailable', $now, $this->owner)) {
+                return 'sent';
+            }
             $this->outbox->markDropped($id, 'chat_unavailable', $now, $this->owner);
 
             return 'dropped';
         }
         if ((string)$row['bot_enabled'] !== '1') {
+            if ($this->outbox->finalizeTextSentRow($id, 'bot_disabled', $now, $this->owner)) {
+                return 'sent';
+            }
             $this->outbox->markDropped($id, 'bot_disabled', $now, $this->owner);
 
             return 'dropped';
@@ -126,17 +154,6 @@ final class DeliveryService
         }
 
         $plan = $this->plan($row);
-        $state = DeliveryState::fromJson((string)($row['delivery_parts_json'] ?? ''));
-        $legacyIds = json_decode((string)($row['external_message_ids'] ?? '[]'), true);
-        if (($row['delivery_parts_json'] ?? null) === null
-            && is_array($legacyIds)
-            && isset($legacyIds[0])
-            && is_string($legacyIds[0])
-            && $legacyIds[0] !== ''
-        ) {
-            // a pre-3a row that already delivered its text: never send it again after the upgrade
-            $state->markTextSent($legacyIds[0]);
-        }
         if ($plan !== null && $plan->available() && $state->audio === []) {
             foreach (self::audioRanges($plan) as $index => $range) {
                 $state->addAudio($index, $range);
@@ -150,18 +167,23 @@ final class DeliveryService
         );
         $limits = $channel->limits();
         $noteAllowed = true;
-        $textUncertain = false;
 
         // ---------- 1. the main text: never delayed by audio ----------
         if ($state->textState === DeliveryState::SENDING) {
-            // the previous worker may have reached the messenger: do not send the text twice
-            $state->markTextSent('', 'delivery.uncertain');
+            // a crashed send is an unknown outcome: one retry, then failed (stage 2, Plan/08)
+            $state->markTextPending('delivery.uncertain');
             if (!$this->save($id, $state, $now)) {
                 return 'retried';
             }
-            $textUncertain = true;
             HubLogger::event('delivery', 'text_uncertain', ['id' => $id], LOG_WARNING);
-        } elseif ($state->textState !== DeliveryState::SENT && $state->textState !== DeliveryState::FAILED) {
+
+            return $this->apply($id, $row, SendResult::retry(10, 'delivery.uncertain', true), $now);
+        } elseif ($state->textState === DeliveryState::FAILED) {
+            // a failed text row is not claimed for automatic resend; a manual retry resets the parts
+            $this->outbox->markFailed($id, $attempts, $state->textCode !== '' ? $state->textCode : 'text_failed', $now, $this->owner);
+
+            return 'failed';
+        } elseif ($state->textState !== DeliveryState::SENT) {
             $outgoing = $message;
             if ($plan !== null) {
                 if (!$plan->available()) {
@@ -210,38 +232,20 @@ final class DeliveryService
                 $this->outbox->markBotOk($botId, $now);
             } else {
                 $this->save($id, $state, $now);
-                if ($result->outcome === SendResult::RETRY && $result->uncertain) {
-                    // at-most-once: the messenger may have the text already, never duplicate it
-                    $state->markTextSent('', 'delivery.uncertain');
-                    if (!$this->save($id, $state, $now)) {
-                        return 'retried';
-                    }
-                    $textUncertain = true;
-                    HubLogger::event('delivery', 'text_uncertain', ['id' => $id], LOG_WARNING);
+                if ($result->outcome === SendResult::RECIPIENT_GONE) {
+                    $state->markTextFailed($result->code);
+                } elseif ($result->outcome === SendResult::PERMANENT) {
+                    $state->markTextFailed($result->code);
                 } else {
-                    if ($result->outcome === SendResult::RECIPIENT_GONE) {
-                        $state->markTextFailed($result->code);
-                    } else {
-                        $state->markTextPending($result->code);
-                    }
-                    if ($result->outcome === SendResult::PERMANENT) {
-                        $state->markTextFailed($result->code);
-                    }
-                    $this->save($id, $state, $now);
-
-                    return $this->apply($id, $row, $result, $now);
+                    $state->markTextPending($result->code);
                 }
+                $this->save($id, $state, $now);
+
+                return $this->apply($id, $row, $result, $now);
             }
         }
 
         // ---------- 2. audio parts: after the text, under an extended lease ----------
-        if ($textUncertain && $state->hasPendingAudio()) {
-            // the text may be missing: an orphan audio or note alone would be confusing
-            $this->skipAudio($state, 'attachment.text_uncertain', false);
-            $this->save($id, $state, $now);
-            $plan = null;
-            $noteAllowed = false;
-        }
         if ($plan === null && $state->hasPendingAudio()) {
             // keep the preflight/unavailable reason, do not overwrite it with "not applicable"
             $code = $state->attachmentCode !== '' ? $state->attachmentCode : 'attachment.not_applicable';
@@ -281,6 +285,7 @@ final class DeliveryService
                 } catch (Throwable $exception) {
                     // a broken preparation must not fail a row whose text is already delivered
                     HubLogger::event('attachments', 'prepare_failed', ['error' => $exception::class], LOG_ERR);
+                    $this->attachments->releaseEvent((int)$row['event_id']);
                     $prepared = PrepareResult::failed('attachment.prepare_failed');
                 }
                 if ($prepared->state === PrepareResult::BUSY) {
@@ -297,10 +302,21 @@ final class DeliveryService
                     return 'retried';
                 }
                 if ($prepared->state === PrepareResult::RETRY) {
-                    if ($attempts < 2) {
+                    $prepAttempts = $state->bumpAttachmentAttempt();
+                    if ($prepAttempts < 3) {
                         $this->save($id, $state, $now);
+                        $delay = RetryPolicy::delayAfter($prepAttempts) ?? 30;
+                        $this->outbox->markRetry(
+                            $id,
+                            $attempts, // preparation never consumes the text attempts
+                            $now + $delay,
+                            $prepared->code,
+                            false,
+                            $now,
+                            $this->owner
+                        );
 
-                        return $this->schedule($id, $row, SendResult::retry(30, $prepared->code), $now);
+                        return 'retried';
                     }
                     $this->skipAudio($state, $prepared->code);
                     $this->save($id, $state, $now);
@@ -384,7 +400,28 @@ final class DeliveryService
             return 'sent';
         }
 
-        // a defensive stop: a part is still pending, retry by the shared policy instead of looping forever
+        if ($state->textState === DeliveryState::SENT) {
+            // the text is delivered: unfinished audio/note parts are skipped, the row is sent
+            $this->skipAudio($state, 'delivery.incomplete', false);
+            if (in_array($state->noteState, [DeliveryState::PENDING, DeliveryState::SENDING], true)) {
+                $state->markNoteFailed('delivery.incomplete');
+            }
+            $state->recalculateAttachment();
+            if (!$this->outbox->markSentWithParts($id, $state->toArray(), $state->externalIds(), $now, $this->owner)) {
+                return 'retried';
+            }
+            if ($this->attachments !== null) {
+                try {
+                    $this->attachments->cleanupEvent((int)$row['event_id'], $now);
+                } catch (Throwable $exception) {
+                    HubLogger::event('attachments', 'cleanup_failed', ['error' => $exception::class], LOG_WARNING);
+                }
+            }
+
+            return 'sent';
+        }
+
+        // the text itself was not delivered: retry by the shared policy instead of looping forever
         $nextAttempt = $attempts + 1;
         $delay = RetryPolicy::delayAfter($nextAttempt);
         if ($delay === null) {
@@ -457,6 +494,11 @@ final class DeliveryService
                 return 'retried';
             }
 
+            // a large upload may legitimately take minutes: keep the row leased for that time
+            $uploadLease = $now + HttpTransport::uploadTimeout($bytes) + 60;
+            if (!$this->outbox->extendLease($id, $this->owner, max($uploadLease, time() + 60), time())) {
+                return 'retried';
+            }
             $state->markAudioSending($index);
             if (!$this->save($id, $state)) {
                 return 'retried';
@@ -494,7 +536,7 @@ final class DeliveryService
                     $delay = self::NOT_READY_DELAYS[min($count - 1, count(self::NOT_READY_DELAYS) - 1)];
                     $this->outbox->markRetry(
                         $id,
-                        $attempts + 1,
+                        $attempts, // a not-ready pause is not a text attempt
                         $now + $delay,
                         'max.attachment.not_ready',
                         false,
@@ -513,10 +555,26 @@ final class DeliveryService
                 $this->save($id, $state);
                 continue;
             }
+            $partAttempts = $state->bumpAudioAttempt($index);
+            $delay = RetryPolicy::delayAfter($partAttempts);
+            if ($delay === null) {
+                $state->skipAudio($index, 'attachment.retry_exhausted');
+                $this->save($id, $state);
+                continue;
+            }
             $state->markAudioPending($index, $result->result->code);
             $this->save($id, $state);
+            $this->outbox->markRetry(
+                $id,
+                $attempts, // the text is already delivered; keep its attempts separate
+                $now + max($delay, $result->result->retryAfterSec),
+                $result->result->code,
+                false,
+                $now,
+                $this->owner
+            );
 
-            return $this->schedule($id, $row, $result->result, $now);
+            return 'retried';
         }
 
         $state->recalculateAttachment();
@@ -596,28 +654,33 @@ final class DeliveryService
 
             return '';
         }
-        if ($result->uncertain) {
-            $state->markNoteSent('', 'delivery.uncertain');
+        $state->markNotePending($result->code);
+        $noteAttempts = $state->bumpNoteAttempt();
+        $delay = RetryPolicy::delayAfter($noteAttempts);
+        if ($delay === null) {
+            $state->markNoteFailed('attachment.retry_exhausted');
             $this->save($id, $state);
 
             return '';
         }
-        $state->markNotePending($result->code);
         $this->save($id, $state);
+        $this->outbox->markRetry(
+            $id,
+            $attempts, // the text is already delivered; keep its attempts separate
+            $now + max($delay, $result->retryAfterSec),
+            $result->code,
+            false,
+            $now,
+            $this->owner
+        );
 
-        return $this->schedule($id, $row, $result, $now);
+        return 'retried';
     }
 
     /** @param array<string, mixed> $row */
     private function apply(int $id, array $row, SendResult $result, int $now): string
     {
         return $this->applyResult($id, $row, $result, $now, true);
-    }
-
-    /** @param array<string, mixed> $row */
-    private function schedule(int $id, array $row, SendResult $result, int $now): string
-    {
-        return $this->applyResult($id, $row, $result, $now, false);
     }
 
     /** @param array<string, mixed> $row */
@@ -629,9 +692,10 @@ final class DeliveryService
 
         if ($result->outcome === SendResult::RECIPIENT_GONE) {
             HubLogger::event('delivery', 'recipient_gone', ['chat_id' => $chatId, 'code' => $result->code]);
+            $finalized = $this->outbox->finalizeTextSentRow($id, $result->code, $now);
             $this->outbox->markChatGone($chatId, $result->code, $now);
 
-            return 'dropped';
+            return $finalized ? 'sent' : 'dropped';
         }
 
         if ($result->outcome === SendResult::PERMANENT && $markRowOnPermanent) {
@@ -650,7 +714,7 @@ final class DeliveryService
         // RETRY (a permanent result never reaches here for an audio part: it is skipped instead)
         if ($result->migratedChatId !== null) {
             if (!$this->outbox->updateChatId($chatId, $result->migratedChatId)) {
-                return 'dropped';
+                return $this->outbox->finalizeTextSentRow($id, 'chat_migrated', $now) ? 'sent' : 'dropped';
             }
             $this->outbox->markRetry($id, $attempts + 1, $now, $result->code, false, $now, $this->owner);
 

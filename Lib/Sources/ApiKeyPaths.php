@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Modules\ModuleMessengerHub\Lib\Sources;
 
+use Modules\ModuleMessengerHub\Lib\Sources\Modules\AiAttentionCallSource;
+
 /**
  * Core REST paths the hub API key must contain (Plan/01, decision Q1).
  *
@@ -38,6 +40,24 @@ final class ApiKeyPaths
             }
         }
         $paths = array_keys($paths);
+        sort($paths, SORT_STRING);
+
+        return $paths;
+    }
+
+    /**
+     * `/api/v3/cdr` is needed only when an enabled rule can attach the attention-call recording.
+     * It is added only together with the AI Supervisor calls path (source enabled and module available).
+     *
+     * @param list<string> $paths
+     * @return list<string>
+     */
+    public static function attentionCdr(array $paths, bool $needed): array
+    {
+        if ($needed && in_array(AiAttentionCallSource::API_READ_PATH, $paths, true)) {
+            $paths[] = AiAttentionCallSource::CDR_READ_PATH;
+        }
+        $paths = array_values(array_unique($paths));
         sort($paths, SORT_STRING);
 
         return $paths;

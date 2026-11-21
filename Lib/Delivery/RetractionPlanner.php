@@ -86,6 +86,18 @@ final class RetractionPlanner
 
             $status = (string)$row['status'];
             if ($status === 'pending') {
+                $parts = json_decode((string)($row['delivery_parts_json'] ?? ''), true);
+                if (is_array($parts) && (($parts['text']['state'] ?? '') === 'sent')) {
+                    // the text is already in the chat: finish the row as sent, then retract it
+                    $outbox->finalizeTextSentRow((int)$row['id'], 'resolved_after_send', $now);
+                    if ($outbox->requestRetraction((int)$row['id'], 'resolved_after_send', $resolved->occurredAt, $resolvedBy, $now) === 1) {
+                        $stats['requested']++;
+                    } else {
+                        $stats['skipped']++;
+                    }
+
+                    continue;
+                }
                 if ($outbox->cancelForResolved((int)$row['id'], 'resolved_before_send', $resolved->occurredAt, $resolvedBy, $now) === 1) {
                     $stats['cancelled']++;
                 }

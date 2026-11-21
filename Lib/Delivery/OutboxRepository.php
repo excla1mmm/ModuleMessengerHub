@@ -36,16 +36,30 @@ final class OutboxRepository
     /**
      * `info` rows older than 24 hours are pointless (Plan/08): a week-old missed call is not news.
      * warning/critical rows keep waiting for the messenger to recover.
+     *
+     * A row whose text is already delivered is never dropped: its unfinished audio/note parts are
+     * skipped and the row is marked sent (the notification is in the chat and can be retracted).
      */
     public function dropStaleInfo(int $now, int $maxAgeSec = 86400): int
     {
-        return $this->db->execute(
-            'UPDATE ' . self::TABLE . " SET status = 'dropped', last_error_code = 'stale', last_error_at = :now,"
-            . ' updated_at = :now'
-            . " WHERE status = 'pending' AND created_at < :before AND event_id IN"
+        $rows = $this->db->fetchAll(
+            'SELECT o.id, o.delivery_parts_json FROM ' . self::TABLE . ' o'
+            . " WHERE o.status = 'pending' AND o.created_at < :before AND o.event_id IN"
             . ' (SELECT id FROM ' . self::EVENTS_TABLE . " WHERE severity = 'info')",
-            ['now' => $now, 'before' => $now - $maxAgeSec]
+            ['before' => $now - $maxAgeSec]
         );
+        $dropped = 0;
+        foreach ($rows as $row) {
+            if ($this->finalizeTextSentRow((int)$row['id'], 'stale', $now)) {
+                $dropped++;
+                continue;
+            }
+            if ($this->markDropped((int)$row['id'], 'stale', $now)) {
+                $dropped++;
+            }
+        }
+
+        return $dropped;
     }
 
     /**
@@ -130,7 +144,7 @@ final class OutboxRepository
     ): bool {
         $saved = $this->db->execute(
             'UPDATE ' . self::TABLE . ' SET delivery_parts_json = :parts, external_message_ids = :ids,'
-            . ' lease_until = COALESCE(:lease_until, lease_until), updated_at = :now'
+            . ' lease_until = MAX(CAST(COALESCE(lease_until, 0) AS INTEGER), CAST(COALESCE(:lease_until, 0) AS INTEGER)), updated_at = :now'
             . ' WHERE id = :id AND status = :sending AND lease_owner = :owner',
             [
                 'parts' => json_encode($parts, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
@@ -249,20 +263,79 @@ final class OutboxRepository
         ) > 0;
     }
 
-    /** The recipient is gone: nothing else queued for that chat should keep retrying (Plan/08). */
+    /**
+     * The recipient is gone: nothing else queued for that chat should keep retrying (Plan/08).
+     * A row whose text is already delivered is finished as sent (parts skipped), never dropped.
+     */
     public function markChatGone(int $chatId, string $code, int $now): void
     {
         $this->db->execute(
             'UPDATE ' . self::CHATS_TABLE . " SET state = 'gone', gone_reason = :code WHERE id = :id",
             ['code' => $code, 'id' => $chatId]
         );
+        $this->finalizeTextSentRowsForChat($chatId, $code, $now);
         $this->db->execute(
             'UPDATE ' . self::TABLE . " SET status = 'dropped', last_error_code = :code, last_error_at = :now,"
             . " lease_owner = '', lease_until = NULL, updated_at = :now"
-            . " WHERE chat_id = :chat AND status IN ('pending', 'sending')",
+            . " WHERE chat_id = :chat AND status IN ('pending', 'sending')"
+            . " AND INSTR(COALESCE(delivery_parts_json, ''), '\"text\":{\"state\":\"sent\"') = 0",
             ['code' => $code, 'now' => $now, 'chat' => $chatId]
         );
     }
+
+    private function finalizeTextSentRowsForChat(int $chatId, string $code, int $now): void
+    {
+        $rows = $this->db->fetchAll(
+            'SELECT id FROM ' . self::TABLE . " WHERE chat_id = :chat AND status IN ('pending', 'sending')"
+            . " AND (INSTR(COALESCE(delivery_parts_json, ''), '\"text\":{\"state\":\"sent\"') > 0"
+            . " OR (COALESCE(delivery_parts_json, '') = '' AND COALESCE(external_message_ids, '[]') <> '[]'))",
+            ['chat' => $chatId]
+        );
+        foreach ($rows as $row) {
+            $this->finalizeTextSentRow((int)$row['id'], $code, $now);
+        }
+    }
+
+    /**
+     * A delivered text is the end of the notification: unfinished audio/note parts are skipped and
+     * the row becomes `sent` (and can be retracted). Never turns a delivered text into failed/dropped.
+     */
+    public function finalizeTextSentRow(int $id, string $code, int $now, ?string $owner = null): bool
+    {
+        $row = $this->db->fetchOne('SELECT * FROM ' . self::TABLE . ' WHERE id = :id', ['id' => $id]);
+        if ($row === null) {
+            return false;
+        }
+        $state = DeliveryState::fromJson((string)($row['delivery_parts_json'] ?? ''));
+        if ($state->textState !== DeliveryState::SENT) {
+            $legacyIds = json_decode((string)($row['external_message_ids'] ?? '[]'), true);
+            if (($row['delivery_parts_json'] ?? null) !== null
+                || !is_array($legacyIds)
+                || !isset($legacyIds[0])
+                || !is_string($legacyIds[0])
+                || $legacyIds[0] === ''
+            ) {
+                return false;
+            }
+            $state->markTextSent($legacyIds[0]);
+        }
+        foreach (array_keys($state->audio) as $index) {
+            $part = $state->audioPart((int)$index);
+            if (in_array($part['state'] ?? '', [DeliveryState::PENDING, DeliveryState::SENDING], true)) {
+                $state->skipAudio((int)$index, $code);
+            }
+        }
+        if (in_array($state->noteState, [DeliveryState::PENDING, DeliveryState::SENDING], true)) {
+            $state->markNoteFailed($code);
+        }
+        if ($state->attachmentState === DeliveryState::PENDING && $state->audio === []) {
+            $state->attachmentSkipped($code);
+        }
+        $state->recalculateAttachment();
+
+        return $this->markSentWithParts($id, $state->toArray(), $state->externalIds(), $now, $owner);
+    }
+
 
     /**
      * A Telegram group became a supergroup: the same chat gets a new id (Plan/03).
@@ -288,10 +361,12 @@ final class OutboxRepository
         );
         if ($other !== null) {
             $now = time();
+            $this->finalizeTextSentRowsForChat($chatId, 'chat_migrated', $now);
             $this->db->execute(
                 'UPDATE ' . self::TABLE . " SET status = 'dropped', last_error_code = 'chat_migrated',"
                 . " last_error_at = :now, lease_owner = '', lease_until = NULL, updated_at = :now"
-                . " WHERE chat_id = :chat AND status IN ('pending', 'sending')",
+                . " WHERE chat_id = :chat AND status IN ('pending', 'sending')"
+                . " AND INSTR(COALESCE(delivery_parts_json, ''), '\"text\":{\"state\":\"sent\"') = 0",
                 ['now' => $now, 'chat' => $chatId]
             );
             // the supergroup is a separate, live chat row: keeping the stale duplicate would show a
@@ -463,11 +538,16 @@ final class OutboxRepository
     /** A pending delivery of a missed call whose client was called back is never sent. */
     public function cancelForResolved(int $id, string $reason, int $resolvedAt, string $resolvedBy, int $now): int
     {
-        return $this->db->execute(
+        $row = $this->db->fetchOne(
+            'SELECT event_id FROM ' . self::TABLE . ' WHERE id = :id',
+            ['id' => $id]
+        );
+        $cancelled = $this->db->execute(
             'UPDATE ' . self::TABLE . " SET status = 'cancelled', last_error_code = :reason,"
             . ' last_error_at = :now, resolved_at = :resolved_at, resolved_by = :resolved_by,'
             . ' retract_reason = :reason, lease_owner = \'\', lease_until = NULL, updated_at = :now'
-            . " WHERE id = :id AND status = 'pending'",
+            . " WHERE id = :id AND status = 'pending'"
+            . " AND INSTR(COALESCE(delivery_parts_json, ''), '\"text\":{\"state\":\"sent\"') = 0",
             [
                 'reason' => $reason,
                 'now' => $now,
@@ -476,6 +556,15 @@ final class OutboxRepository
                 'id' => $id,
             ]
         );
+        if ($cancelled > 0 && $row !== null) {
+            // release the prepared cache of an event that will not be delivered
+            $this->db->execute(
+                'DELETE FROM m_MessengerHubPreparedRecordings WHERE event_id = :event',
+                ['event' => (int)$row['event_id']]
+            );
+        }
+
+        return $cancelled;
     }
 
     /** Sent (or still sending) delivery of a missed call: queue the deletion of its messages. */

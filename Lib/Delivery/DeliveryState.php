@@ -27,10 +27,12 @@ final class DeliveryState
     public string $noteState = self::NONE;
     public string $noteId = '';
     public string $noteCode = '';
+    public int $noteAttempts = 0;
 
     /** none | pending | sent | partial | skipped | failed */
     public string $attachmentState = self::NONE;
     public string $attachmentCode = '';
+    public int $attachmentAttempts = 0;
 
     /** @var array<int|string, array<string, mixed>> part index => {state,id,code,token,not_ready,start_ms,end_ms} */
     public array $audio = [];
@@ -47,6 +49,7 @@ final class DeliveryState
                     'code' => '',
                     'token' => '',
                     'not_ready' => 0,
+                    'attempts' => 0,
                     'start_ms' => (int)($fragment['start_ms'] ?? 0),
                     'end_ms' => (int)($fragment['end_ms'] ?? 0),
                 ];
@@ -78,11 +81,13 @@ final class DeliveryState
         );
         $state->noteId = (string)($note['id'] ?? '');
         $state->noteCode = (string)($note['code'] ?? '');
+        $state->noteAttempts = (int)($note['attempts'] ?? 0);
         $state->attachmentState = self::known(
             (string)($attachment['state'] ?? self::NONE),
             [self::NONE, self::PENDING, self::SENT, 'partial', self::SKIPPED, self::FAILED]
         );
         $state->attachmentCode = (string)($attachment['code'] ?? '');
+        $state->attachmentAttempts = (int)($attachment['attempts'] ?? 0);
         foreach (is_array($data['audio'] ?? null) ? $data['audio'] : [] as $index => $part) {
             if (!is_array($part)) {
                 continue;
@@ -93,6 +98,7 @@ final class DeliveryState
                 'code' => (string)($part['code'] ?? ''),
                 'token' => (string)($part['token'] ?? ''),
                 'not_ready' => (int)($part['not_ready'] ?? 0),
+                'attempts' => (int)($part['attempts'] ?? 0),
                 'start_ms' => (int)($part['start_ms'] ?? 0),
                 'end_ms' => (int)($part['end_ms'] ?? 0),
             ];
@@ -106,8 +112,17 @@ final class DeliveryState
     {
         return [
             'text' => ['state' => $this->textState, 'id' => $this->textId, 'code' => $this->textCode],
-            'note' => ['state' => $this->noteState, 'id' => $this->noteId, 'code' => $this->noteCode],
-            'attachment' => ['state' => $this->attachmentState, 'code' => $this->attachmentCode],
+            'note' => [
+                'state' => $this->noteState,
+                'id' => $this->noteId,
+                'code' => $this->noteCode,
+                'attempts' => $this->noteAttempts,
+            ],
+            'attachment' => [
+                'state' => $this->attachmentState,
+                'code' => $this->attachmentCode,
+                'attempts' => $this->attachmentAttempts,
+            ],
             'audio' => $this->audio,
         ];
     }
@@ -127,14 +142,35 @@ final class DeliveryState
             'code' => '',
             'token' => '',
             'not_ready' => 0,
+            'attempts' => 0,
             'start_ms' => (int)($fragment['start_ms'] ?? 0),
             'end_ms' => (int)($fragment['end_ms'] ?? 0),
         ];
     }
 
+    public function bumpAttachmentAttempt(): int
+    {
+        return ++$this->attachmentAttempts;
+    }
+
+    public function bumpNoteAttempt(): int
+    {
+        return ++$this->noteAttempts;
+    }
+
+    public function bumpAudioAttempt(int $index): int
+    {
+        if (!isset($this->audio[$index])) {
+            return 0;
+        }
+        $this->audio[$index]['attempts'] = (int)($this->audio[$index]['attempts'] ?? 0) + 1;
+
+        return (int)$this->audio[$index]['attempts'];
+    }
+
     public function textDone(): bool
     {
-        return $this->textState === self::SENT || $this->textState === self::FAILED;
+        return $this->textState === self::SENT;
     }
 
     public function hasPendingAudio(): bool

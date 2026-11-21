@@ -27,6 +27,9 @@ interface AttachmentPipeline
 
     public function cleanupEvent(int $eventId, int $now): void;
 
+    /** Releases every cache row/file of an event (a preparation exception must not hold `preparing`). */
+    public function releaseEvent(int $eventId): void;
+
     /** @return array{stale: int, expired: int, files: int} */
     public function janitor(int $now): array;
 }

@@ -652,6 +652,40 @@ $smallPlan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $base 
 $small = $pipeline->prepare(11, $smallPlan, $smallLimits, 'w1', 1792000600, $heartbeat);
 check($small->state === 'ready' && isset($small->files[0]['path']), 'service: the cache keeps the file; channel limits are checked per send');
 
+// a lost lease releases the cache row instead of holding `preparing`
+$lostPlan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $base . '/monitor/rec.webm'], [], 'line', 'caption');
+$lost = $pipeline->prepare(30, $lostPlan, ChannelLimits::telegram(), 'w1', 1792000800, static fn (int $at): bool => false);
+check($lost->state === 'busy', 'cache: a lost heartbeat returns busy');
+check($repo->find($lostPlan->cacheKey(30)) === null, 'cache: a lost lease releases the cache row immediately');
+
+// a conversion timeout is retryable, not a six-hour failed cache row
+$timeoutPlan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $base . '/monitor/rec.webm'], [], 'line', 'caption');
+$timeoutRunner = new FakeRunner();
+$timeoutRunner->queue(new ProcessResult(-1, true));
+$localPaths = new PathGuard(new StaticRoots($base . '/monitor', $base . '/probe'));
+$timeoutPipeline = new AttachmentService(
+    new Converter($timeoutRunner, tools(fakeToolDir($base . '/timeout-tools'))),
+    new RecordingLocator(new MapRest(), new MapDownloader(), $localPaths),
+    $localPaths,
+    $repo,
+    new TempDir($base . '/module'),
+    $db
+);
+$timeout = $timeoutPipeline->prepare(31, $timeoutPlan, ChannelLimits::telegram(), 'w1', 1792000800, $heartbeat);
+check($timeout->state === 'retry' && $timeout->code === Converter::CODE_TIMEOUT, 'cache: a conversion timeout is retryable');
+check($repo->find($timeoutPlan->cacheKey(31)) === null, 'cache: a timeout does not leave a failed row for six hours');
+
+// saving parts never shortens a lease extended for a long upload
+$dbLease = hubTestDatabase();
+$leaseEvent = newEventId($dbLease);
+$leaseRow = seedAttachDelivery($dbLease, $leaseEvent, null);
+$leaseRepo = new OutboxRepository($dbLease);
+check($leaseRepo->claim(1, 1792000000, 'w1', 120) === [$leaseRow], 'lease: the row is claimed');
+$dbLease->execute('UPDATE ' . OutboxRepository::TABLE . ' SET lease_until = :until WHERE id = :id', ['until' => 1792009999, 'id' => $leaseRow]);
+$leaseRepo->saveParts($leaseRow, 'w1', ['text' => ['state' => 'pending']], [], 1792000000, 1792000120);
+$leaseAfter = (int)$dbLease->fetchOne('SELECT lease_until FROM ' . OutboxRepository::TABLE . ' WHERE id = :id', ['id' => $leaseRow])['lease_until'];
+check($leaseAfter === 1792009999, 'lease: a part save never shortens the upload lease');
+
 $kept = $prepared->files[0]['path'] ?? '';
 check($kept !== '' && file_exists($kept), 'service: the prepared file exists before cleanup');
 $pipeline->cleanupEvent(1, 1792000800);
@@ -879,7 +913,7 @@ deliver($db, $channel, $pipeline, 1792000000);
 check(count($channel->messages) === 1 && $channel->attachments === [], 'attachments none: text only');
 check(outbox($db, $rowId)['status'] === 'sent', 'attachments none: row sent');
 
-// reclaimed text: persisted `sending` is never sent again
+// reclaimed text: one retry (stage 2), then failed on a second unknown outcome
 $db = hubTestDatabase();
 $channel = new AttachChannel(new ChannelLimits(4096, 1024, 0, 1000, 100, 50 * 1024 * 1024, false, 0));
 $eventId = newEventId($db);
@@ -888,10 +922,21 @@ $rowId = seedAttachDelivery($db, $eventId, null, 1, json_encode($parts, JSON_THR
 deliver($db, $channel, pipelineFor($db, $base, new FakeRunner(), new MapRest(), new MapDownloader(), 7), 1792000000);
 $row = outbox($db, $rowId);
 $saved = json_decode((string)$row['delivery_parts_json'], true);
-check($channel->messages === [], 'at-most-once: a reclaimed text is never re-sent');
-check($row['status'] === 'sent' && ($saved['text']['code'] ?? '') === 'delivery.uncertain', 'at-most-once: the uncertain outcome is recorded');
+check($row['status'] === 'pending' && (int)$row['uncertain_attempts'] === 1, 'reclaimed text: one unknown outcome is retried');
+check($channel->messages === [] && ($saved['text']['state'] ?? '') === 'pending', 'reclaimed text: not sent on the unknown pass');
+deliver($db, $channel, pipelineFor($db, $base, new FakeRunner(), new MapRest(), new MapDownloader(), 16), 1792000011);
+$row = outbox($db, $rowId);
+check($row['status'] === 'sent' && count($channel->messages) === 1, 'reclaimed text: the single retry sends it');
 
-// reclaimed text with planned audio: no orphan audio, no note
+$db = hubTestDatabase();
+$channel = new AttachChannel(new ChannelLimits(4096, 1024, 0, 1000, 100, 50 * 1024 * 1024, false, 0));
+$eventId = newEventId($db);
+$rowId = seedAttachDelivery($db, $eventId, null, 1, json_encode($parts, JSON_THROW_ON_ERROR));
+$db->execute('UPDATE ' . OutboxRepository::TABLE . ' SET uncertain_attempts = 1 WHERE id = :id', ['id' => $rowId]);
+deliver($db, $channel, pipelineFor($db, $base, new FakeRunner(), new MapRest(), new MapDownloader(), 17), 1792000000);
+check(outbox($db, $rowId)['status'] === 'failed', 'reclaimed text: a second unknown outcome fails visibly');
+
+// reclaimed text with planned audio: audio waits for the text
 $db = hubTestDatabase();
 $channel = new AttachChannel(new ChannelLimits(4096, 1024, 0, 1000, 100, 50 * 1024 * 1024, false, 0));
 $eventId = newEventId($db);
@@ -900,13 +945,14 @@ $parts = [
     'text' => ['state' => 'sending', 'id' => '', 'code' => ''],
     'note' => ['state' => 'none'],
     'attachment' => ['state' => 'pending'],
-    'audio' => [['state' => 'pending', 'id' => '', 'code' => '', 'token' => '', 'not_ready' => 0, 'start_ms' => 0, 'end_ms' => 0]],
+    'audio' => [['state' => 'pending', 'id' => '', 'code' => '', 'token' => '', 'not_ready' => 0, 'attempts' => 0, 'start_ms' => 0, 'end_ms' => 0]],
 ];
 $rowId = seedAttachDelivery($db, $eventId, json_encode($plan->toArray(), JSON_THROW_ON_ERROR), 1, json_encode($parts, JSON_THROW_ON_ERROR));
 deliver($db, $channel, pipelineFor($db, $base, new FakeRunner(), new MapRest(), new MapDownloader(), 10), 1792000000);
-$saved = json_decode((string)outbox($db, $rowId)['delivery_parts_json'], true);
-check($channel->messages === [] && $channel->attachments === [], 'at-most-once: no orphan audio or note after an uncertain text');
-check(($saved['audio'][0]['state'] ?? '') === 'skipped' && ($saved['audio'][0]['code'] ?? '') === 'attachment.text_uncertain', 'at-most-once: the audio is skipped with the text_uncertain reason');
+check($channel->messages === [] && $channel->attachments === [], 'reclaimed text + audio: audio waits for the text retry');
+deliver($db, $channel, pipelineFor($db, $base, new FakeRunner(), new MapRest(), new MapDownloader(), 18), 1792000011);
+check(count($channel->messages) === 1 && count($channel->attachments) === 1, 'reclaimed text + audio: text first, then audio');
+check(outbox($db, $rowId)['status'] === 'sent', 'reclaimed text + audio: the row is sent');
 
 // MAX attachment.not.ready: the same token is reused, bounded
 $db = hubTestDatabase();
@@ -943,6 +989,110 @@ $stats = deliver($db, $channel, $pipeline, 1792000000);
 check($stats['sent'] === 2, 'cache: both chats delivered');
 check(count($runner->commands) === 2, 'cache: one conversion + one probe for both chats');
 check(count($channel->messages) === 2 && count($channel->attachments) === 2, 'cache: text and audio per chat');
+
+// audio retries are bounded and never fail a delivered text
+$db = hubTestDatabase();
+$runner = new FakeRunner();
+$pipeline = pipelineFor($db, $base, $runner, new MapRest(), new MapDownloader(), 19);
+$channel = new AttachChannel(new ChannelLimits(4096, 1024, 0, 1000, 100, 50 * 1024 * 1024, false, 0));
+$plan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $base . '/monitor/rec.webm'], [], 'Запись доступна в АТС.', 'Запись');
+$eventId = newEventId($db);
+$rowId = seedAttachDelivery($db, $eventId, json_encode($plan->toArray(), JSON_THROW_ON_ERROR));
+$channel->attachmentResults = array_fill(0, 7, AttachmentResult::of(SendResult::retry(0, 'telegram.500.server_error')));
+$when = 1792000000;
+$delays = [10, 30, 120, 600, 1800, 7200];
+foreach ($delays as $delay) {
+    deliver($db, $channel, $pipeline, $when);
+    $when += $delay;
+}
+deliver($db, $channel, $pipeline, $when);
+$row = outbox($db, $rowId);
+$saved = json_decode((string)$row['delivery_parts_json'], true);
+check($row['status'] === 'sent', 'audio: exhausted retries never fail a delivered text');
+check(count($channel->attachments) === 7, 'audio: every attempt is recorded');
+check(($saved['audio'][0]['state'] ?? '') === 'skipped' && ($saved['audio'][0]['code'] ?? '') === 'attachment.retry_exhausted', 'audio: the part is skipped after the retry schedule');
+check(count($channel->messages) === 2, 'audio: the fallback note follows the skipped part');
+check((int)$row['attempts'] === 0, 'audio: part retries do not consume the text attempts');
+
+// preparation retries have their own counter and fall back to the note
+$db = hubTestDatabase();
+$runner = new FakeRunner();
+$rest = new MapRest();
+$rest->routes['/pbxcore/api/v3/cdr/501'] = ['download_url' => '/pbxcore/api/v3/cdr:download?token=abc123'];
+$downloader = new MapDownloader();
+$downloader->error = 'http.timeout';
+$pipeline = pipelineFor($db, $base, $runner, $rest, $downloader, 20);
+$channel = new AttachChannel(new ChannelLimits(4096, 1024, 0, 1000, 100, 50 * 1024 * 1024, false, 0));
+$plan = new AttachmentPlan('recording', ['type' => 'cdr', 'cdr_id' => 501], [], 'Запись доступна в АТС.', 'Запись');
+$eventId = newEventId($db);
+$rowId = seedAttachDelivery($db, $eventId, json_encode($plan->toArray(), JSON_THROW_ON_ERROR));
+$when = 1792000000;
+foreach ([10, 30] as $delay) {
+    deliver($db, $channel, $pipeline, $when);
+    $when += $delay;
+}
+deliver($db, $channel, $pipeline, $when);
+$row = outbox($db, $rowId);
+$saved = json_decode((string)$row['delivery_parts_json'], true);
+check($row['status'] === 'sent' && count($channel->messages) === 2, 'prepare: a transient source failure degrades to the note');
+check(($saved['attachment']['attempts'] ?? 0) === 3, 'prepare: preparation attempts are tracked separately');
+check((int)$row['attempts'] === 0, 'prepare: preparation never consumes the text attempts');
+
+// a delivered text is finalized, never dropped/cancelled
+$db = hubTestDatabase();
+$outbox = new OutboxRepository($db);
+$channel = new AttachChannel(new ChannelLimits(4096, 1024, 0, 1000, 100, 50 * 1024 * 1024, false, 0));
+$chatId = 1;
+$eventId = newEventId($db);
+$partsSent = ['text' => ['state' => 'sent', 'id' => 't1', 'code' => ''], 'note' => ['state' => 'none'], 'attachment' => ['state' => 'pending'], 'audio' => [['state' => 'pending', 'id' => '', 'code' => '', 'token' => '', 'not_ready' => 0, 'attempts' => 0, 'start_ms' => 0, 'end_ms' => 0]]];
+$sentRow = seedAttachDelivery($db, $eventId, null, 1, json_encode($partsSent, JSON_THROW_ON_ERROR));
+$db->execute('UPDATE ' . OutboxRepository::TABLE . " SET status = 'pending', created_at = :old WHERE id = :id", ['old' => 1790000000, 'id' => $sentRow]);
+$db->execute(
+    'INSERT INTO m_MessengerHubEvents (source_id, event_type, severity, dedupe_key, occurred_at, payload_json, routed_at, created_at)'
+    . " VALUES ('core.voicemail', 'core.voicemail', 'info', :key, :at, '{}', 1, :at)",
+    ['key' => 'stale-' . uniqid('', true), 'at' => 1790000000]
+);
+$staleEvent = $db->lastInsertId();
+$staleRow = seedAttachDelivery($db, $staleEvent, null, 2, json_encode($partsSent, JSON_THROW_ON_ERROR));
+$db->execute('UPDATE ' . OutboxRepository::TABLE . " SET status = 'pending', created_at = :old WHERE id = :id", ['old' => 1790000000, 'id' => $staleRow]);
+check($outbox->dropStaleInfo(1792000000) >= 1, 'stale: a delivered text is finalized, not dropped');
+check(outbox($db, $staleRow)['status'] === 'sent', 'stale: the text-sent row is sent');
+$staleParts = json_decode((string)outbox($db, $staleRow)['delivery_parts_json'], true);
+check(($staleParts['audio'][0]['code'] ?? '') === 'stale', 'stale: unfinished audio is skipped with the reason');
+
+// chat gone / migrated: same rule
+$db = hubTestDatabase();
+$outbox = new OutboxRepository($db);
+$eventId = newEventId($db);
+$chatRow = seedAttachDelivery($db, $eventId, null, 3, json_encode($partsSent, JSON_THROW_ON_ERROR));
+$textPendingRow = seedAttachDelivery($db, newEventId($db), null, 3);
+$outbox->markChatGone(3, 'telegram.403.kicked', 1792000000);
+check(outbox($db, $chatRow)['status'] === 'sent', 'chat gone: a delivered text is sent, not dropped');
+check(outbox($db, $textPendingRow)['status'] === 'dropped', 'chat gone: a non-text row is dropped');
+
+$db = hubTestDatabase();
+$outbox = new OutboxRepository($db);
+$eventId = newEventId($db);
+$staleChatRow = seedAttachDelivery($db, $eventId, null, 4, json_encode($partsSent, JSON_THROW_ON_ERROR));
+$db->execute(
+    'INSERT INTO m_MessengerHubBotChats (id, bot_id, chat_id, chat_kind, title, linked_user_id, enabled, state, gone_reason, discovered_at)'
+    . " VALUES (5, 1, '-1005', 'group', 'Новая', 0, '1', 'active', '', 1)"
+);
+check($outbox->updateChatId(4, '-1005') === false, 'migration: the stale duplicate is merged');
+check(outbox($db, $staleChatRow)['status'] === 'sent', 'migration: a delivered text is sent, not dropped');
+$staleParts = json_decode((string)outbox($db, $staleChatRow)['delivery_parts_json'], true);
+check(($staleParts['audio'][0]['code'] ?? '') === 'chat_migrated', 'migration: unfinished audio is skipped with the reason');
+
+// resolved: a delivered text is not cancelled; it becomes retractable
+$db = hubTestDatabase();
+$outbox = new OutboxRepository($db);
+$eventId = newEventId($db);
+$resolvedRow = seedAttachDelivery($db, $eventId, null, 6, json_encode($partsSent, JSON_THROW_ON_ERROR));
+$db->execute('UPDATE ' . OutboxRepository::TABLE . " SET status = 'pending' WHERE id = :id", ['id' => $resolvedRow]);
+check($outbox->cancelForResolved($resolvedRow, 'resolved_before_send', 1792000000, 'Иванов И. (233)', 1792000000) === 0, 'resolved: a delivered text is not cancelled');
+check(outbox($db, $resolvedRow)['status'] === 'pending', 'resolved: the row waits for the retraction path');
+check($outbox->finalizeTextSentRow($resolvedRow, 'resolved_after_send', 1792000000), 'resolved: the delivered text is finalized');
+check($outbox->requestRetraction($resolvedRow, 'resolved_after_send', 1792000000, 'Иванов И. (233)', 1792000000) === 1, 'resolved: the delivered text becomes retractable');
 
 // ---------- 8. retraction ids of text + parts ----------
 

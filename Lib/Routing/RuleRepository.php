@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Modules\ModuleMessengerHub\Lib\Routing;
 
+use Modules\ModuleMessengerHub\Lib\Attachments\AttachmentMode;
+use Modules\ModuleMessengerHub\Lib\Sources\Modules\AiAttentionCallSource;
 use Modules\ModuleMessengerHub\Lib\Storage\HubDatabase;
 
 /**
@@ -33,6 +35,24 @@ final class RuleRepository
     public function rows(): array
     {
         return $this->db->fetchAll('SELECT * FROM ' . self::TABLE . ' ORDER BY sort ASC, id ASC');
+    }
+
+    /**
+     * True when at least one enabled rule asks for attention-call audio. Controls whether the hub
+     * key holds read access to `/api/v3/cdr` (Plan/03, decision 3a-1): no rule, no CDR grant.
+     */
+    public function needsAttentionAttachments(): bool
+    {
+        foreach ($this->enabled() as $rule) {
+            if (!AttachmentMode::enabled($rule->attachmentsMode())) {
+                continue;
+            }
+            if (EventTypeMatcher::matches($rule->eventTypes, AiAttentionCallSource::EVENT_TYPE)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function find(int $id): ?Rule

@@ -80,7 +80,9 @@ final class AiAttentionCallSource implements SourceInterface
 
     public function apiReadPaths(): array
     {
-        return [self::API_READ_PATH, self::CDR_READ_PATH];
+        // /api/v3/cdr is added to the key only while an enabled rule asks for attention-call audio
+        // (ApiKeyPaths::attentionCdr) — it is not a blanket read of every CDR (Plan/03, decision 3a-1).
+        return [self::API_READ_PATH];
     }
 
     public function mode(): string
