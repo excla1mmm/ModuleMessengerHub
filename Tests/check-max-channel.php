@@ -377,6 +377,13 @@ $http = new ScriptedMaxHttp();
 $http->queue('uploads_foreign');
 check($api($http)->requestUpload($bot, 'audio') === null, 'a foreign upload host is rejected (fail closed)');
 
+// the real station answer points at the OK/MAX media CDN, not at *.max.ru (verified 21.11.2026)
+$http = new ScriptedMaxHttp();
+$http->queue('uploads_cdn')->queue('uploads_cdn')->queue('send_ok');
+$cdn = $api($http)->sendAudio($bot, $group, '/module/tmp/a.mp3');
+check($cdn->result->outcome === SendResult::SENT, 'upload: a CDN upload host of the MAX platform is accepted');
+check($http->calls[1]['method'] === 'multipart' && $http->calls[1]['headers'] === [], 'upload: the bot token is never sent to the CDN host');
+
 // ---------- transport outcomes: connect failure vs read timeout ----------
 
 $http = new ScriptedMaxHttp();

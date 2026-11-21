@@ -130,7 +130,7 @@ final class AttachmentService implements AttachmentPipeline
             );
             if ($converted->code === Converter::CODE_CANCELLED) {
                 $this->tempDir->remove($output);
-                $this->tempDir->remove($located->path);
+                $this->tempDir->remove($source);
                 foreach ($files as $file) {
                     if (is_string($file['path'] ?? null)) {
                         $this->tempDir->remove($file['path']);
@@ -142,7 +142,7 @@ final class AttachmentService implements AttachmentPipeline
             }
             if (!$converted->ok()) {
                 $this->tempDir->remove($output);
-                $this->tempDir->remove($located->path);
+                $this->tempDir->remove($source);
                 foreach ($files as $file) {
                     if (is_string($file['path'] ?? null)) {
                         $this->tempDir->remove($file['path']);
@@ -173,7 +173,7 @@ final class AttachmentService implements AttachmentPipeline
                 'end_ms' => is_array($range) ? (int)$range['end_ms'] : 0,
             ];
         }
-        $this->tempDir->remove($located->path);
+        $this->tempDir->remove($source);
         $this->prepared->markReady($id, $owner, $files, time());
 
         return PrepareResult::ready($files);

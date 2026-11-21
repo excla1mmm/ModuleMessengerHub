@@ -54,29 +54,29 @@ final class Converter
         $timedOut = false;
         foreach ($this->buildCommands($source, $output, $fragment, $wavPath) as $command) {
             if ($onProgress !== null && $onProgress() === false) {
-                @unlink($output);
-                @unlink($wavPath);
+                self::discard($output);
+                self::discard($wavPath);
 
                 return new ConversionResult(code: self::CODE_CANCELLED);
             }
             $result = $this->runner->run($command, $this->timeoutSec);
             if ($result->timedOut) {
                 $timedOut = true;
-                @unlink($output);
+                self::discard($output);
                 break; // a second heavy attempt would only spend another timeout
             }
             if ($result->ok() && self::looksLikeMp3($output)) {
-                @unlink($wavPath);
+                self::discard($wavPath);
 
                 return new ConversionResult(
                     path: $output,
                     durationMs: $this->durationMs($output),
                 );
             }
-            @unlink($output);
-            @unlink($wavPath);
+            self::discard($output);
+            self::discard($wavPath);
         }
-        @unlink($wavPath);
+        self::discard($wavPath);
 
         return new ConversionResult(
             code: $timedOut ? self::CODE_TIMEOUT : self::CODE_FAILED,
@@ -182,6 +182,17 @@ final class Converter
         }
 
         return 0;
+    }
+
+    /**
+     * Removes a scratch file only when it exists: a suppressed unlink() warning still lands in
+     * error_get_last() and a worker shutdown handler then logs it as SHUTDOWN-ERROR (seen on the station).
+     */
+    private static function discard(string $path): void
+    {
+        if (is_file($path)) {
+            @unlink($path);
+        }
     }
 
     private static function seconds(int $milliseconds): string

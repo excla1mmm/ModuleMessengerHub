@@ -634,6 +634,22 @@ $secondService = pipelineFor($db, $base, $runner, $rest, $downloader, 2);
 $prepared = $secondService->prepare(1, $monitorPlan, ChannelLimits::telegram(), 'w2', 1792000200, $heartbeat);
 check($prepared->state === 'ready' && count($runner->commands) === $commandsAfterFirst, 'service: the cache survives a service restart');
 
+// a path source that lives inside the module temp tree (the probe dir) must survive its own conversion:
+// the next chat of the same event runs preflight on it again (found on the station, stage 3a-3)
+@mkdir($base . '/module/tmp/probe', 0700, true);
+file_put_contents($base . '/module/tmp/probe/keep.wav', str_repeat('z', 128));
+$probeSourcePlan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $base . '/module/tmp/probe/keep.wav'], [], 'line', 'caption', probe: true);
+$probePipeline = new AttachmentService(
+    new Converter($runner, tools(fakeToolDir($base . '/t1'))),
+    new RecordingLocator($rest, $downloader, new PathGuard(new StaticRoots($base . '/monitor', $base . '/module/tmp/probe'))),
+    new PathGuard(new StaticRoots($base . '/monitor', $base . '/module/tmp/probe')),
+    new PreparedRecordingsRepository($db),
+    new TempDir($base . '/module'),
+    $db
+);
+$probePrepared = $probePipeline->prepare(8, $probeSourcePlan, ChannelLimits::telegram(), 'w1', 1792000250, $heartbeat);
+check($probePrepared->state === 'ready' && is_file($base . '/module/tmp/probe/keep.wav'), 'service: a probe source in the module temp tree is not deleted after conversion');
+
 $busyPlan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $base . '/monitor/rec.webm'], [], 'line', 'caption');
 $cacheKey = $busyPlan->cacheKey(9);
 $repo = new PreparedRecordingsRepository($db);

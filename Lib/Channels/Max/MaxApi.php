@@ -236,7 +236,7 @@ final class MaxApi
         $json = $response->json();
         $url = is_string($json['url'] ?? null) ? $json['url'] : '';
         $token = is_string($json['token'] ?? null) ? $json['token'] : '';
-        if (preg_match('~^https://~i', $url) !== 1 || $token === '' || !$this->isMaxHost($url)) {
+        if (preg_match('~^https://~i', $url) !== 1 || $token === '' || !$this->isUploadHost($url)) {
             // fail closed: a hostile/hijacked /uploads answer must never receive the recording
             return null;
         }
@@ -475,6 +475,27 @@ final class MaxApi
     {
         // a header value must never carry control characters, whatever token a caller supplies
         return 'Authorization: ' . (string)preg_replace('/[\x00-\x1F\x7F]/', '', $bot->token);
+    }
+
+    /**
+     * Hosts an upload URL may point to. Verified on the station (21.11.2026): `POST /uploads` answers with a
+     * CDN host of the MAX/OK media platform (`*.okcdn.ru`, certificate `*.mycdn.me`), not a `*.max.ru` one.
+     * The bot token is still sent only to the API host / `*.max.ru` (isMaxHost): the upload URL itself
+     * carries the authorisation, so the CDN never sees the token.
+     */
+    private function isUploadHost(string $url): bool
+    {
+        if ($this->isMaxHost($url)) {
+            return true;
+        }
+        $host = strtolower((string)parse_url($url, PHP_URL_HOST));
+        foreach (['.okcdn.ru', '.mycdn.me'] as $suffix) {
+            if ($host !== '' && str_ends_with($host, $suffix)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** True when the URL belongs to the API host or a MAX subdomain (upload endpoints live there). */
