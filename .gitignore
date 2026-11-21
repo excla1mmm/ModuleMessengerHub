@@ -1,0 +1,13 @@
+.DS_Store
+*.log
+*.zip
+/vendor/
+/db/
+/builds/
+.worktrees/
+.superpowers/
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+
+# machine-local notes: station access, local paths (see CLAUDE.md)
+LOCAL.md

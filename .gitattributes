@@ -1,0 +1,11 @@
+# Development files stay out of `git archive` (the module-applications check builds its package that way)
+/.github export-ignore
+/.gitlab-ci.yml export-ignore
+/.gitattributes export-ignore
+/.gitignore export-ignore
+/AGENTS.md export-ignore
+/CLAUDE.md export-ignore
+/Plan export-ignore
+/Tests export-ignore
+/docs export-ignore
+/scripts export-ignore

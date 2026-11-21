@@ -1,0 +1,26 @@
+{
+    "name": "local/module-messenger-hub",
+    "description": "Messenger notifications hub for MikoPBX (Telegram, MAX)",
+    "require": {
+        "mikopbx/core": ">=2025.1.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\ModuleMessengerHub\\": "/"
+        }
+    },
+    "type": "application",
+    "keywords": [
+        "mikopbx",
+        "notifications",
+        "telegram",
+        "max"
+    ],
+    "license": "GPL-3.0-or-later",
+    "config": {
+        "sort-packages": true,
+        "platform": {
+            "php": "8.3"
+        }
+    }
+}

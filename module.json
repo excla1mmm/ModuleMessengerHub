@@ -1,0 +1,13 @@
+{
+  "moduleUniqueID": "ModuleMessengerHub",
+  "version": "1.0",
+  "min_pbx_version": "2025.1.1",
+  "developer": "MIKO",
+  "support_email": "help@miko.ru",
+  "wiki_links": "",
+  "release_settings": {
+    "publish_release": true,
+    "changelog_enabled": true,
+    "create_github_release": true
+  }
+}

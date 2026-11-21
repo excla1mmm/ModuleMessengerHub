@@ -1,0 +1,77 @@
+# Tests and an installable package on every push to develop and master, and on pull requests.
+# Nothing is published from here: releases go through mikopbx/module-applications (see docs/publishing.md).
+name: CI
+
+on:
+  push:
+    branches: [develop, master]
+  pull_request:
+    branches: [develop, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Lint and contract checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite, mbstring, curl, zip
+          coverage: none
+          tools: none
+
+      - name: PHP syntax
+        run: |
+          set -euo pipefail
+          failed=0
+          while IFS= read -r -d '' file; do
+            php -l "$file" > /dev/null || failed=1
+          done < <(find . -name '*.php' -not -path './vendor/*' -print0)
+          exit "$failed"
+
+      - name: Contract checks
+        run: php Tests/run-all.php
+
+  package:
+    name: Package
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: zip
+          coverage: none
+          tools: none
+
+      - name: Build the module archive
+        id: build
+        env:
+          # CI builds are numbered by the run; release versions are set at publication time
+          VERSION: 1.${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          ./scripts/package-module.sh "$RUNNER_TEMP/build"
+          echo "file=$RUNNER_TEMP/build/ModuleMessengerHub.${VERSION}.zip" >> "$GITHUB_OUTPUT"
+          echo "name=ModuleMessengerHub-${VERSION}-${GITHUB_REF_NAME//\//-}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.build.outputs.name }}
+          path: ${{ steps.build.outputs.file }}
+          if-no-files-found: error
+          retention-days: 30
