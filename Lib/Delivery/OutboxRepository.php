@@ -50,11 +50,11 @@ final class OutboxRepository
         );
         $dropped = 0;
         foreach ($rows as $row) {
-            if ($this->finalizeTextSentRow((int)$row['id'], 'stale', $now)) {
+            if ($this->finalizeTextSentRow((int)$row['id'], 'stale', $now, null, true)) {
                 $dropped++;
                 continue;
             }
-            if ($this->markDropped((int)$row['id'], 'stale', $now)) {
+            if ($this->markDropped((int)$row['id'], 'stale', $now, null, true)) {
                 $dropped++;
             }
         }
@@ -176,9 +176,21 @@ final class OutboxRepository
      * @param array<string, mixed> $parts
      * @param list<string> $ids
      */
-    public function markSentWithParts(int $id, array $parts, array $ids, int $now, ?string $owner = null): bool
-    {
-        $guard = $owner === null ? '' : " AND status = 'sending' AND lease_owner = :owner";
+    public function markSentWithParts(
+        int $id,
+        array $parts,
+        array $ids,
+        int $now,
+        ?string $owner = null,
+        ?string $expectedStatus = null,
+    ): bool {
+        if ($owner !== null) {
+            $guard = " AND status = 'sending' AND lease_owner = :owner";
+        } elseif ($expectedStatus !== null) {
+            $guard = ' AND status = :expected_status';
+        } else {
+            $guard = '';
+        }
         $bind = [
             'ids' => json_encode(array_values($ids), JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
             'parts' => json_encode($parts, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
@@ -187,6 +199,8 @@ final class OutboxRepository
         ];
         if ($owner !== null) {
             $bind['owner'] = $owner;
+        } elseif ($expectedStatus !== null) {
+            $bind['expected_status'] = $expectedStatus;
         }
         $saved = $this->db->execute(
             'UPDATE ' . self::TABLE . " SET status = 'sent', external_message_ids = :ids,"
@@ -248,9 +262,20 @@ final class OutboxRepository
         ) > 0;
     }
 
-    public function markDropped(int $id, string $code, int $now, ?string $owner = null): bool
-    {
-        $guard = $owner === null ? '' : " AND status = 'sending' AND lease_owner = :owner";
+    public function markDropped(
+        int $id,
+        string $code,
+        int $now,
+        ?string $owner = null,
+        bool $onlyPending = false,
+    ): bool {
+        if ($owner !== null) {
+            $guard = " AND status = 'sending' AND lease_owner = :owner";
+        } elseif ($onlyPending) {
+            $guard = " AND status = 'pending'";
+        } else {
+            $guard = '';
+        }
         $bind = ['code' => $code, 'now' => $now, 'id' => $id];
         if ($owner !== null) {
             $bind['owner'] = $owner;
@@ -300,8 +325,13 @@ final class OutboxRepository
      * A delivered text is the end of the notification: unfinished audio/note parts are skipped and
      * the row becomes `sent` (and can be retracted). Never turns a delivered text into failed/dropped.
      */
-    public function finalizeTextSentRow(int $id, string $code, int $now, ?string $owner = null): bool
-    {
+    public function finalizeTextSentRow(
+        int $id,
+        string $code,
+        int $now,
+        ?string $owner = null,
+        bool $onlyPending = false,
+    ): bool {
         $row = $this->db->fetchOne('SELECT * FROM ' . self::TABLE . ' WHERE id = :id', ['id' => $id]);
         if ($row === null) {
             return false;
@@ -333,7 +363,14 @@ final class OutboxRepository
         }
         $state->recalculateAttachment();
 
-        return $this->markSentWithParts($id, $state->toArray(), $state->externalIds(), $now, $owner);
+        return $this->markSentWithParts(
+            $id,
+            $state->toArray(),
+            $state->externalIds(),
+            $now,
+            $owner,
+            $onlyPending ? 'pending' : null
+        );
     }
 
 
@@ -559,8 +596,9 @@ final class OutboxRepository
         if ($cancelled > 0 && $row !== null) {
             // release the prepared cache of an event that will not be delivered
             $this->db->execute(
-                'DELETE FROM m_MessengerHubPreparedRecordings WHERE event_id = :event',
-                ['event' => (int)$row['event_id']]
+                'DELETE FROM m_MessengerHubPreparedRecordings WHERE event_id = :event'
+                . " AND (COALESCE(lease_owner, '') = '' OR lease_until IS NULL OR lease_until < :now)",
+                ['event' => (int)$row['event_id'], 'now' => $now]
             );
         }
 

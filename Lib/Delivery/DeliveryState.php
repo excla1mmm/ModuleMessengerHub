@@ -28,6 +28,7 @@ final class DeliveryState
     public string $noteId = '';
     public string $noteCode = '';
     public int $noteAttempts = 0;
+    public int $noteUncertain = 0;
 
     /** none | pending | sent | partial | skipped | failed */
     public string $attachmentState = self::NONE;
@@ -82,6 +83,7 @@ final class DeliveryState
         $state->noteId = (string)($note['id'] ?? '');
         $state->noteCode = (string)($note['code'] ?? '');
         $state->noteAttempts = (int)($note['attempts'] ?? 0);
+        $state->noteUncertain = (int)($note['uncertain'] ?? 0);
         $state->attachmentState = self::known(
             (string)($attachment['state'] ?? self::NONE),
             [self::NONE, self::PENDING, self::SENT, 'partial', self::SKIPPED, self::FAILED]
@@ -117,6 +119,7 @@ final class DeliveryState
                 'id' => $this->noteId,
                 'code' => $this->noteCode,
                 'attempts' => $this->noteAttempts,
+                'uncertain' => $this->noteUncertain,
             ],
             'attachment' => [
                 'state' => $this->attachmentState,
@@ -156,6 +159,11 @@ final class DeliveryState
     public function bumpNoteAttempt(): int
     {
         return ++$this->noteAttempts;
+    }
+
+    public function bumpNoteUncertain(): int
+    {
+        return ++$this->noteUncertain;
     }
 
     public function bumpAudioAttempt(int $index): int

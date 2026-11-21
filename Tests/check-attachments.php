@@ -362,7 +362,8 @@ function deliver(HubDatabase $db, AttachChannel $channel, AttachmentService $pip
         'test',
         120,
         20,
-        $pipeline
+        $pipeline,
+        static fn (): int => $now
     );
 
     return $service->runOnce($now);
@@ -1093,6 +1094,56 @@ check($outbox->cancelForResolved($resolvedRow, 'resolved_before_send', 179200000
 check(outbox($db, $resolvedRow)['status'] === 'pending', 'resolved: the row waits for the retraction path');
 check($outbox->finalizeTextSentRow($resolvedRow, 'resolved_after_send', 1792000000), 'resolved: the delivered text is finalized');
 check($outbox->requestRetraction($resolvedRow, 'resolved_after_send', 1792000000, 'Иванов И. (233)', 1792000000) === 1, 'resolved: the delivered text becomes retractable');
+
+// a note's unknown outcome gets one retry, then fails; the row stays sent
+$db = hubTestDatabase();
+$channel = new AttachChannel(new ChannelLimits(4096, 1024, 0, 1000, 100, 50 * 1024 * 1024, false, 0));
+$eventId = newEventId($db);
+$parts = ['text' => ['state' => 'sent', 'id' => 't1', 'code' => ''], 'note' => ['state' => 'pending'], 'attachment' => ['state' => 'skipped', 'code' => 'attachment.too_big'], 'audio' => [['state' => 'skipped', 'id' => '', 'code' => 'attachment.too_big', 'token' => '', 'not_ready' => 0, 'attempts' => 0, 'start_ms' => 0, 'end_ms' => 0]]];
+$rowId = seedAttachDelivery($db, $eventId, json_encode((new AttachmentPlan('recording', ['type' => 'path', 'path' => $base . '/monitor/rec.webm'], [], 'Запись доступна в АТС.', 'Запись'))->toArray(), JSON_THROW_ON_ERROR), 1, json_encode($parts, JSON_THROW_ON_ERROR));
+$channel->sendResults = [SendResult::retry(0, 'http.timeout', true), SendResult::retry(0, 'http.timeout', true)];
+deliver($db, $channel, pipelineFor($db, $base, new FakeRunner(), new MapRest(), new MapDownloader(), 21), 1792000000);
+check(outbox($db, $rowId)['status'] === 'pending', 'note: the first unknown outcome is retried');
+deliver($db, $channel, pipelineFor($db, $base, new FakeRunner(), new MapRest(), new MapDownloader(), 22), 1792000010);
+$row = outbox($db, $rowId);
+$saved = json_decode((string)$row['delivery_parts_json'], true);
+check($row['status'] === 'sent' && ($saved['note']['state'] ?? '') === 'failed', 'note: the second unknown outcome fails, the row stays sent');
+check(count($channel->messages) === 2, 'note: exactly one retry is sent');
+
+// a status race cannot drop a row that was already claimed
+$db = hubTestDatabase();
+$eventId = newEventId($db);
+$rowId = seedAttachDelivery($db, $eventId, null);
+$repoRace = new OutboxRepository($db);
+$repoRace->claim(1, 1792000000, 'w1', 120);
+$db->execute(
+    'UPDATE ' . OutboxRepository::TABLE . ' SET delivery_parts_json = :parts WHERE id = :id',
+    ['parts' => json_encode(['text' => ['state' => 'sent', 'id' => 't1', 'code' => ''], 'note' => ['state' => 'none'], 'attachment' => ['state' => 'none'], 'audio' => []], JSON_THROW_ON_ERROR), 'id' => $rowId]
+);
+check(!$repoRace->markDropped($rowId, 'stale', 1792000000, null, true), 'stale: a claimed row is not dropped by a stale pass');
+check(!$repoRace->finalizeTextSentRow($rowId, 'stale', 1792000000, null, true), 'stale: a claimed row is not finalized by a stale pass');
+
+// a delivered text survives a broken render / a removed channel / a deleted bot
+$db = hubTestDatabase();
+$eventId = newEventId($db);
+$rowId = seedAttachDelivery($db, $eventId, null, 1, json_encode(['text' => ['state' => 'sent', 'id' => 't1', 'code' => ''], 'note' => ['state' => 'none'], 'attachment' => ['state' => 'pending'], 'audio' => [['state' => 'pending', 'id' => '', 'code' => '', 'token' => '', 'not_ready' => 0, 'attempts' => 0, 'start_ms' => 0, 'end_ms' => 0]]], JSON_THROW_ON_ERROR));
+$db->execute('UPDATE ' . OutboxRepository::TABLE . " SET rendered_json = '{bad' WHERE id = :id", ['id' => $rowId]);
+deliver($db, new AttachChannel(new ChannelLimits(4096, 1024, 0, 1000, 100, 50 * 1024 * 1024, false, 0)), pipelineFor($db, $base, new FakeRunner(), new MapRest(), new MapDownloader(), 23), 1792000000);
+check(outbox($db, $rowId)['status'] === 'sent', 'corruption: a delivered text is finalized, not failed');
+
+$db = hubTestDatabase();
+$eventId = newEventId($db);
+$rowId = seedAttachDelivery($db, $eventId, null, 1, json_encode(['text' => ['state' => 'sent', 'id' => 't1', 'code' => ''], 'note' => ['state' => 'none'], 'attachment' => ['state' => 'pending'], 'audio' => []], JSON_THROW_ON_ERROR));
+$db->execute("UPDATE m_MessengerHubBots SET channel = 'max' WHERE id = 1");
+deliver($db, new AttachChannel(new ChannelLimits(4096, 1024, 0, 1000, 100, 50 * 1024 * 1024, false, 0)), pipelineFor($db, $base, new FakeRunner(), new MapRest(), new MapDownloader(), 24), 1792000000);
+check(outbox($db, $rowId)['status'] === 'sent', 'channel removed: a delivered text is finalized, not failed');
+
+$db = hubTestDatabase();
+$eventId = newEventId($db);
+$rowId = seedAttachDelivery($db, $eventId, null, 1, json_encode(['text' => ['state' => 'sent', 'id' => 't1', 'code' => ''], 'note' => ['state' => 'none'], 'attachment' => ['state' => 'pending'], 'audio' => []], JSON_THROW_ON_ERROR));
+$db->execute('DELETE FROM m_MessengerHubBots WHERE id = 1');
+deliver($db, new AttachChannel(new ChannelLimits(4096, 1024, 0, 1000, 100, 50 * 1024 * 1024, false, 0)), pipelineFor($db, $base, new FakeRunner(), new MapRest(), new MapDownloader(), 25), 1792000000);
+check(outbox($db, $rowId)['status'] === 'sent', 'deleted bot: a delivered text is finalized, not failed');
 
 // ---------- 8. retraction ids of text + parts ----------
 

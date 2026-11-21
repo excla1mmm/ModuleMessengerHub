@@ -17,7 +17,7 @@ final class LocalRestFileDownloader implements RestFileDownloader
     public function __construct(
         private readonly string $apiKey,
         private readonly string $baseUrl = 'http://127.0.0.1',
-        private readonly int $timeoutSec = 300,
+        private readonly int $timeoutSec = 900,
     ) {
     }
 
@@ -60,7 +60,7 @@ final class LocalRestFileDownloader implements RestFileDownloader
 
                 return $saved;
             },
-            CURLOPT_TIMEOUT => 900, // 15 min hard ceiling for one recording
+            CURLOPT_TIMEOUT => max(60, min(900, $this->timeoutSec)), // 15 min hard ceiling
             CURLOPT_CONNECTTIMEOUT => 5,
             CURLOPT_LOW_SPEED_LIMIT => 1024, // a stalled CDR/S3 transfer aborts instead of hanging
             CURLOPT_LOW_SPEED_TIME => 60,

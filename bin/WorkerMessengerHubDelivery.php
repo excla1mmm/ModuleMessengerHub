@@ -88,7 +88,7 @@ class WorkerMessengerHubDelivery extends WorkerBase
                     $outbox = new OutboxRepository($db);
                     $channels = self::channels($settings);
                     $pipeline = self::attachments($db, $moduleRoot, (string)$settings->get(HubSettings::HUB_API_KEY));
-                    $service = new DeliveryService($outbox, $channels, $limiter, $owner, 120, 20, $pipeline);
+                    $service = new DeliveryService($outbox, $channels, $limiter, $owner, 120, 20, $pipeline, static fn (): int => time());
                     $retractions = new RetractionService($outbox, $channels, $limiter, $owner);
                     $router = new Router(
                         $db,

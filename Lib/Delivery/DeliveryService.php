@@ -26,7 +26,8 @@ use Throwable;
  * - rows are leased; a restarted worker returns stale leases to pending;
  * - rate limits postpone a row instead of failing it;
  * - retry/backoff uses RetryPolicy, but a channel retry_after is never shortened;
- * - an unknown outcome of the TEXT is at-most-once (no duplicate notification); audio is skipped;
+ * - text/note: an unknown outcome gets one retry, then failed (stage 2);
+ * - audio parts are at-most-once (unknown outcome -> skipped, no duplicate audio);
  * - recipient_gone marks the chat gone and drops everything queued for it;
  * - permanent errors fail the row; a rejected token marks the bot;
  * - a Telegram group migration updates the chat id and resends immediately.
@@ -52,7 +53,14 @@ final class DeliveryService
         private readonly int $leaseSec = 120,
         private readonly int $batch = 20,
         private readonly ?AttachmentPipeline $attachments = null,
+        private $clock = null, // callable(): int, injectable for the contract checks
     ) {
+    }
+
+    /** Real "now" for leases, backoff and upload deadlines (not the batch-start timestamp). */
+    private function clock(): int
+    {
+        return $this->clock === null ? time() : (int)($this->clock)();
     }
 
     /**
@@ -68,7 +76,7 @@ final class DeliveryService
         $stats['claimed'] = count($ids);
         foreach ($ids as $id) {
             // a long batch must not leave the next row with a lease that already expired
-            if (!$this->outbox->extendLease($id, $this->owner, time() + max(30, $this->leaseSec), time())) {
+            if (!$this->outbox->extendLease($id, $this->owner, $this->clock() + max(30, $this->leaseSec), $this->clock())) {
                 continue; // another worker owns the row now
             }
             try {
@@ -97,7 +105,11 @@ final class DeliveryService
     {
         $row = $this->outbox->load($id);
         if ($row === null) {
-            // the chat or bot row vanished (deleted bot): never leave the row leased forever
+            // the chat or bot row vanished (deleted bot): never leave the row leased forever; a row
+            // whose text already went out is finished as sent, not failed
+            if ($this->outbox->finalizeTextSentRow($id, 'delivery_missing', $now, $this->owner)) {
+                return 'sent';
+            }
             $this->outbox->markFailed($id, 0, 'delivery_missing', $now, $this->owner);
 
             return 'failed';
@@ -123,6 +135,8 @@ final class DeliveryService
 
         if ((string)$row['chat_enabled'] !== '1' || (string)$row['chat_state'] !== 'active') {
             if ($this->outbox->finalizeTextSentRow($id, 'chat_unavailable', $now, $this->owner)) {
+                $this->cleanupEvent((int)$row['event_id'], $now);
+
                 return 'sent';
             }
             $this->outbox->markDropped($id, 'chat_unavailable', $now, $this->owner);
@@ -131,6 +145,8 @@ final class DeliveryService
         }
         if ((string)$row['bot_enabled'] !== '1') {
             if ($this->outbox->finalizeTextSentRow($id, 'bot_disabled', $now, $this->owner)) {
+                $this->cleanupEvent((int)$row['event_id'], $now);
+
                 return 'sent';
             }
             $this->outbox->markDropped($id, 'bot_disabled', $now, $this->owner);
@@ -141,6 +157,9 @@ final class DeliveryService
         $channelId = (string)$row['channel'];
         $channel = $this->channels->find($channelId);
         if ($channel === null) {
+            if ($this->outbox->finalizeTextSentRow($id, 'channel_unknown', $now, $this->owner)) {
+                return 'sent';
+            }
             $this->outbox->markFailed($id, $attempts, 'channel_unknown', $now, $this->owner);
 
             return 'failed';
@@ -148,6 +167,9 @@ final class DeliveryService
 
         $message = $this->rendered($row);
         if ($message === null) {
+            if ($this->outbox->finalizeTextSentRow($id, 'render_invalid', $now, $this->owner)) {
+                return 'sent';
+            }
             $this->outbox->markFailed($id, $attempts, 'render_invalid', $now, $this->owner);
 
             return 'failed';
@@ -214,7 +236,7 @@ final class DeliveryService
                 $channelId
             );
             if ($wait > 0) {
-                $this->outbox->markRetry($id, $attempts, $now + $wait, '', false, $now, $this->owner);
+                $this->outbox->markRetry($id, $attempts, $this->clock() + $wait, '', false, $now, $this->owner);
 
                 return 'retried';
             }
@@ -267,7 +289,7 @@ final class DeliveryService
                 $this->save($id, $state, $now);
                 $plan = null;
             } else {
-                if (!$this->outbox->extendLease($id, $this->owner, $now + self::PREPARE_LEASE_SEC, $now)) {
+                if (!$this->outbox->extendLease($id, $this->owner, $this->clock() + self::PREPARE_LEASE_SEC, $this->clock())) {
                     return 'retried'; // another worker owns the row now
                 }
                 $heartbeat = function (int $at) use ($id): bool {
@@ -279,7 +301,7 @@ final class DeliveryService
                         $plan,
                         $limits,
                         $this->owner,
-                        max($now, time()), // a long batch must not hand the cache a stale lease
+                        max($now, $this->clock()), // a long batch must not hand the cache a stale lease
                         $heartbeat
                     );
                 } catch (Throwable $exception) {
@@ -389,13 +411,7 @@ final class DeliveryService
                 return 'retried'; // another worker owns the row now
             }
             $this->outbox->markBotOk($botId, $now);
-            if ($this->attachments !== null) {
-                try {
-                    $this->attachments->cleanupEvent((int)$row['event_id'], $now);
-                } catch (Throwable $exception) {
-                    HubLogger::event('attachments', 'cleanup_failed', ['error' => $exception::class], LOG_WARNING);
-                }
-            }
+            $this->cleanupEvent((int)$row['event_id'], $now);
 
             return 'sent';
         }
@@ -410,13 +426,7 @@ final class DeliveryService
             if (!$this->outbox->markSentWithParts($id, $state->toArray(), $state->externalIds(), $now, $this->owner)) {
                 return 'retried';
             }
-            if ($this->attachments !== null) {
-                try {
-                    $this->attachments->cleanupEvent((int)$row['event_id'], $now);
-                } catch (Throwable $exception) {
-                    HubLogger::event('attachments', 'cleanup_failed', ['error' => $exception::class], LOG_WARNING);
-                }
-            }
+            $this->cleanupEvent((int)$row['event_id'], $now);
 
             return 'sent';
         }
@@ -430,7 +440,7 @@ final class DeliveryService
 
             return 'failed';
         }
-        $this->outbox->markRetry($id, $nextAttempt, $now + $delay, 'delivery.incomplete', false, $now, $this->owner);
+        $this->outbox->markRetry($id, $nextAttempt, $this->clock() + $delay, 'delivery.incomplete', false, $now, $this->owner);
 
         return 'retried';
     }
@@ -489,14 +499,14 @@ final class DeliveryService
             );
             if ($wait > 0) {
                 $this->save($id, $state);
-                $this->outbox->markRetry($id, $attempts, $now + $wait, '', false, $now, $this->owner);
+                $this->outbox->markRetry($id, $attempts, $this->clock() + $wait, '', false, $now, $this->owner);
 
                 return 'retried';
             }
 
             // a large upload may legitimately take minutes: keep the row leased for that time
-            $uploadLease = $now + HttpTransport::uploadTimeout($bytes) + 60;
-            if (!$this->outbox->extendLease($id, $this->owner, max($uploadLease, time() + 60), time())) {
+            $uploadLease = $this->clock() + HttpTransport::uploadTimeout($bytes) + 60;
+            if (!$this->outbox->extendLease($id, $this->owner, $uploadLease, $this->clock())) {
                 return 'retried';
             }
             $state->markAudioSending($index);
@@ -537,7 +547,7 @@ final class DeliveryService
                     $this->outbox->markRetry(
                         $id,
                         $attempts, // a not-ready pause is not a text attempt
-                        $now + $delay,
+                        $this->clock() + $delay,
                         'max.attachment.not_ready',
                         false,
                         $now,
@@ -567,7 +577,7 @@ final class DeliveryService
             $this->outbox->markRetry(
                 $id,
                 $attempts, // the text is already delivered; keep its attempts separate
-                $now + max($delay, $result->result->retryAfterSec),
+                $this->clock() + max($delay, $result->result->retryAfterSec),
                 $result->result->code,
                 false,
                 $now,
@@ -611,10 +621,19 @@ final class DeliveryService
             return '';
         }
         if ($state->noteState === DeliveryState::SENDING) {
-            $state->markNoteSent('', 'delivery.uncertain');
-            $this->save($id, $state);
+            // a crashed note is an unknown outcome: one retry, then give up (the text is already sent)
+            if ($state->noteUncertain >= 1) {
+                $state->markNoteFailed('delivery.uncertain');
+                $this->save($id, $state);
 
-            return '';
+                return '';
+            }
+            $state->bumpNoteUncertain();
+            $state->markNotePending('delivery.uncertain');
+            $this->save($id, $state);
+            $this->outbox->markRetry($id, $attempts, $this->clock() + 10, 'delivery.uncertain', false, $now, $this->owner);
+
+            return 'retried';
         }
         $wait = $this->limiter->reserve(
             $botId,
@@ -626,7 +645,7 @@ final class DeliveryService
         );
         if ($wait > 0) {
             $this->save($id, $state);
-            $this->outbox->markRetry($id, $attempts, $now + $wait, '', false, $now, $this->owner);
+            $this->outbox->markRetry($id, $attempts, $this->clock() + $wait, '', false, $now, $this->owner);
 
             return 'retried';
         }
@@ -654,6 +673,20 @@ final class DeliveryService
 
             return '';
         }
+        if ($result->uncertain) {
+            if ($state->noteUncertain >= 1) {
+                $state->markNoteFailed('delivery.uncertain');
+                $this->save($id, $state);
+
+                return '';
+            }
+            $state->bumpNoteUncertain();
+            $state->markNotePending($result->code);
+            $this->save($id, $state);
+            $this->outbox->markRetry($id, $attempts, $this->clock() + 10, $result->code, false, $now, $this->owner);
+
+            return 'retried';
+        }
         $state->markNotePending($result->code);
         $noteAttempts = $state->bumpNoteAttempt();
         $delay = RetryPolicy::delayAfter($noteAttempts);
@@ -667,7 +700,7 @@ final class DeliveryService
         $this->outbox->markRetry(
             $id,
             $attempts, // the text is already delivered; keep its attempts separate
-            $now + max($delay, $result->retryAfterSec),
+            $this->clock() + max($delay, $result->retryAfterSec),
             $result->code,
             false,
             $now,
@@ -694,6 +727,9 @@ final class DeliveryService
             HubLogger::event('delivery', 'recipient_gone', ['chat_id' => $chatId, 'code' => $result->code]);
             $finalized = $this->outbox->finalizeTextSentRow($id, $result->code, $now);
             $this->outbox->markChatGone($chatId, $result->code, $now);
+            if ($finalized) {
+                $this->cleanupEvent((int)$row['event_id'], $now);
+            }
 
             return $finalized ? 'sent' : 'dropped';
         }
@@ -714,9 +750,14 @@ final class DeliveryService
         // RETRY (a permanent result never reaches here for an audio part: it is skipped instead)
         if ($result->migratedChatId !== null) {
             if (!$this->outbox->updateChatId($chatId, $result->migratedChatId)) {
-                return $this->outbox->finalizeTextSentRow($id, 'chat_migrated', $now) ? 'sent' : 'dropped';
+                $finalized = $this->outbox->finalizeTextSentRow($id, 'chat_migrated', $now);
+                if ($finalized) {
+                    $this->cleanupEvent((int)$row['event_id'], $now);
+                }
+
+                return $finalized ? 'sent' : 'dropped';
             }
-            $this->outbox->markRetry($id, $attempts + 1, $now, $result->code, false, $now, $this->owner);
+            $this->outbox->markRetry($id, $attempts + 1, $this->clock(), $result->code, false, $now, $this->owner);
 
             return 'retried';
         }
@@ -731,7 +772,7 @@ final class DeliveryService
             $this->outbox->markRetry(
                 $id,
                 $attempts + 1,
-                $now + max($delay, $result->retryAfterSec),
+                $this->clock() + max($delay, $result->retryAfterSec),
                 $result->code,
                 true,
                 $now,
@@ -752,7 +793,7 @@ final class DeliveryService
         $this->outbox->markRetry(
             $id,
             $nextAttempt,
-            $now + max($delay, $result->retryAfterSec),
+            $this->clock() + max($delay, $result->retryAfterSec),
             $result->code,
             false,
             $now,
@@ -762,6 +803,18 @@ final class DeliveryService
         return 'retried';
     }
 
+    private function cleanupEvent(int $eventId, int $now): void
+    {
+        if ($this->attachments === null) {
+            return;
+        }
+        try {
+            $this->attachments->cleanupEvent($eventId, $now);
+        } catch (Throwable $exception) {
+            HubLogger::event('attachments', 'cleanup_failed', ['error' => $exception::class], LOG_WARNING);
+        }
+    }
+
     private function save(int $id, DeliveryState $state, ?int $now = null): bool
     {
         return $this->outbox->saveParts(
@@ -769,8 +822,8 @@ final class DeliveryService
             $this->owner,
             $state->toArray(),
             $state->externalIds(),
-            $now ?? time(),
-            time() + max(30, $this->leaseSec)
+            $now ?? $this->clock(),
+            $this->clock() + max(30, $this->leaseSec)
         );
     }
 

@@ -147,7 +147,9 @@ function serviceFor(HubDatabase $db, FakeChannel $channel): DeliveryService
         new RateLimiter(),
         'test',
         120,
-        20
+        20,
+        null,
+        static fn (): int => 1790945000
     );
 }
 
