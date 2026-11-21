@@ -67,8 +67,8 @@ final class HubApiKey implements ApiKeySync, ApiKeyRepairer
      * Strips every path from the key while keeping the record: a module disable (including the one
      * inside a package update) must not churn the key — the same id and secret come back through
      * sync() when the module is enabled again (Q15). A full_permissions='0' record with an empty
-     * path set is inert: ApiKeyPermissionChecker denies every request. Uninstall has no hook of its
-     * own, so it leaves this inert record; the next install sweeps it by description (create()).
+     * path set is inert: ApiKeyPermissionChecker denies every request. Uninstall deletes the record
+     * (PbxExtensionSetup::uninstallModule -> remove()); a leftover is also swept by description on install.
      */
     public function revoke(): void
     {
