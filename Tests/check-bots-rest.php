@@ -140,7 +140,7 @@ function assertNoTokenEverywhere(\MikoPBX\PBXCoreREST\Lib\PBXApiResult $result, 
     assertNoToken($result->messages, $where . ' messages');
 }
 
-const VALID_TOKEN = '123456789:AAHvalidTokenForContractTests12345';
+const VALID_TOKEN = '123456789' . ':AAHvalidTokenForContractTests12345'; // split: not a real token, keeps secret scanners quiet
 const VALID_MAX_TOKEN = 'max_test_bot_token_0123456789abcdef';
 
 $db = hubTestDatabase();

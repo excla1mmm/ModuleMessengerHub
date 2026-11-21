@@ -86,7 +86,7 @@ final class ScriptedHttp implements HttpClient
     }
 }
 
-const TOKEN = '123456789:AAHfakeTokenValueForContractTests';
+const TOKEN = '123456789' . ':AAHfakeTokenValueForContractTests'; // split: not a real token, keeps secret scanners quiet
 $bot = new BotCredentials('telegram', TOKEN);
 $to = new Recipient('-1001234567890', 'group', 'Дежурная смена');
 

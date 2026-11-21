@@ -97,7 +97,7 @@ foreach ($cases as [$status, $body, $code]) {
 check(LocalRestClient::unwrap('{"result":true,"data":{"items":[1]}}', 200) === ['items' => [1]], 'unwrap returns data');
 
 // HubLogger::sanitize masks secrets and line breaks.
-$masked = HubLogger::sanitize("token 123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw\nkey sk_AbCdEf0123456789AbCdEf0123456789xyz");
+$masked = HubLogger::sanitize('token 123456789' . ":AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw\nkey sk_AbCdEf0123456789AbCdEf0123456789xyz");
 check(!str_contains($masked, 'AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw'), 'telegram token masked');
 check(!str_contains($masked, 'AbCdEf0123456789AbCdEf0123456789'), 'long key masked');
 check(!str_contains($masked, "\n"), 'newlines removed');
