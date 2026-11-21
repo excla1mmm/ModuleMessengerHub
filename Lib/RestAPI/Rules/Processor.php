@@ -5,6 +5,15 @@ declare(strict_types=1);
 namespace Modules\ModuleMessengerHub\Lib\RestAPI\Rules;
 
 use MikoPBX\PBXCoreREST\Lib\PBXApiResult;
+use Modules\ModuleMessengerHub\Lib\Api\ApiKeyReconciler;
+use Modules\ModuleMessengerHub\Lib\Api\ApiKeySync;
+use Modules\ModuleMessengerHub\Lib\Api\HubApiKey;
+use Modules\ModuleMessengerHub\Lib\Attachments\AttachmentMode;
+use Modules\ModuleMessengerHub\Lib\Routing\EventTypeMatcher;
+use Modules\ModuleMessengerHub\Lib\Settings\HubSettings;
+use Modules\ModuleMessengerHub\Lib\Sources\CoreModuleStatusProbe;
+use Modules\ModuleMessengerHub\Lib\Sources\ModuleStatusProbe;
+use Modules\ModuleMessengerHub\Lib\Sources\SourceStateRepository;
 use Modules\ModuleMessengerHub\Lib\RestAPI\Common\NotFoundException;
 use Modules\ModuleMessengerHub\Lib\RestAPI\Common\Responder;
 use Modules\ModuleMessengerHub\Lib\RestAPI\Common\UnknownActionException;
@@ -34,16 +43,27 @@ final class Processor
         Rule::MODE_EMPLOYEE_OR_RECIPIENTS,
     ];
     private const array OPTION_KEYS = ['mask_phone', 'attachments', 'retract_on_callback'];
+    private const array ATTACHMENT_MODES = [AttachmentMode::NONE, AttachmentMode::FRAGMENTS, AttachmentMode::RECORDING];
     private const array FILTER_KEYS = ['user_ids', 'directions', 'providers', 'quality_score'];
 
-    public function __construct(private readonly ?HubDatabase $db = null)
-    {
+    public function __construct(
+        private readonly ?HubDatabase $db = null,
+        private readonly ?ApiKeySync $apiKeySync = null,
+        private readonly ?ModuleStatusProbe $probe = null,
+    ) {
     }
 
     /** Entry point used by Core (WorkerApiCommands). */
     public static function callBack(array $request): PBXApiResult
     {
-        return (new self())->process($request);
+        $probe = null;
+        try {
+            $probe = new CoreModuleStatusProbe();
+        } catch (\Throwable) {
+            // no Core DI: the collector reconciles the key within a minute
+        }
+
+        return (new self(null, new HubApiKey(new HubSettings(new PhalconHubDatabase())), $probe))->process($request);
     }
 
     /** @param array<string, mixed> $request */
@@ -129,11 +149,13 @@ final class Processor
     private function create(array $data): array
     {
         $fields = $this->validated($data, true);
+        $this->checkAttachments($fields['event_types'] ?? [], $fields['options'] ?? []);
         if (!isset($data['priority'])) {
             $fields['priority'] = $this->repo()->maxSort() + 10;
         }
         $now = time();
         $id = $this->repo()->create($fields, $now);
+        $this->syncApiKey();
 
         return $this->serialize($this->requireRule($id), $now);
     }
@@ -143,8 +165,15 @@ final class Processor
     {
         $row = $this->requireRule($this->ruleId($data));
         $fields = $this->validated($data, $full);
+        // the effective combination is checked: a PATCH of event_types alone must not leave a stored
+        // audio mode on a rule that can no longer carry audio
+        $this->checkAttachments(
+            $fields['event_types'] ?? self::decodeList($row['event_types'] ?? '[]'),
+            $fields['options'] ?? self::decodeObject($row['options_json'] ?? '{}')
+        );
         if ($fields !== []) {
             $this->repo()->update((int)$row['id'], $fields, time());
+            $this->syncApiKey();
         }
 
         return $this->serialize($this->requireRule((int)$row['id']), time());
@@ -155,6 +184,7 @@ final class Processor
     {
         $row = $this->requireRule($this->ruleId($data));
         $this->repo()->delete((int)$row['id']);
+        $this->syncApiKey();
 
         return ['id' => (int)$row['id'], 'deleted' => true];
     }
@@ -331,6 +361,42 @@ final class Processor
         return $fields;
     }
 
+    /**
+     * Audio is offered only where the event can carry it (Plan/05): `recording` needs a voicemail or an
+     * attention-call type among the rule's event types, `fragments` an attention-call type (for voicemail
+     * a fragments mode would mean "whole file", so a voicemail-only rule must say `recording`). Wildcards
+     * count through the matcher. `none` is always valid.
+     *
+     * @param list<mixed> $eventTypes
+     * @param array<string, mixed> $options
+     */
+    private function checkAttachments(array $eventTypes, array $options): void
+    {
+        $mode = $options['attachments'] ?? AttachmentMode::NONE;
+        if (!is_string($mode) || !AttachmentMode::enabled($mode)) {
+            return;
+        }
+        $types = array_values(array_filter($eventTypes, 'is_string'));
+        $allowed = $mode === AttachmentMode::FRAGMENTS
+            ? EventTypeMatcher::matches($types, 'ai_supervisor.attention_call')
+            : EventTypeMatcher::matches($types, 'ai_supervisor.attention_call')
+                || EventTypeMatcher::matches($types, 'core.voicemail');
+        if (!$allowed) {
+            throw new ValidationException('attachments_not_supported', 'options');
+        }
+    }
+
+    /** Applies the hub-key path set at once (the CDR grant follows rules); never fails the request. */
+    private function syncApiKey(): void
+    {
+        (new ApiKeyReconciler(
+            $this->apiKeySync,
+            new SourceStateRepository($this->db()),
+            $this->repo(),
+            $this->probe
+        ))->apply();
+    }
+
     /** @param mixed $value @return list<string> */
     private function eventTypesValue($value): array
     {
@@ -459,7 +525,11 @@ final class Processor
                     }
                     break;
                 case 'attachments':
-                    $options['attachments'] = self::boolValue($item, 'options');
+                    // enum only; the stage-2 boolean is no longer accepted (it never meant a mode)
+                    if (!is_string($item) || !in_array($item, self::ATTACHMENT_MODES, true)) {
+                        throw new ValidationException('invalid_attachments_mode', 'options');
+                    }
+                    $options['attachments'] = $item;
                     break;
                 case 'retract_on_callback':
                     if (!is_array($item)) {

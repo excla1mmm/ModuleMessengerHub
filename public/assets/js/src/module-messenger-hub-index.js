@@ -670,8 +670,14 @@
         var retryable = false;
         (item.deliveries || []).forEach(function (delivery) {
             var status = deliveryStatusText(delivery);
+            var audio = attachmentLine(delivery);
+            var rawCode = delivery.last_error_code || '';
             html += '<dt class="mh-truncate">' + esc(recipientTitle(delivery)) + '</dt>'
-                + '<dd' + (status.bad ? ' class="mh-error-text"' : '') + '>' + esc(status.text) + '</dd>';
+                + '<dd' + (status.bad ? ' class="mh-error-text"' : '') + (rawCode !== '' ? ' title="' + esc(rawCode).replace(/"/g, '&quot;') + '"' : '') + '>'
+                + esc(status.text)
+                + (audio ? '<div class="mh-meta' + (audio.bad ? ' mh-error-text' : '') + '"'
+                    + (audio.code !== '' ? ' title="' + esc(audio.code).replace(/"/g, '&quot;') + '"' : '') + '>' + esc(audio.text) + '</div>' : '')
+                + '</dd>';
             if (delivery.status === 'failed' && !delivery.bot_deleted && !delivery.chat_deleted) {
                 retryable = true;
             }
@@ -746,6 +752,70 @@
         return { bad: false, text: t('module_messenger_hub_TestDelivered') };
     }
 
+    // Normalised delivery/attachment codes -> readable text. The raw code stays available in a tooltip only.
+    var CODE_TEXT_KEYS = {
+        'attachment.converter_missing': 'ReasonNoConverter',
+        'attachment.conversion_failed': 'ReasonConvert',
+        'attachment.conversion_timeout': 'ReasonConvert',
+        'attachment.prepare_failed': 'ReasonConvert',
+        'attachment.cache_unavailable': 'ReasonConvert',
+        'attachment.busy': 'ReasonConvert',
+        'attachment.too_big': 'ReasonTooBig',
+        'attachment.duration_too_long': 'ReasonTooBig',
+        'attachment.source_missing': 'ReasonNoRecording',
+        'attachment.path_missing': 'ReasonNoRecording',
+        'attachment.path_rejected': 'ReasonFileUnavailable',
+        'attachment.unavailable': 'ReasonFileUnavailable',
+        'telegram.file_unavailable': 'ReasonFileUnavailable',
+        'attachment.quotes_missing': 'ReasonNoQuotes',
+        'attachment.uncertain': 'ReasonUncertain',
+        'delivery.uncertain': 'ReasonUncertain',
+        'attachment.retry_exhausted': 'ReasonRetries',
+        'delivery.incomplete': 'ReasonRetries',
+        'attachment.rejected': 'ReasonRejected',
+        'http.bad_request': 'ReasonRejected',
+        'attachment.not.ready': 'ReasonNotReady',
+        'max.attachment.not_ready': 'ReasonNotReady',
+        'attachment.cancelled': 'ReasonCancelled',
+        'http.connect_failed': 'ReasonNoConnection',
+        'http.timeout': 'ReasonNoConnection',
+        'http.unavailable': 'ReasonNoConnection',
+        'http.tls': 'ReasonNoConnection'
+    };
+
+    function codeText(code) {
+        var key = CODE_TEXT_KEYS[code];
+        return key ? t('module_messenger_hub_' + key) : code;
+    }
+
+    // "Recording: sent / replaced by a note / skipped · reason"; null when the delivery carries no audio.
+    function attachmentLine(delivery) {
+        var a = delivery.attachment;
+        if (!a || !a.state || a.state === 'none') { return null; }
+        var text;
+        var bad = false;
+        var total = Number(a.parts) || 0;
+        if (a.state === 'pending') {
+            text = t('module_messenger_hub_AttachQueued');
+        } else if (a.state === 'sent') {
+            text = total > 1
+                ? tf('module_messenger_hub_AttachPartial', { sent: a.sent, total: total })
+                : t('module_messenger_hub_AttachSent');
+        } else if (a.state === 'partial') {
+            text = tf('module_messenger_hub_AttachPartial', { sent: a.sent, total: total });
+        } else if (a.state === 'skipped') {
+            // the fallback note in the text tells where the recording can be found
+            text = a.note === 'sent' ? t('module_messenger_hub_AttachReplaced') : t('module_messenger_hub_AttachSkipped');
+        } else {
+            text = t('module_messenger_hub_AttachFailed');
+            bad = true;
+        }
+        if (a.code && a.state !== 'pending' && a.state !== 'sent') {
+            text += ' · ' + codeText(a.code);
+        }
+        return { text: t('module_messenger_hub_AttachLabel') + ': ' + text, code: a.code || '', bad: bad };
+    }
+
     function deliveryReason(delivery) {
         if (delivery.bot_deleted) { return t('module_messenger_hub_DeliveryBotDeleted'); }
         if (delivery.chat_deleted) { return t('module_messenger_hub_DeliveryChatDeleted'); }
@@ -755,7 +825,7 @@
             || code === 'max.403.chat_denied' || code === 'max.404.not_found' || code === 'max.404.unknown') {
             return t('module_messenger_hub_ChatStatusGone');
         }
-        return code;
+        return codeText(code);
     }
 
     function toggleRow(id) {
@@ -2227,6 +2297,19 @@
         return result;
     }
 
+    // Audio attachment mode of a rule (Plan/05). The stage-2 boolean is not a mode and reads as "none".
+    function normalizeAttachments(options) {
+        var value = options ? options.attachments : null;
+        return value === 'fragments' || value === 'recording' ? value : 'none';
+    }
+
+    // Modes offered for the selected event types: only events that can carry audio.
+    function wizardAttachmentModes(types) {
+        if (types.indexOf('ai_supervisor.attention_call') >= 0) { return ['none', 'fragments', 'recording']; }
+        if (types.indexOf('core.voicemail') >= 0) { return ['none', 'recording']; }
+        return [];
+    }
+
     function ensureWizardData() {
         loadEmployees(function () {
             if (state.ruleWizard && state.ruleWizard.step === 2) { renderWizardConditions(); }
@@ -2258,6 +2341,7 @@
             mask: rule ? !!(rule.options && rule.options.mask_phone === true)
                 : !!(state.settings && state.settings.mask_phone_default === true),
             retract: normalizeRetract(rule ? rule.options : null),
+            attachments: normalizeAttachments(rule ? rule.options : null),
             botId: rule && rule.chats && rule.chats.length > 0 ? Number(rule.chats[0].bot_id) : 0,
             error: ''
         };
@@ -2606,9 +2690,35 @@
         renderWizardChats();
         $('#mh-wizard-mask').toggleClass('checked', w.mask);
         $('#mh-wizard-mask input').prop('checked', w.mask);
+        renderWizardAttachments();
         bindWizardRecipients();
         // a scenario without conditions goes 1 -> 3: step 3 must render its own preview
         renderWizardPreview();
+    }
+
+    function renderWizardAttachments() {
+        var w = state.ruleWizard;
+        var modes = wizardAttachmentModes(w.eventTypes);
+        var $field = $('#mh-wizard-attachments');
+        if (modes.length === 0) {
+            w.attachments = 'none';
+            $field.attr('hidden', true);
+            return;
+        }
+        if (modes.indexOf(w.attachments) < 0) { w.attachments = 'none'; }
+        $field.removeAttr('hidden');
+        // a voicemail is one file: the whole-conversation wording becomes plain "Recording"
+        var voicemailOnly = w.eventTypes.indexOf('ai_supervisor.attention_call') < 0;
+        $('#mh-wizard-attach-recording-text').text(t(voicemailOnly
+            ? 'module_messenger_hub_WizardAttachVoicemail'
+            : 'module_messenger_hub_WizardAttachRecording'));
+        $field.find('label[data-mode]').each(function () {
+            var mode = String($(this).data('mode'));
+            var checked = mode === w.attachments;
+            $(this).attr('hidden', modes.indexOf(mode) >= 0 ? null : true)
+                .toggleClass('checked', checked).find('input').prop('checked', checked);
+        });
+        $('#mh-wizard-attach-hint').attr('hidden', w.attachments === 'none' ? true : null);
     }
 
     function renderWizardChats() {
@@ -2658,6 +2768,11 @@
                 $(this).closest('label').toggleClass('checked', $(this).prop('checked'));
             });
             $('#mh-wizard-chats-field').attr('hidden', state.ruleWizard.targetMode === 'employee' ? true : null);
+        });
+        $step.on('change.wizard', 'input[name="mh-attachments"]', function () {
+            state.ruleWizard.attachments = String($(this).val());
+            renderWizardAttachments();
+            renderWizardPreview();
         });
         $step.on('change.wizard', '#mh-wizard-mask input', function () {
             state.ruleWizard.mask = $(this).prop('checked');
@@ -2756,6 +2871,7 @@
         lines.forEach(function (line) { html += '<div>' + line + '</div>'; });
         notes.forEach(function (note) { html += '<div><i>' + esc(note) + '</i></div>'; });
         html += '<span class="mh-preview-time">15:41</span></div>';
+        html += wizardPreviewAudio(type, w.attachments, isMax);
         if (button) {
             html += '<div class="mh-preview-button' + (isMax ? ' is-max' : '') + '">' + esc(t('module_messenger_hub_WizardPreviewButton')) + ' ↗</div>';
         }
@@ -2765,6 +2881,30 @@
             t(isMax ? 'module_messenger_hub_WizardPreviewChannelMax' : 'module_messenger_hub_WizardPreviewTitle'));
         // step 2 shows the conditions preview, step 3 the same preview for the chosen bot
         $('#mh-wizard-preview, #mh-wizard-preview-target').html(html);
+    }
+
+    // Audio bubbles follow the text (Plan/03): fragments = one bubble per fragment, otherwise the whole file.
+    // The numbers are sample values of the preview, never real data.
+    function wizardPreviewAudio(type, mode, isMax) {
+        if (mode === 'none' || wizardAttachmentModes([type]).indexOf(mode) < 0) { return ''; }
+        var items = [];
+        if (mode === 'fragments') {
+            var sample = ['0:12', '0:18'];
+            sample.forEach(function (duration, index) {
+                items.push(tf('module_messenger_hub_PreviewAudioFragment', { n: index + 1, total: sample.length, duration: duration }));
+            });
+        } else {
+            items.push(tf('module_messenger_hub_PreviewAudioRecording', { duration: type === 'core.voicemail' ? '0:32' : '6:42' }));
+        }
+        var html = '';
+        items.forEach(function (caption) {
+            html += '<div class="mh-preview-msg mh-preview-audio' + (isMax ? ' is-max' : '') + '">'
+                + '<div class="mh-preview-audio-row"><span class="mh-preview-play" aria-hidden="true"></span>'
+                + '<span class="mh-preview-wave" aria-hidden="true"></span></div>'
+                + '<div class="mh-meta">' + esc(caption) + '</div>'
+                + '<span class="mh-preview-time">15:41</span></div>';
+        });
+        return html;
     }
 
     function iconForType(type) {
@@ -2844,6 +2984,9 @@
                 window_min: w.retract.window_min >= 5 && w.retract.window_min <= 120 ? w.retract.window_min : 20,
                 count_incoming_answered: w.retract.count_incoming_answered !== false
             };
+        }
+        if (wizardAttachmentModes(w.eventTypes).length > 0) {
+            options.attachments = w.attachments;
         }
         var payload = {
             title: title,

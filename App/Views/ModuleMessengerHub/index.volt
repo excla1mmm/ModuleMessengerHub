@@ -85,6 +85,22 @@
                         </label>
                         <span>{{ t._('module_messenger_hub_WizardMask') }}</span>
                     </div>
+                    <fieldset class="field mh-target-fieldset" id="mh-wizard-attachments" hidden>
+                        <label>{{ t._('module_messenger_hub_WizardAttachTitle') }}</label>
+                        <label class="ui radio checkbox checked" data-mode="none">
+                            <input type="radio" name="mh-attachments" value="none" class="hidden" checked>
+                            <span class="mh-box"></span><span>{{ t._('module_messenger_hub_WizardAttachNone') }}</span>
+                        </label>
+                        <label class="ui radio checkbox" data-mode="fragments">
+                            <input type="radio" name="mh-attachments" value="fragments" class="hidden">
+                            <span class="mh-box"></span><span>{{ t._('module_messenger_hub_WizardAttachFragments') }}</span>
+                        </label>
+                        <label class="ui radio checkbox" data-mode="recording">
+                            <input type="radio" name="mh-attachments" value="recording" class="hidden">
+                            <span class="mh-box"></span><span id="mh-wizard-attach-recording-text">{{ t._('module_messenger_hub_WizardAttachRecording') }}</span>
+                        </label>
+                        <div class="mh-meta" id="mh-wizard-attach-hint" hidden>{{ t._('module_messenger_hub_WizardAttachPrivacy') }}</div>
+                    </fieldset>
                 </form>
                 <aside class="mh-wizard-preview" aria-label="{{ t._('module_messenger_hub_WizardPreviewTitle') }}">
                     <div class="mh-preview-bubble" id="mh-wizard-preview-target"></div>

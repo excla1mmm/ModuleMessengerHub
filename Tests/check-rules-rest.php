@@ -23,7 +23,10 @@ namespace {
 
 require __DIR__ . '/support/bootstrap.php';
 
+use Modules\ModuleMessengerHub\Lib\Api\ApiKeySync;
 use Modules\ModuleMessengerHub\Lib\Delivery\NullDeliveryWaker;
+use Modules\ModuleMessengerHub\Lib\Sources\ModuleStatusProbe;
+use Modules\ModuleMessengerHub\Lib\Sources\SourceAvailability;
 use Modules\ModuleMessengerHub\Lib\Delivery\OutboxRepository;
 use Modules\ModuleMessengerHub\Lib\Events\EventStore;
 use Modules\ModuleMessengerHub\Lib\Events\HubEvent;
@@ -222,6 +225,28 @@ check($eventWithDeliveries !== null && count($eventWithDeliveries['deliveries'])
 check($eventWithDeliveries['deliveries'][0]['chat_title'] === 'Иванов', 'delivery names the chat');
 check($eventWithDeliveries['deliveries'][0]['bot_deleted'] === false, 'a live bot is not flagged deleted');
 
+// stage 3a-2: the delivery exposes a small attachment summary, never paths, tokens or message ids of audio
+$db->execute(
+    'UPDATE ' . OutboxRepository::TABLE . ' SET delivery_parts_json = :parts WHERE id = :id',
+    ['id' => (int)$rows[0]['id'], 'parts' => json_encode([
+        'text' => ['state' => 'sent', 'id' => '10', 'code' => ''],
+        'note' => ['state' => 'sent', 'id' => '12', 'code' => ''],
+        'attachment' => ['state' => 'skipped', 'code' => 'attachment.too_big', 'attempts' => 1],
+        'audio' => [['state' => 'skipped', 'id' => '', 'code' => 'attachment.too_big', 'token' => 'SECRET-TOKEN', 'start_ms' => 0, 'end_ms' => 1000]],
+    ])]
+);
+$result = $events->process(['action' => 'getRecord', 'data' => ['id' => (int)$rows[0]['event_id']]]);
+$summary = null;
+foreach (dataOf($result)['deliveries'] as $candidate) {
+    if (($candidate['attachment']['state'] ?? '') === 'skipped') {
+        $summary = $candidate['attachment'];
+    }
+}
+check($summary !== null && $summary['code'] === 'attachment.too_big' && $summary['note'] === 'sent' && $summary['parts'] === 1 && $summary['skipped'] === 1, 'journal delivery carries the attachment summary');
+check(!str_contains(json_encode(dataOf($result), JSON_UNESCAPED_UNICODE), 'SECRET-TOKEN'), 'the audio part token never reaches the journal response');
+check(array_diff_key($summary, array_flip(['state', 'code', 'parts', 'sent', 'skipped', 'note'])) === [], 'the attachment summary has only the documented fields');
+$db->execute('UPDATE ' . OutboxRepository::TABLE . ' SET delivery_parts_json = NULL WHERE id = :id', ['id' => (int)$rows[0]['id']]);
+
 // fail one delivery, then retry it through the API
 $failedId = (int)$rows[0]['id'];
 $db->execute(
@@ -294,6 +319,138 @@ $bad = $retractRule;
 $bad['options']['retract_on_callback']['enabled'] = 'yes';
 $result = $processor2->process(['action' => 'create', 'data' => $bad]);
 check(!$result->success && $result->httpCode === 422, 'non-boolean retract enabled is rejected');
+
+// ---------- stage 3a-2: options.attachments ----------
+
+final class RulesSpyKeySync implements ApiKeySync
+{
+    /** @var list<list<string>> */
+    public array $calls = [];
+
+    public function sync(array $paths): string
+    {
+        $this->calls[] = $paths;
+
+        return 'plain';
+    }
+}
+
+final class RulesAvailableProbe implements ModuleStatusProbe
+{
+    public function status(string $moduleUniqueId): string
+    {
+        return SourceAvailability::AVAILABLE;
+    }
+}
+
+$db3 = hubTestDatabase();
+seedRuleWorld($db3);
+$spy = new RulesSpyKeySync();
+$audio = new RulesProcessor($db3, $spy, new RulesAvailableProbe());
+$base = ['title' => 'Аудио', 'enabled' => true, 'target_mode' => 'recipients', 'chat_ids' => [1]];
+
+$result = $audio->process(['action' => 'create', 'data' => $base + ['event_types' => ['ai_supervisor.attention_call']]]);
+$noOptions = dataOf($result);
+check($result->success && !isset($noOptions['options']['attachments']), 'attachments default is not stored: reads as none');
+
+foreach (['none', 'fragments', 'recording'] as $mode) {
+    $result = $audio->process(['action' => 'create', 'data' => $base + [
+        'event_types' => ['ai_supervisor.attention_call'], 'options' => ['attachments' => $mode],
+    ]]);
+    check($result->success && dataOf($result)['options']['attachments'] === $mode, 'attention call accepts ' . $mode);
+}
+
+$bad = [
+    [['core.missed_call'], 'recording', 'missed call carries no audio'],
+    [['core.missed_call'], 'fragments', 'missed call carries no audio (fragments)'],
+    [['core.provider_down'], 'recording', 'provider events carry no audio'],
+    [['core.voicemail'], 'fragments', 'voicemail-only rule has no fragments'],
+    [['core.voicemail'], 'yes', 'unknown mode string'],
+    [['core.voicemail'], true, 'the stage-2 boolean is not a mode'],
+    [['core.voicemail'], ['recording'], 'array is not a mode'],
+    [['core.voicemail'], null, 'null is not a mode'],
+];
+foreach ($bad as [$types, $mode, $label]) {
+    $result = $audio->process(['action' => 'create', 'data' => $base + [
+        'event_types' => $types, 'options' => ['attachments' => $mode],
+    ]]);
+    check(!$result->success && $result->httpCode === 422, 'rejected: ' . $label);
+}
+
+// none is valid everywhere
+$result = $audio->process(['action' => 'create', 'data' => $base + [
+    'event_types' => ['core.missed_call'], 'options' => ['attachments' => 'none'],
+]]);
+check($result->success, 'none is valid for any event type');
+
+$result = $audio->process(['action' => 'create', 'data' => $base + [
+    'event_types' => ['core.voicemail'], 'options' => ['attachments' => 'recording'],
+]]);
+$voicemail = dataOf($result);
+check($result->success && $voicemail['options']['attachments'] === 'recording', 'voicemail accepts recording');
+
+// mixed and wildcard rules: the mode needs at least one audio-capable type
+$result = $audio->process(['action' => 'create', 'data' => $base + [
+    'event_types' => ['core.voicemail', 'ai_supervisor.attention_call'], 'options' => ['attachments' => 'fragments'],
+]]);
+check($result->success, 'voicemail + attention call accepts fragments (voicemail sends the whole file)');
+$result = $audio->process(['action' => 'create', 'data' => $base + [
+    'event_types' => ['ai_supervisor.*'], 'options' => ['attachments' => 'fragments'],
+]]);
+check($result->success, 'a wildcard that covers the attention call accepts fragments');
+$result = $audio->process(['action' => 'create', 'data' => $base + [
+    'event_types' => ['core.provider_*'] , 'options' => ['attachments' => 'recording'],
+]]);
+check(!$result->success, 'an invalid wildcard is rejected anyway');
+
+// PATCH checks the effective combination, not only the sent fields
+$id = (int)$voicemail['id'];
+$result = $audio->process(['action' => 'patch', 'data' => ['id' => $id, 'event_types' => ['core.missed_call']]]);
+check(!$result->success && $result->httpCode === 422, 'changing event types to a no-audio type with a stored mode is rejected');
+$result = $audio->process(['action' => 'patch', 'data' => ['id' => $id, 'options' => ['attachments' => 'fragments']]]);
+check(!$result->success && $result->httpCode === 422, 'PATCH options validates against the stored event types');
+$result = $audio->process(['action' => 'patch', 'data' => ['id' => $id, 'options' => ['attachments' => 'none']]]);
+check($result->success && dataOf($result)['options']['attachments'] === 'none', 'PATCH back to none works');
+$result = $audio->process(['action' => 'patch', 'data' => ['id' => $id, 'event_types' => ['core.missed_call']]]);
+check($result->success, 'with none stored the event types can change to a no-audio type');
+
+// a stored legacy boolean does not block unrelated PATCHes and reads as none
+$db3->execute(
+    'INSERT INTO m_MessengerHubRules (title, enabled, event_types, min_severity, filters_json, target_mode,'
+    . ' chat_ids_json, template_key, options_json, quiet_hours_json, sort, created_at, updated_at)'
+    . " VALUES ('Legacy', '1', '[\"core.missed_call\"]', 'info', '{}', 'recipients', '[1]', '',"
+    . " '{\"attachments\":true}', '{}', 900, 1, 1)"
+);
+$legacyId = $db3->lastInsertId();
+$result = $audio->process(['action' => 'patch', 'data' => ['id' => $legacyId, 'title' => 'Legacy 2']]);
+check($result->success, 'a legacy boolean in the stored options does not block a PATCH');
+check(\Modules\ModuleMessengerHub\Lib\Attachments\AttachmentMode::fromOptions(['attachments' => true]) === 'none', 'legacy boolean reads as none');
+
+// the hub key follows enabled audio rules at once (no collector cycle needed)
+$spy->calls = [];
+$db4 = hubTestDatabase();
+seedRuleWorld($db4);
+$spy4 = new RulesSpyKeySync();
+$p4 = new RulesProcessor($db4, $spy4, new RulesAvailableProbe());
+$result = $p4->process(['action' => 'create', 'data' => $base + [
+    'event_types' => ['ai_supervisor.attention_call'], 'options' => ['attachments' => 'fragments'],
+]]);
+$audioRule = dataOf($result);
+check(count($spy4->calls) === 1 && in_array('/api/v3/cdr', $spy4->calls[0], true), 'creating an audio rule adds the CDR path to the key at once');
+$p4->process(['action' => 'patch', 'data' => ['id' => $audioRule['id'], 'options' => ['attachments' => 'none']]]);
+check(!in_array('/api/v3/cdr', $spy4->calls[1] ?? ['/api/v3/cdr'], true), 'switching to none drops the CDR path');
+$p4->process(['action' => 'patch', 'data' => ['id' => $audioRule['id'], 'options' => ['attachments' => 'recording']]]);
+check(in_array('/api/v3/cdr', $spy4->calls[2] ?? [], true), 'switching back adds it again');
+$p4->process(['action' => 'delete', 'data' => ['id' => $audioRule['id']]]);
+check(count($spy4->calls) === 4, 'four syncs so far');
+check(!in_array('/api/v3/cdr', $spy4->calls[3] ?? ['/api/v3/cdr'], true), 'deleting the rule drops the CDR path');
+$before = count($spy4->calls);
+$p4->process(['action' => 'create', 'data' => ['title' => '']]);
+check(count($spy4->calls) === $before, 'a rejected request does not touch the key');
+
+// without Core (no key sync, no probe) the REST still works
+$result = (new RulesProcessor($db4))->process(['action' => 'create', 'data' => $base + ['event_types' => ['core.voicemail']]]);
+check($result->success, 'rules REST works without key sync (collector reconciles)');
 
 finish('rules and deliveries OK');
 }

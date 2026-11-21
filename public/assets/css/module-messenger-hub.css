@@ -326,6 +326,13 @@
 .module-messenger-hub .mh-preview-msg.is-max, .mh-modal .mh-preview-msg.is-max { border-radius: var(--mh-radius-l); padding-bottom: 10px; }
 .module-messenger-hub .mh-preview-button.is-max, .mh-modal .mh-preview-button.is-max { border-radius: var(--mh-radius-l); background: #fff; }
 
+/* Audio bubble of the attachment preview (play button + static wave, no real data) */
+.module-messenger-hub .mh-preview-audio, .mh-modal .mh-preview-audio { gap: 2px; }
+.module-messenger-hub .mh-preview-audio-row, .mh-modal .mh-preview-audio-row { display: flex; align-items: center; gap: 10px; }
+.module-messenger-hub .mh-preview-play, .mh-modal .mh-preview-play { flex: none; position: relative; width: 32px; height: 32px; border-radius: 50%; background: #3390ec; }
+.module-messenger-hub .mh-preview-play::after, .mh-modal .mh-preview-play::after { content: ""; position: absolute; left: 12px; top: 9px; border-left: 11px solid #fff; border-top: 7px solid transparent; border-bottom: 7px solid transparent; }
+.module-messenger-hub .mh-preview-wave, .mh-modal .mh-preview-wave { flex: 1; height: 20px; min-width: 80px; background: repeating-linear-gradient(90deg, #8fb9e6 0 2px, transparent 2px 5px); border-radius: 2px; }
+
 /* ================= Journal ================= */
 .module-messenger-hub #mh-journal-banner:empty, .mh-modal #mh-journal-banner:empty, .module-messenger-hub #mh-journal-error:empty, .mh-modal #mh-journal-error:empty { display: none; }
 .module-messenger-hub .mh-filters.ui.form, .mh-modal .mh-filters.ui.form { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }

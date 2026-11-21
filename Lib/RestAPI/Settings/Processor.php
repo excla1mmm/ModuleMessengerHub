@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\ModuleMessengerHub\Lib\RestAPI\Settings;
 
 use MikoPBX\PBXCoreREST\Lib\PBXApiResult;
+use Modules\ModuleMessengerHub\Lib\Api\ApiKeyReconciler;
 use Modules\ModuleMessengerHub\Lib\Api\ApiKeySync;
 use Modules\ModuleMessengerHub\Lib\Api\HubApiKey;
 use Modules\ModuleMessengerHub\Lib\RestAPI\Common\ArrayTranslator;
@@ -15,7 +16,6 @@ use Modules\ModuleMessengerHub\Lib\RestAPI\Common\UnknownActionException;
 use Modules\ModuleMessengerHub\Lib\RestAPI\Common\ValidationException;
 use Modules\ModuleMessengerHub\Lib\Routing\RuleRepository;
 use Modules\ModuleMessengerHub\Lib\Settings\HubSettings;
-use Modules\ModuleMessengerHub\Lib\Sources\ApiKeyPaths;
 use Modules\ModuleMessengerHub\Lib\Sources\CoreModuleStatusProbe;
 use Modules\ModuleMessengerHub\Lib\Sources\ModuleStatusProbe;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceAvailability;
@@ -257,25 +257,13 @@ final class Processor
      */
     private function syncApiKey(): void
     {
-        if ($this->apiKeySync === null) {
-            return; // unit checks without Core: the collector worker reconciles the key
-        }
         try {
-            $probe = $this->moduleProbe();
-            if ($probe === null) {
-                return;
-            }
-            $paths = ApiKeyPaths::compute(
-                SourceRegistry::default()->pollSources(),
-                fn (string $id): bool => $this->states()->isEnabled($id),
-                static fn (string $module): string => $probe->status($module)
-            );
-            // the CDR grant exists only while an enabled rule can attach the attention-call audio
-            $paths = ApiKeyPaths::attentionCdr(
-                $paths,
-                (new RuleRepository($this->database()))->needsAttentionAttachments()
-            );
-            $this->apiKeySync->sync($paths);
+            (new ApiKeyReconciler(
+                $this->apiKeySync,
+                $this->states(),
+                new RuleRepository($this->database()),
+                $this->moduleProbe()
+            ))->apply();
         } catch (Throwable) {
             // the collector worker reconciles the key within a minute
         }

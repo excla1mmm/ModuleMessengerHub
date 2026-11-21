@@ -3,6 +3,24 @@
 ## Unreleased
 
 ### Added
+- Stage 3a-2 — attachments REST and UI (no station yet):
+  - rules REST: `options.attachments` is the enum `none | fragments | recording` (default `none`; the
+    stage-2 boolean is rejected with 422 `invalid_attachments_mode`). `recording` needs a voicemail or
+    attention-call event type in the rule, `fragments` an attention-call type (voicemail has no fragments:
+    a voicemail-only rule says `recording`); other event types accept only `none`
+    (`attachments_not_supported`, 422). PATCH validates the effective combination (stored event types +
+    sent options); wildcards count through the event-type matcher;
+  - a rule create/update/delete applies the hub-key path set at once (`/api/v3/cdr` appears with the first
+    enabled attention-call audio rule and goes with the last) through the shared `ApiKeyReconciler`, also
+    used by the settings PATCH; the collector reconciles the same set every minute;
+  - rule wizard step 3: «Прикладывать запись» (none / fragments with quotes / whole conversation; voicemail:
+    none / recording) only for audio-capable events, a privacy hint, and an audio bubble in the preview;
+  - journal: each delivery shows the recording state in words (sent / replaced by a note / skipped / not
+    sent + reason); the raw code is only in a tooltip; `deliveries[].attachment` is documented in Plan/06;
+  - uninstall: `PbxExtensionSetup::uninstallModule` deletes the hub's key record in Core `m_ApiKeys` for a real
+    uninstall (not on a package update, where Core passes `keepSettings = true`); a failure is logged as a code
+    and never fails the uninstall;
+  - 27 new translation keys in all 29 locales; `Tests/check-rules-rest.php`, `Tests/check-uninstall.php`.
 - Stage 3a-1 — attachments backend (decisions and code, no UI/station; Plan/03, Plan/05):
   - decisions: voicemail carries its file; `ai_supervisor.attention_call` carries fragments around its
     (up to 3) quotes by default and the whole conversation only by an explicit rule option;
