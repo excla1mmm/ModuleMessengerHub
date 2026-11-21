@@ -2,7 +2,18 @@
 
 ## Unreleased
 
+### Fixed
+- Stage 3a-3 (station acceptance): MAX `POST /uploads` returns a CDN host (`*.okcdn.ru`, cert `*.mycdn.me`);
+  the upload-host check now accepts `*.max.ru`, `*.okcdn.ru` and `*.mycdn.me`, the bot token is still sent
+  only to the API host / `*.max.ru`. A probe source inside the module temp tree is no longer deleted after
+  its first conversion (the next chat of the event got `attachment.path_missing`). The converter removes
+  scratch files only when they exist (no `SHUTDOWN-ERROR` with a temp path when a worker is stopped).
+
 ### Added
+- Stage 3a-3 — audio attachments accepted on the station (Plan/09): voicemail file and attention-call
+  fragments to Telegram (group, private) and MAX (group); `none`, oversize (Telegram 50 MB, MAX 60 min)
+  fallbacks; retry sends only the missing part; multi-id retraction; hub key gains/loses `/api/v3/cdr`
+  with the rule. README documents what is sent, the privacy switch and the outbound connections.
 - Stage 3a-2 — attachments REST and UI (no station yet):
   - rules REST: `options.attachments` is the enum `none | fragments | recording` (default `none`; the
     stage-2 boolean is rejected with 422 `invalid_attachments_mode`). `recording` needs a voicemail or

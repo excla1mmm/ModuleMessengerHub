@@ -23,6 +23,12 @@ notifications to **Telegram** and **MAX**.
 - **Reliable delivery**: queue in SQLite with a delivery worker, retries with backoff, Telegram rate
   limits, 429 `retry_after`, lease recovery, de-duplication (one message per event and chat),
   "Open call" button, phone masking.
+- **Audio attachments (off by default)**: a rule option "Attach the recording" sends the voicemail file, or
+  fragments around the quotes (±5 s, up to three) / the whole conversation of a call that needs attention,
+  as MP3 voice messages after the text. The recording leaves the PBX only when the administrator picks
+  this option in the rule; missed calls never carry audio. Needs `ffmpeg` (or `sox`/`lame`) on the PBX;
+  without it, or above the channel limits (Telegram 50 MB, MAX 60 min), the message gets a short note
+  instead of the file.
 - **Delete the notification when the client was called back** (missed call): if an answered call with
   the same client number happens within the rule window (20 minutes by default), the bot either does
   not send the queued message at all or deletes the already sent one together with its attachments.
@@ -80,13 +86,16 @@ removed from the chat" without endless retries.
 
 - MikoPBX 2025.1.1 or newer.
 - Outbound HTTPS from the PBX to `api.telegram.org` and `platform-api2.max.ru` (directly or via a
-  proxy set in the module settings).
+  proxy set in the module settings). MAX audio is uploaded to the upload address MAX returns, a CDN host
+  under `*.okcdn.ru` / `*.mycdn.me` (the bot token is never sent there). Attachments additionally read
+  call recordings through the PBX's own REST API on `127.0.0.1`.
 - A Telegram bot token from @BotFather and/or a MAX bot token from business.max.ru.
 
 ## Security and privacy
 
 Phone numbers, employee names and event texts are sent to an external messenger. Notifications are off by
-default; numbers can be masked and attachments disabled. Bot tokens are stored only on the PBX, are never
+default; numbers can be masked; attachments are `none` by default and a recording is sent only for a rule where the
+administrator chose it (probe/test events can only use the module's own probe directory). Bot tokens are stored only on the PBX, are never
 returned by the API (only a short hint is shown) and never appear in logs or error codes. The hub uses its
 own read-only API key for the sources it polls.
 
