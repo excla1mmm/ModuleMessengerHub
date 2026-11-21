@@ -1,0 +1,23 @@
+{
+    "advice": {
+        "warning": [
+            {
+                "messageTpl": "adv_ProblemWithInternetConnection",
+                "messageParams": [],
+                "severity": "warning",
+                "category": "connection"
+            }
+        ],
+        "info": [
+            {
+                "messageTpl": "adv_LicenseKeyNotInstalled",
+                "messageParams": [],
+                "severity": "info",
+                "category": "licensing"
+            }
+        ],
+        "needUpdate": [
+            "WebAdminPassword"
+        ]
+    }
+}

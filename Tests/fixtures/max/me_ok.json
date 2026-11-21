@@ -1,0 +1,11 @@
+{
+  "user_id": 123456789,
+  "first_name": "MIKO Alerts",
+  "is_bot": true,
+  "username": "miko_alerts_bot",
+  "last_activity_time": 1795263065110,
+  "description": "MIKO alerts bot for the PBX (anonymised live answer)",
+  "avatar_url": "https://example.invalid/i?r=avatar-small",
+  "full_avatar_url": "https://example.invalid/i?r=avatar-full",
+  "name": "MIKO Alerts"
+}

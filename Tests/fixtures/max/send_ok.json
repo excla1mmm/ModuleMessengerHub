@@ -1,0 +1,15 @@
+{
+  "message": {
+    "recipient": {"chat_type": "chat", "chat_id": -70000000000001},
+    "timestamp": 1795263066263,
+    "body": {"mid": "mid.0000000000000000000000000000001", "seq": 117654360310624138, "text": "Тестовое сообщение"},
+    "sender": {
+      "user_id": 123456789,
+      "first_name": "MIKO Alerts",
+      "is_bot": true,
+      "username": "miko_alerts_bot",
+      "last_activity_time": 1795263066275,
+      "name": "MIKO Alerts"
+    }
+  }
+}

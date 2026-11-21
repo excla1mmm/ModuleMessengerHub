@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ModuleMessengerHub — макеты</title>
+<style>
+/* =====================================================================
+   ModuleMessengerHub — тема MIKO для Fomantic UI
+   Все токены и переопределения ограничены корнем .module-messenger-hub,
+   остальная админка MikoPBX не затрагивается.
+   Источник значений: дизайн-система MIKO (Gravity UI 7.50, тема light).
+   В комментарии к каждому токену: g-токен MIKO → переменная LESS Fomantic
+   (site.variables) → селекторы, которые переопределяются ниже.
+   ===================================================================== */
+
+.module-messenger-hub {
+  /* ---------- Шрифты ---------- */
+  /* Inter кладём в модуль (woff2, OFL) — АТС часто без интернета.
+     Если файла нет — системный стек.                       → @pageFont, @headerFont */
+  --mh-font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* g-font-family-monospace                                → @codeFont, .ui.label code, pre */
+  --mh-font-mono: Menlo, Monaco, Consolas, "Liberation Mono", "Ubuntu Mono", "DejaVu Sans Mono", "Courier New", monospace;
+
+  /* ---------- Типографика (Gravity text variants) ---------- */
+  --mh-text-caption: 11px;  --mh-lh-caption: 16px;   /* caption-2    → .ui.label, .meta, table th  */
+  --mh-text-body: 13px;     --mh-lh-body: 18px;      /* body-1       → @fontSize, @emSize базового текста */
+  --mh-text-body-l: 15px;   --mh-lh-body-l: 20px;    /* body-2       → .ui.primary.button, .ui.message */
+  --mh-text-sub: 15px;      --mh-lh-sub: 20px;       /* subheader-2  → .ui.header (h4), card title */
+  --mh-text-sub-l: 17px;    --mh-lh-sub-l: 24px;     /* subheader-3  → .ui.header (h3), заголовок сегмента */
+  --mh-text-title: 20px;    --mh-lh-title: 24px;     /* header-1     → .ui.header (h2), заголовок страницы */
+  --mh-text-display: 28px;  --mh-lh-display: 36px;   /* display-1    → .ui.statistic > .value */
+  --mh-weight-regular: 400;                          /* @normal */
+  --mh-weight-accent: 600;                           /* @bold (Fomantic по умолчанию 700) */
+
+  /* ---------- Цвет: поверхности ---------- */
+  --mh-color-bg: #ffffff;                       /* g-color-base-background  → @white, .ui.segment, .ui.table */
+  --mh-color-bg-subtle: rgba(0, 0, 0, 0.05);    /* g-color-base-generic     → .ui.secondary.segment, thead th */
+  --mh-color-bg-hover: rgba(0, 0, 0, 0.05);     /* g-color-base-simple-hover→ .ui.selectable.table tr:hover, .menu .item:hover */
+  --mh-color-bg-active: rgba(0, 0, 0, 0.15);    /* g-color-base-generic-hover → .ui.basic.button:active */
+  --mh-color-selection: rgba(242, 117, 25, 0.12);       /* g-color-base-selection → .ui.table tr.active, .dropdown .item.selected */
+  --mh-color-selection-hover: rgba(242, 117, 25, 0.2);  /* g-color-base-selection-hover */
+  --mh-color-float: #ffffff;                    /* g-color-base-float       → .ui.popup, .ui.dropdown .menu */
+  --mh-color-modal: #ffffff;                    /* g-color-base-modal       → .ui.modal > .content */
+  --mh-color-veil: rgba(0, 0, 0, 0.25);         /* g-color-sfx-veil         → .ui.dimmer (@dimmerBackgroundColor) */
+
+  /* ---------- Цвет: текст ---------- */
+  --mh-color-text: rgba(0, 0, 0, 0.85);         /* g-color-text-primary       → @textColor */
+  --mh-color-text-meta: rgba(0, 0, 0, 0.7);     /* g-color-text-complementary → @mutedTextColor, .meta, .description */
+  --mh-color-text-secondary: rgba(0, 0, 0, 0.5);/* g-color-text-secondary (4,0:1) → @lightTextColor, только ≥15px и плейсхолдеры */
+  --mh-color-text-hint: rgba(0, 0, 0, 0.3);     /* g-color-text-hint → @disabledTextColor, .disabled */
+  --mh-color-link: #1673b5;                     /* g-color-text-link       → @linkColor */
+  --mh-color-link-hover: #0f5c94;               /* g-color-text-link-hover → @linkHoverColor */
+
+  /* ---------- Цвет: бренд ---------- */
+  --mh-color-brand: #f27519;                    /* g-color-base-brand       → @primaryColor, @orange: .ui.primary.button, toggle:checked, .pointing.menu .active */
+  --mh-color-brand-hover: #db6510;              /* g-color-base-brand-hover → @primaryColorHover */
+  --mh-color-on-brand: #ffffff;                 /* g-color-text-brand-contrast → @primaryTextColor (2,9:1 — см. допущения) */
+  --mh-color-brand-text: #b04e06;               /* g-color-text-brand-heavy → акцентный текст, активная вкладка */
+  --mh-color-brand-line: #f27519;               /* g-color-line-brand       → .ui.pointing.menu .active.item border */
+
+  /* ---------- Цвет: линии ---------- */
+  --mh-color-line: rgba(0, 0, 0, 0.1);          /* g-color-line-generic       → @borderColor, @inputBorderColor */
+  --mh-color-line-hover: rgba(0, 0, 0, 0.15);   /* g-color-line-generic-hover → @inputHoverBorderColor */
+  --mh-color-focus: rgba(107, 132, 153, 0.8);   /* g-color-line-focus         → @focusedFormBorderColor, :focus-visible */
+
+  /* ---------- Цвет: статусы (light = фон, text = heavy-вариант текста, line = граница) ---------- */
+  --mh-positive-bg: rgba(50, 186, 118, 0.15);   /* g-color-base-positive-light → .ui.green.label, .ui.positive.message */
+  --mh-positive-text: rgb(45, 139, 93);         /* g-color-text-positive-heavy */
+  --mh-positive-line: rgba(50, 186, 118, 0.8);  /* g-color-line-positive */
+  --mh-warning-bg: rgba(255, 190, 92, 0.3);     /* g-color-base-warning-light → .ui.yellow.label, .ui.warning.message */
+  --mh-warning-text: rgb(189, 92, 10);          /* g-color-text-warning-heavy */
+  --mh-warning-line: rgb(233, 174, 86);         /* g-color-line-warning */
+  --mh-danger-bg: rgba(255, 0, 61, 0.15);       /* g-color-base-danger-light → .ui.red.label, .ui.negative.message, .ui.form .error */
+  --mh-danger-text: rgb(189, 9, 53);            /* g-color-text-danger-heavy */
+  --mh-danger-line: rgba(255, 0, 61, 0.8);      /* g-color-line-danger       → .field.error input border */
+  --mh-danger-solid: rgb(233, 3, 58);           /* g-color-base-danger-heavy → .ui.red.button (удаление) */
+  --mh-info-bg: rgba(54, 151, 241, 0.15);       /* g-color-base-info-light   → .ui.blue.label, .ui.info.message */
+  --mh-info-text: rgb(48, 114, 179);            /* g-color-text-info-heavy */
+  --mh-info-line: rgba(54, 151, 241, 0.8);      /* g-color-line-info */
+  --mh-misc-bg: rgba(107, 132, 153, 0.15);      /* g-color-base-misc-light   → .ui.grey.label */
+  --mh-misc-text: rgb(85, 101, 117);            /* g-color-text-misc-heavy */
+  --mh-neutral-bg: rgba(0, 0, 0, 0.05);         /* g-color-base-neutral-light → .ui.basic.label */
+
+  /* ---------- Отступы (сетка 4px) ---------- */
+  --mh-space-half: 2px;  /* g-spacing-half */
+  --mh-space-1: 4px;     /* g-spacing-1  → внутри плотных контролов */
+  --mh-space-2: 8px;     /* g-spacing-2  → иконка ↔ подпись, .ui.label padding */
+  --mh-space-3: 12px;    /* g-spacing-3  → контролы в форме, .ui.form .field margin */
+  --mh-space-4: 16px;    /* g-spacing-4  → ячейка таблицы, компактный сегмент */
+  --mh-space-5: 20px;    /* g-spacing-5  → .ui.segment padding (@padding) */
+  --mh-space-6: 24px;    /* g-spacing-6  → секции внутри сегмента */
+  --mh-space-8: 32px;    /* g-spacing-8  → боковые поля рабочей области */
+  --mh-space-10: 40px;   /* g-spacing-10 → между секциями страницы */
+
+  /* ---------- Радиусы ---------- */
+  --mh-radius-xs: 3px;   /* g-border-radius-xs → .ui.checkbox label:before */
+  --mh-radius-s: 5px;    /* g-border-radius-s  → .ui.label, .ui.mini.button */
+  --mh-radius-m: 6px;    /* g-border-radius-m  → @defaultBorderRadius: .ui.button, input, .ui.dropdown */
+  --mh-radius-l: 8px;    /* g-border-radius-l  → .ui.segment, .ui.table, .ui.popup, .ui.message, card */
+  --mh-radius-xl: 10px;  /* g-border-radius-xl → .ui.modal */
+
+  /* ---------- Тени (только всплывающие слои) ---------- */
+  --mh-shadow-float: 0 8px 20px 0 rgba(0, 0, 0, 0.15);  /* g-color-sfx-shadow → @floatingShadow: .ui.popup, .ui.dropdown .menu */
+  --mh-shadow-modal: 0 16px 40px 0 rgba(0, 0, 0, 0.15); /* g-color-sfx-shadow → .ui.modal (@modalBoxShadow) */
+
+  /* ---------- Размеры контролов ---------- */
+  --mh-control-m: 28px;  /* размер m — таблицы, фильтры, формы настроек */
+  --mh-control-l: 36px;  /* размер l — главные действия, модальные окна */
+
+  font-family: var(--mh-font-sans);
+  font-size: var(--mh-text-body);
+  line-height: var(--mh-lh-body);
+  color: var(--mh-color-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ================= Базовые элементы ================= */
+.module-messenger-hub *, .module-messenger-hub *::before, .module-messenger-hub *::after { box-sizing: border-box; }
+.module-messenger-hub a { color: var(--mh-color-link); text-decoration: none; }
+.module-messenger-hub a:hover { color: var(--mh-color-link-hover); text-decoration: underline; }
+.module-messenger-hub :focus-visible { outline: 2px solid var(--mh-color-focus); outline-offset: 1px; border-radius: 2px; }
+.module-messenger-hub code, .module-messenger-hub .mh-mono { font-family: var(--mh-font-mono); font-size: 12px; }
+.module-messenger-hub .mh-meta { color: var(--mh-color-text-meta); font-size: var(--mh-text-caption); line-height: var(--mh-lh-caption); }
+.module-messenger-hub .mh-muted { color: var(--mh-color-text-meta); }
+.module-messenger-hub .mh-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.module-messenger-hub .mh-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.module-messenger-hub svg.mh-i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ================= .ui.header ================= */
+.module-messenger-hub .ui.header { margin: 0; font-family: var(--mh-font-sans); font-weight: var(--mh-weight-accent); color: var(--mh-color-text); }
+.module-messenger-hub h2.ui.header { font-size: var(--mh-text-title); line-height: var(--mh-lh-title); }
+.module-messenger-hub h3.ui.header { font-size: var(--mh-text-sub-l); line-height: var(--mh-lh-sub-l); }
+.module-messenger-hub h4.ui.header { font-size: var(--mh-text-sub); line-height: var(--mh-lh-sub); }
+.module-messenger-hub .ui.header .sub.header { font-weight: 400; font-size: var(--mh-text-body); line-height: var(--mh-lh-body); color: var(--mh-color-text-meta); margin-top: 4px; }
+
+/* ================= .ui.menu (вкладки) ================= */
+.module-messenger-hub .ui.secondary.pointing.menu { display: flex; flex-wrap: wrap; gap: 0 4px; border-bottom: 1px solid var(--mh-color-line); margin: 0; }
+.module-messenger-hub .ui.secondary.pointing.menu .item { display: inline-flex; align-items: center; gap: 8px; padding: 10px 12px 9px; margin-bottom: -1px; border-bottom: 2px solid transparent; color: var(--mh-color-text-meta); font-size: var(--mh-text-body); font-weight: 400; white-space: nowrap; background: none; border-top: 0; border-left: 0; border-right: 0; font-family: inherit; cursor: pointer; }
+.module-messenger-hub .ui.secondary.pointing.menu .item:hover { color: var(--mh-color-text); text-decoration: none; }
+.module-messenger-hub .ui.secondary.pointing.menu .active.item { color: var(--mh-color-text); font-weight: var(--mh-weight-accent); border-bottom-color: var(--mh-color-brand-line); }
+.module-messenger-hub .ui.menu .item .ui.label { margin: 0; }
+
+/* ================= .ui.segment ================= */
+.module-messenger-hub .ui.segment { background: var(--mh-color-bg); border: 1px solid var(--mh-color-line); border-radius: var(--mh-radius-l); padding: var(--mh-space-5); box-shadow: none; margin: 0; }
+.module-messenger-hub .ui.segment.mh-flush { padding: 0; overflow: hidden; }
+.module-messenger-hub .ui.secondary.segment { background: var(--mh-color-bg-subtle); border-color: transparent; }
+.module-messenger-hub .ui.segment.mh-section-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 0; border-bottom: 1px solid var(--mh-color-line); border-radius: 0; background: var(--mh-color-bg); }
+
+/* ================= .ui.button ================= */
+.module-messenger-hub .ui.button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: var(--mh-control-m); padding: 0 12px; border-radius: var(--mh-radius-m); border: 1px solid transparent; background: var(--mh-color-bg-subtle); color: var(--mh-color-text); font-family: inherit; font-size: var(--mh-text-body); font-weight: 400; line-height: 1; white-space: nowrap; cursor: pointer; margin: 0; text-decoration: none; }
+.module-messenger-hub .ui.button:hover { background: var(--mh-color-bg-active); text-decoration: none; color: var(--mh-color-text); }
+.module-messenger-hub .ui.basic.button { background: transparent; border-color: var(--mh-color-line); }
+.module-messenger-hub .ui.basic.button:hover { border-color: var(--mh-color-line-hover); background: var(--mh-color-bg-hover); }
+.module-messenger-hub .ui.primary.button { background: var(--mh-color-brand); color: var(--mh-color-on-brand); font-weight: var(--mh-weight-accent); font-size: var(--mh-text-body-l); }
+.module-messenger-hub .ui.primary.button:hover { background: var(--mh-color-brand-hover); color: var(--mh-color-on-brand); }
+.module-messenger-hub .ui.blue.basic.button { border-color: var(--mh-info-line); color: var(--mh-color-link); background: transparent; }
+.module-messenger-hub .ui.red.basic.button { border-color: var(--mh-danger-line); color: var(--mh-danger-text); background: transparent; }
+.module-messenger-hub .ui.text.button { background: transparent; color: var(--mh-color-link); padding: 0 6px; }
+.module-messenger-hub .ui.text.button:hover { background: var(--mh-color-bg-hover); color: var(--mh-color-link-hover); }
+.module-messenger-hub .ui.large.button { height: var(--mh-control-l); padding: 0 16px; }
+.module-messenger-hub .ui.icon.button { width: var(--mh-control-m); padding: 0; }
+.module-messenger-hub .ui.disabled.button, .module-messenger-hub .ui.button[disabled] { opacity: 1; background: var(--mh-color-bg-subtle); color: var(--mh-color-text-hint); cursor: default; border-color: transparent; }
+.module-messenger-hub .ui.loading.button { color: transparent; position: relative; }
+.module-messenger-hub .ui.loading.button::after { content: ""; position: absolute; width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; animation: mh-spin .8s linear infinite; }
+
+/* ================= .ui.label — статусы, важность, доставка ================= */
+.module-messenger-hub .ui.label { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: var(--mh-radius-s); font-size: var(--mh-text-caption); line-height: var(--mh-lh-caption); font-weight: 400; white-space: nowrap; background: var(--mh-neutral-bg); color: var(--mh-color-text-meta); border: 1px solid transparent; margin: 0; max-width: 100%; }
+.module-messenger-hub .ui.label svg.mh-i { width: 14px; height: 14px; }
+.module-messenger-hub .ui.green.label  { background: var(--mh-positive-bg); color: var(--mh-positive-text); }
+.module-messenger-hub .ui.yellow.label { background: var(--mh-warning-bg);  color: var(--mh-warning-text); }
+.module-messenger-hub .ui.red.label    { background: var(--mh-danger-bg);   color: var(--mh-danger-text); }
+.module-messenger-hub .ui.blue.label   { background: var(--mh-info-bg);     color: var(--mh-info-text); }
+.module-messenger-hub .ui.grey.label   { background: var(--mh-misc-bg);     color: var(--mh-misc-text); }
+.module-messenger-hub .ui.basic.label  { background: transparent; border-color: var(--mh-color-line-hover); color: var(--mh-color-text-meta); border-style: dashed; }
+.module-messenger-hub .ui.circular.label { min-width: 20px; justify-content: center; padding: 0 6px; border-radius: 10px; }
+.module-messenger-hub .ui.orange.circular.label { background: var(--mh-color-brand); color: #fff; font-weight: 600; }
+.module-messenger-hub .ui.red.circular.label { background: var(--mh-danger-solid); color: #fff; font-weight: 600; }
+
+/* ================= .ui.toggle.checkbox / .ui.checkbox ================= */
+.module-messenger-hub .ui.checkbox { position: relative; display: inline-flex; align-items: center; gap: 8px; min-height: 20px; cursor: pointer; font-size: var(--mh-text-body); }
+.module-messenger-hub .ui.checkbox input.hidden { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.module-messenger-hub .ui.toggle.checkbox .mh-track { position: relative; width: 36px; height: 20px; border-radius: 10px; background: var(--mh-color-bg-active); flex: none; transition: background .15s; }
+.module-messenger-hub .ui.toggle.checkbox .mh-track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: left .15s; }
+.module-messenger-hub .ui.toggle.checkbox.checked .mh-track { background: var(--mh-color-brand); }
+.module-messenger-hub .ui.toggle.checkbox.checked .mh-track::after { left: 18px; }
+.module-messenger-hub .ui.toggle.checkbox.disabled { cursor: default; }
+.module-messenger-hub .ui.toggle.checkbox.disabled .mh-track { opacity: .45; }
+.module-messenger-hub .ui.checkbox .mh-box { width: 16px; height: 16px; border-radius: var(--mh-radius-xs); border: 1px solid var(--mh-color-line-hover); background: #fff; flex: none; display: inline-flex; align-items: center; justify-content: center; }
+.module-messenger-hub .ui.checkbox.checked .mh-box { background: var(--mh-color-brand); border-color: var(--mh-color-brand); }
+.module-messenger-hub .ui.checkbox.checked .mh-box::after { content: ""; width: 9px; height: 5px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(-45deg) translate(1px,-1px); }
+.module-messenger-hub .ui.radio.checkbox .mh-box { border-radius: 50%; }
+.module-messenger-hub .ui.radio.checkbox.checked .mh-box { background: #fff; border: 5px solid var(--mh-color-brand); }
+.module-messenger-hub .ui.radio.checkbox.checked .mh-box::after { display: none; }
+
+/* ================= .ui.table ================= */
+.module-messenger-hub .ui.table { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--mh-color-bg); border: 1px solid var(--mh-color-line); border-radius: var(--mh-radius-l); overflow: hidden; margin: 0; table-layout: fixed; }
+.module-messenger-hub .ui.table th { text-align: left; font-weight: 400; font-size: var(--mh-text-caption); line-height: var(--mh-lh-caption); color: var(--mh-color-text-meta); background: var(--mh-color-bg-subtle); padding: 8px 12px; border-bottom: 1px solid var(--mh-color-line); white-space: nowrap; }
+.module-messenger-hub .ui.table td { padding: 10px 12px; border-bottom: 1px solid var(--mh-color-line); vertical-align: middle; }
+.module-messenger-hub .ui.table tr:last-child td { border-bottom: 0; }
+.module-messenger-hub .ui.selectable.table tbody tr:hover td { background: var(--mh-color-bg-hover); }
+.module-messenger-hub .ui.table tr.active td { background: var(--mh-color-selection); }
+.module-messenger-hub .ui.table tr.mh-detail td { background: #fff; padding: 0 12px 16px 48px; }
+.module-messenger-hub .ui.table.mh-wrap { overflow-x: auto; display: block; }
+
+/* ================= .ui.form ================= */
+.module-messenger-hub .ui.form .field { display: flex; flex-direction: column; gap: 6px; margin: 0; }
+.module-messenger-hub .ui.form .field > label { font-weight: var(--mh-weight-accent); font-size: var(--mh-text-body); color: var(--mh-color-text); }
+.module-messenger-hub .ui.form .field .mh-help { font-size: var(--mh-text-caption); line-height: var(--mh-lh-caption); color: var(--mh-color-text-meta); }
+.module-messenger-hub .ui.form input[type=text], .module-messenger-hub .ui.form input[type=number], .module-messenger-hub .ui.form input[type=search], .module-messenger-hub .ui.form textarea, .module-messenger-hub .ui.input input { height: var(--mh-control-m); padding: 0 8px; border: 1px solid var(--mh-color-line); border-radius: var(--mh-radius-m); font-family: inherit; font-size: var(--mh-text-body); color: var(--mh-color-text); background: #fff; width: 100%; min-width: 0; }
+.module-messenger-hub .ui.form input::placeholder { color: var(--mh-color-text-secondary); }
+.module-messenger-hub .ui.form .field.error input { border-color: var(--mh-danger-line); background: #fff; }
+.module-messenger-hub .ui.form .field.error .mh-help { color: var(--mh-danger-text); }
+.module-messenger-hub .ui.selection.dropdown { display: flex; align-items: center; gap: 6px; height: var(--mh-control-m); min-height: var(--mh-control-m); padding: 0 28px 0 8px; border: 1px solid var(--mh-color-line); border-radius: var(--mh-radius-m); background: #fff; position: relative; font-size: var(--mh-text-body); color: var(--mh-color-text); min-width: 0; cursor: pointer; }
+.module-messenger-hub .ui.selection.dropdown::after { content: ""; position: absolute; right: 11px; top: 50%; width: 6px; height: 6px; border-right: 1.5px solid var(--mh-color-text-meta); border-bottom: 1.5px solid var(--mh-color-text-meta); transform: translateY(-70%) rotate(45deg); }
+.module-messenger-hub .ui.selection.dropdown .text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.module-messenger-hub .ui.selection.dropdown .default.text { color: var(--mh-color-text-secondary); }
+.module-messenger-hub .ui.multiple.dropdown { height: auto; padding-top: 3px; padding-bottom: 3px; flex-wrap: wrap; gap: 4px; }
+.module-messenger-hub .ui.multiple.dropdown .ui.label { background: var(--mh-color-bg-subtle); color: var(--mh-color-text); }
+.module-messenger-hub .ui.dropdown .menu { background: var(--mh-color-float); border-radius: var(--mh-radius-l); box-shadow: var(--mh-shadow-float); padding: 4px; }
+.module-messenger-hub .ui.dropdown .menu .item { padding: 6px 8px; border-radius: var(--mh-radius-s); }
+.module-messenger-hub .ui.dropdown .menu .item.selected { background: var(--mh-color-selection); }
+.module-messenger-hub .ui.dropdown .menu .header { font-size: var(--mh-text-caption); color: var(--mh-color-text-meta); padding: 6px 8px 2px; }
+
+/* ================= .ui.message ================= */
+.module-messenger-hub .ui.message { display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; border-radius: var(--mh-radius-l); background: var(--mh-neutral-bg); color: var(--mh-color-text); box-shadow: none; margin: 0; font-size: var(--mh-text-body); line-height: var(--mh-lh-body); }
+.module-messenger-hub .ui.message .header { font-weight: var(--mh-weight-accent); margin-bottom: 2px; }
+.module-messenger-hub .ui.message > svg.mh-i { margin-top: 1px; }
+.module-messenger-hub .ui.info.message     { background: var(--mh-info-bg); }
+.module-messenger-hub .ui.info.message > svg.mh-i { color: var(--mh-info-text); }
+.module-messenger-hub .ui.warning.message  { background: var(--mh-warning-bg); }
+.module-messenger-hub .ui.warning.message > svg.mh-i { color: var(--mh-warning-text); }
+.module-messenger-hub .ui.negative.message { background: var(--mh-danger-bg); }
+.module-messenger-hub .ui.negative.message > svg.mh-i { color: var(--mh-danger-text); }
+.module-messenger-hub .ui.positive.message { background: var(--mh-positive-bg); }
+.module-messenger-hub .ui.positive.message > svg.mh-i { color: var(--mh-positive-text); }
+
+/* ================= .ui.popup ================= */
+.module-messenger-hub .ui.popup { position: absolute; z-index: 5; background: var(--mh-color-float); border-radius: var(--mh-radius-l); box-shadow: var(--mh-shadow-float); padding: 12px 14px; font-size: var(--mh-text-body); line-height: var(--mh-lh-body); color: var(--mh-color-text); max-width: 320px; border: 0; }
+
+/* ================= .ui.modal ================= */
+.module-messenger-hub .ui.modal { background: var(--mh-color-modal); border-radius: var(--mh-radius-xl); box-shadow: var(--mh-shadow-modal); display: flex; flex-direction: column; overflow: hidden; }
+.module-messenger-hub .ui.modal > .header { padding: 20px 24px 8px; font-size: var(--mh-text-title); line-height: var(--mh-lh-title); font-weight: 600; border: 0; }
+.module-messenger-hub .ui.modal > .content { padding: 12px 24px 20px; }
+.module-messenger-hub .ui.modal > .actions { padding: 16px 24px; border-top: 1px solid var(--mh-color-line); display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; background: var(--mh-color-bg); }
+.module-messenger-hub .ui.dimmer { background: var(--mh-color-veil); }
+
+/* ================= .ui.progress ================= */
+.module-messenger-hub .ui.progress { height: 6px; border-radius: 3px; background: var(--mh-color-bg-subtle); overflow: hidden; margin: 0; }
+.module-messenger-hub .ui.progress .bar { height: 100%; border-radius: 3px; background: var(--mh-color-brand); min-width: 0; }
+.module-messenger-hub .ui.grey.progress .bar { background: var(--mh-misc-text); }
+
+/* ================= .ui.statistic ================= */
+.module-messenger-hub .ui.statistic { display: flex; flex-direction: column; gap: 2px; margin: 0; }
+.module-messenger-hub .ui.statistic > .value { font-size: var(--mh-text-display); line-height: var(--mh-lh-display); font-weight: 600; color: var(--mh-color-text); }
+.module-messenger-hub .ui.statistic > .label { font-size: var(--mh-text-body); color: var(--mh-color-text-meta); text-transform: none; font-weight: 400; }
+
+/* ================= .ui.accordion ================= */
+.module-messenger-hub .ui.accordion .title { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 0; font-weight: 600; }
+.module-messenger-hub .ui.accordion .content { padding: 0 0 8px 24px; }
+
+/* ================= Загрузка: .ui.placeholder (скелетон) и .ui.loader ================= */
+.module-messenger-hub .ui.placeholder .line, .module-messenger-hub .mh-skel { display: block; height: 10px; border-radius: 4px; background: linear-gradient(90deg, rgba(0,0,0,.05) 0%, rgba(0,0,0,.09) 50%, rgba(0,0,0,.05) 100%); background-size: 200% 100%; animation: mh-shimmer 1.4s ease-in-out infinite; }
+.module-messenger-hub .ui.loader { width: 24px; height: 24px; border-radius: 50%; border: 2.5px solid var(--mh-color-bg-active); border-top-color: var(--mh-color-brand); animation: mh-spin .8s linear infinite; display: inline-block; }
+.module-messenger-hub .ui.mini.loader { width: 14px; height: 14px; border-width: 2px; }
+@keyframes mh-spin { to { transform: rotate(360deg); } }
+@keyframes mh-shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+
+/* ================= Модульные компоненты ================= */
+/* Строка источника */
+.module-messenger-hub .mh-source-row { display: grid; grid-template-columns: 52px minmax(0, 1fr) minmax(150px, 220px) minmax(120px, 200px) minmax(110px, 170px); align-items: center; column-gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--mh-color-line); }
+.module-messenger-hub .mh-source-row:last-child { border-bottom: 0; }
+.module-messenger-hub .mh-source-row.is-off .mh-source-name { color: var(--mh-color-text-meta); }
+/* Плитка мессенджера (место под официальный логотип) */
+.module-messenger-hub .mh-messenger { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: var(--mh-radius-l); font-size: 10px; font-weight: 600; letter-spacing: .02em; flex: none; }
+.module-messenger-hub .mh-messenger.tg  { background: rgba(54, 151, 241, 0.15); color: rgb(48, 114, 179); }
+.module-messenger-hub .mh-messenger.max { background: rgba(143, 82, 204, 0.15); color: rgb(110, 60, 160); }
+.module-messenger-hub .mh-messenger.s { width: 20px; height: 20px; font-size: 8px; border-radius: 5px; }
+/* Карточка бота */
+.module-messenger-hub .mh-bot-card { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid var(--mh-color-line); border-radius: var(--mh-radius-l); background: #fff; min-width: 0; }
+.module-messenger-hub .mh-bot-card.is-selected { border-color: var(--mh-color-brand-line); box-shadow: inset 0 0 0 1px var(--mh-color-brand-line); }
+/* Строка чата */
+.module-messenger-hub .mh-chat-row { display: grid; grid-template-columns: 28px minmax(0, 1.4fr) 96px minmax(160px, 1fr) minmax(140px, 180px) 52px; align-items: center; column-gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--mh-color-line); }
+.module-messenger-hub .mh-chat-row:last-child { border-bottom: 0; }
+/* Канва-подписи для макетов (не часть модуля) */
+.mh-board-note { font-family: "Inter", -apple-system, "Segoe UI", sans-serif; font-size: 11px; line-height: 16px; color: rgba(0,0,0,.7); }
+.mh-state-tag { display: inline-block; font-family: "Inter", -apple-system, "Segoe UI", sans-serif; font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: rgba(0,0,0,.7); }
+
+/* ================= Спокойный режим (v2): меньше рамок, заливок и меток ================= */
+.module-messenger-hub .ui.segment { border: 0; padding: 0; background: transparent; }
+.module-messenger-hub .ui.segment.mh-card { border: 1px solid var(--mh-color-line); padding: var(--mh-space-5); background: var(--mh-color-bg); }
+.module-messenger-hub .ui.segment.mh-section-head { padding: 0 0 8px; border: 0; background: transparent; gap: 8px; }
+.module-messenger-hub .ui.segment.mh-section-head h3.ui.header { font-size: var(--mh-text-sub); line-height: var(--mh-lh-sub); }
+.module-messenger-hub .ui.table { border: 0; border-radius: 0; }
+.module-messenger-hub .ui.table th { background: transparent; padding: 8px 12px; }
+.module-messenger-hub .ui.table td { padding: 12px; }
+.module-messenger-hub .mh-list { border-top: 1px solid var(--mh-color-line); }
+.module-messenger-hub .mh-source-row { grid-template-columns: 52px minmax(0, 1fr) minmax(170px, 240px) minmax(110px, 160px); padding: 14px 0; }
+.module-messenger-hub .mh-chat-row { padding: 12px 0; }
+/* Тихий статус: точка + текст — для «нормальных» состояний */
+.module-messenger-hub .mh-dot { display: inline-flex; align-items: center; gap: 8px; color: var(--mh-color-text-meta); font-size: var(--mh-text-body); white-space: nowrap; }
+.module-messenger-hub .mh-dot::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--mh-color-text-hint); flex: none; }
+.module-messenger-hub .mh-dot.is-ok::before { background: rgb(48, 170, 110); }
+.module-messenger-hub .mh-dot.is-dashed::before { background: transparent; border: 1.5px dashed var(--mh-color-text-secondary); width: 9px; height: 9px; }
+.module-messenger-hub .mh-ok-icon { color: rgb(48, 170, 110); display: inline-flex; }
+.module-messenger-hub .mh-hint { color: var(--mh-color-text-secondary); display: inline-flex; cursor: help; }
+
+/* ================= v3: единый список уведомлений, сценарии ================= */
+/* Оглавление секции — полупрозрачное, появляется только когда секций больше одной */
+.module-messenger-hub .mh-group-title { display: block; margin: 0; padding: 28px 0 8px; font-size: var(--mh-text-caption); line-height: var(--mh-lh-caption); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--mh-color-text-secondary); border-bottom: 1px solid var(--mh-color-line); }
+.module-messenger-hub .mh-group-title:first-child { padding-top: 0; }
+/* Строка уведомления */
+.module-messenger-hub .mh-notif-row { display: grid; grid-template-columns: 52px minmax(0, 1fr) minmax(120px, auto) 28px; align-items: center; column-gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--mh-color-line); }
+.module-messenger-hub .mh-notif-row .mh-notif-title { font-weight: 600; color: var(--mh-color-text); }
+.module-messenger-hub .mh-notif-row.is-off .mh-notif-title { color: var(--mh-color-text-meta); font-weight: 400; }
+/* Карточка сценария */
+.module-messenger-hub .mh-scenario { display: flex; gap: 12px; align-items: flex-start; padding: 16px; border: 1px solid var(--mh-color-line); border-radius: var(--mh-radius-l); background: var(--mh-color-bg); color: inherit; text-decoration: none; text-align: left; font: inherit; cursor: pointer; min-width: 0; }
+.module-messenger-hub .mh-scenario:hover { border-color: var(--mh-color-brand-line); text-decoration: none; color: inherit; }
+.module-messenger-hub .mh-scenario.is-selected { border-color: var(--mh-color-brand-line); box-shadow: inset 0 0 0 1px var(--mh-color-brand-line); }
+.module-messenger-hub .mh-scenario.is-disabled { cursor: default; background: var(--mh-color-bg-subtle); border-color: transparent; }
+.module-messenger-hub .mh-scenario .mh-scenario-icon { width: 32px; height: 32px; border-radius: var(--mh-radius-l); background: var(--mh-color-bg-subtle); display: inline-flex; align-items: center; justify-content: center; flex: none; color: var(--mh-color-text-meta); }
+/* Фильтр-«фраза»: dropdown в тексте */
+.module-messenger-hub .mh-chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 14px; border: 1px solid var(--mh-color-line); background: var(--mh-color-bg); font: inherit; color: var(--mh-color-text); cursor: pointer; white-space: nowrap; }
+.module-messenger-hub .mh-chip .mh-chip-key { color: var(--mh-color-text-meta); }
+.module-messenger-hub .mh-chip.is-set { border-color: transparent; background: var(--mh-color-selection); }
+.module-messenger-hub .mh-chip.is-add { border-style: dashed; color: var(--mh-color-link); }
+/* Шаги мастера */
+.module-messenger-hub .mh-steps { display: flex; gap: 24px; flex-wrap: wrap; font-size: var(--mh-text-body); color: var(--mh-color-text-secondary); }
+.module-messenger-hub .mh-steps .is-current { color: var(--mh-color-text); font-weight: 600; }
+.module-messenger-hub .mh-steps .is-done { color: var(--mh-color-text-meta); }
+
+/* обёртка экспорта */
+body{margin:0;background:#f4f4f5;font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:rgba(0,0,0,.85)}
+.export-head{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid rgba(0,0,0,.1);padding:12px 32px;display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;font-size:13px}
+.export-head b{margin-right:8px}
+.export-head a{color:#1673b5;text-decoration:none}
+.export-head a:hover{text-decoration:underline}
+.row{padding:40px 32px 8px}
+.row-title{font-size:28px;line-height:36px;margin:0 0 24px;font-weight:600}
+.boards{display:flex;flex-direction:column;gap:40px}
+.board-title{font-size:13px;font-weight:600;color:rgba(0,0,0,.7);margin:0 0 8px}
+.frame{max-width:100%;overflow:auto;background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.12);position:relative}
+.frame > .module-messenger-hub{max-width:100%}
+</style>
+</head>
+<body>
+<nav class="export-head" aria-label="Макеты"><b>ModuleMessengerHub</b><a href="#Main">Уведомления — несколько категорий</a> <a href="#NotifStates">Уведомления — пусто, одна категория, загрузка, ошибка</a> <a href="#NewScenario">Шаг 1 — сценарий</a> <a href="#NewSetup">Шаги 2–3 — условия и куда отправить</a> <a href="#NewStates">Нет мессенджера, условие, добавить условие</a> <a href="#Events">Журнал</a> <a href="#EventsStates">Журнал — состояния</a> <a href="#Settings">Настройки — мессенджеры и общие</a> <a href="#BotForm">Подключить мессенджер — Telegram и MAX</a> <a href="#ConnectChat">Подключить чат — 4 состояния</a> <a href="#BotsStates">Мессенджеры — пусто, загрузка, ошибка, тест</a> <a href="#Notifications">Сообщения в Telegram и MAX</a> <a href="#Tokens">Дизайн-токены и соответствие Fomantic UI</a> <a href="#Components">Компоненты модуля</a> <a href="#Copy">Тексты интерфейса</a> <a href="#Assumptions">Допущения</a></nav>
+<section class="row"><h2 class="row-title">1 · Уведомления</h2><div class="boards"><article class="board" id="Main"><h3 class="board-title">Уведомления — несколько категорий</h3><div class="frame" style="width:1280px">
+<div class="module-messenger-hub" style="width: 100%; box-sizing: border-box; padding: 24px 32px 48px; display: flex; flex-direction: column; gap: 24px; background: #ffffff">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap"><h2 class="ui header">Уведомления в мессенджеры</h2><a class="ui primary button" href="#NewScenario"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>Новое уведомление</a></div>
+<nav class="ui secondary pointing menu" aria-label="Разделы модуля">
+<a class="active item" href="#" aria-current="page">Уведомления<span class="ui red circular label" aria-label="требуют внимания: 2">2</span></a>
+<a class="item" href="#">Журнал</a>
+<a class="item" href="#">Настройки</a>
+</nav>
+
+<div role="list" aria-label="Уведомления">
+<h3 class="mh-group-title">Звонки</h3>
+<div class="mh-notif-row" role="listitem"><div><label class="ui toggle checkbox checked"><input type="checkbox" class="hidden" aria-label="Пропущенные звонки" checked readonly><span class="mh-track"></span></label></div><div style="min-width: 0"><a href="#NewSetup" class="mh-notif-title">Пропущенные звонки</a><div class="mh-meta mh-truncate">Сотруднику, иначе в «Отдел продаж» · Telegram</div></div><span class="mh-muted">сегодня 15:41</span><button class="ui text button" type="button" aria-label="Ещё" style="padding: 0"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8h.01M8 8h.01M12.5 8h.01" stroke-width="2.4"/></svg></button></div>
+<div class="mh-notif-row is-off" role="listitem"><div><label class="ui toggle checkbox"><input type="checkbox" class="hidden" aria-label="Голосовая почта" readonly><span class="mh-track"></span></label></div><div style="min-width: 0"><a href="#" class="mh-notif-title">Голосовая почта</a><div class="mh-meta mh-truncate">Сотруднику · Telegram</div></div><span class="mh-muted">выключено</span><button class="ui text button" type="button" aria-label="Ещё" style="padding: 0"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8h.01M8 8h.01M12.5 8h.01" stroke-width="2.4"/></svg></button></div>
+
+<h3 class="mh-group-title">ИИ Супервайзер</h3>
+<div class="mh-notif-row" role="listitem"><div><label class="ui toggle checkbox checked"><input type="checkbox" class="hidden" aria-label="Звонок требует внимания" checked readonly><span class="mh-track"></span></label></div><div style="min-width: 0"><a href="#" class="mh-notif-title">Звонок требует внимания</a><div class="mh-meta mh-truncate">Оценка ниже 60, отдел продаж → «Отдел продаж — контроль» · Telegram</div></div><span class="mh-muted">сегодня 14:02</span><button class="ui text button" type="button" aria-label="Ещё" style="padding: 0"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8h.01M8 8h.01M12.5 8h.01" stroke-width="2.4"/></svg></button></div>
+<div class="mh-notif-row" role="listitem"><div><label class="ui toggle checkbox checked"><input type="checkbox" class="hidden" aria-label="Воркеры остановились" checked readonly><span class="mh-track"></span></label></div><div style="min-width: 0"><a href="#" class="mh-notif-title">Воркеры остановились</a><div class="mh-meta mh-truncate">→ «Дежурная смена» · MAX</div></div><span style="display: inline-flex; gap: 12px; align-items: center"><span class="ui yellow label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5v5"/><path d="M4.8 4.4a5 5 0 1 0 6.4 0"/></svg>Модуль выключен</span><a href="#">Включить</a></span><button class="ui text button" type="button" aria-label="Ещё" style="padding: 0"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8h.01M8 8h.01M12.5 8h.01" stroke-width="2.4"/></svg></button></div>
+
+<h3 class="mh-group-title">Связь и АТС</h3>
+<div class="mh-notif-row" role="listitem"><div><label class="ui toggle checkbox checked"><input type="checkbox" class="hidden" aria-label="Провайдер недоступен" checked readonly><span class="mh-track"></span></label></div><div style="min-width: 0"><a href="#" class="mh-notif-title">Провайдер недоступен</a><div class="mh-meta mh-truncate">Все провайдеры → «Дежурная смена» · Telegram</div></div><span class="mh-muted">сегодня 15:20</span><button class="ui text button" type="button" aria-label="Ещё" style="padding: 0"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8h.01M8 8h.01M12.5 8h.01" stroke-width="2.4"/></svg></button></div>
+
+<h3 class="mh-group-title">Голосовой агент</h3>
+<div class="mh-notif-row" role="listitem"><div><label class="ui toggle checkbox checked"><input type="checkbox" class="hidden" aria-label="Заявка на перезвон" checked readonly><span class="mh-track"></span></label></div><div style="min-width: 0"><a href="#" class="mh-notif-title">Заявка на перезвон</a><div class="mh-meta mh-truncate">Сотруднику · Telegram</div></div><span style="display: inline-flex; gap: 12px; align-items: center"><span class="ui yellow label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5.25a2.5 2.5 0 0 1 5 0V7"/></svg>Нет доступа</span><a href="#">Выдать доступ</a></span><button class="ui text button" type="button" aria-label="Ещё" style="padding: 0"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8h.01M8 8h.01M12.5 8h.01" stroke-width="2.4"/></svg></button></div>
+</div>
+</div>
+</div></article><article class="board" id="NotifStates"><h3 class="board-title">Уведомления — пусто, одна категория, загрузка, ошибка</h3><div class="frame" style="width:1280px">
+<div class="module-messenger-hub" style="width: 1280px; box-sizing: border-box; padding: 32px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 56px 48px; background: #ffffff; align-items: start">
+
+<section style="display: flex; flex-direction: column; gap: 16px; min-width: 0">
+<span class="mh-state-tag">Пусто · ни одного уведомления</span>
+<div style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; padding: 56px 24px; border-top: 1px solid rgba(0,0,0,0.1)">
+<span style="color: rgba(0,0,0,0.3); display: inline-flex"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true" style="width: 32px; height: 32px"><path d="M2 9l2-5.5h8L14 9v4H2z"/><path d="M2 9h3.5l1 1.5h3l1-1.5H14"/></svg></span>
+<h3 class="ui header">Уведомлений пока нет</h3>
+<p class="mh-muted" style="margin: 0; max-width: 360px">Выберите, о чём сообщать, — например, о пропущенных звонках. Это займёт минуту.</p>
+<a class="ui primary button" href="#NewScenario"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>Новое уведомление</a>
+</div>
+<p class="mh-board-note" style="margin: 0">Кнопка в шапке скрыта, чтобы на экране было одно действие.</p>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 16px; min-width: 0">
+<span class="mh-state-tag">Одна категория · оглавлений нет</span>
+<div role="list" style="border-top: 1px solid rgba(0,0,0,0.1)">
+<div class="mh-notif-row" role="listitem"><div><label class="ui toggle checkbox checked"><input type="checkbox" class="hidden" aria-label="Пропущенные звонки" checked readonly><span class="mh-track"></span></label></div><div style="min-width: 0"><a href="#" class="mh-notif-title">Пропущенные звонки</a><div class="mh-meta mh-truncate">Сотруднику, иначе в «Отдел продаж» · Telegram</div></div><span class="mh-muted">сегодня 15:41</span><button class="ui text button" type="button" aria-label="Ещё" style="padding: 0"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8h.01M8 8h.01M12.5 8h.01" stroke-width="2.4"/></svg></button></div>
+<div class="mh-notif-row" role="listitem"><div><label class="ui toggle checkbox checked"><input type="checkbox" class="hidden" aria-label="Пропущенные в очередь" checked readonly><span class="mh-track"></span></label></div><div style="min-width: 0"><a href="#" class="mh-notif-title">Пропущенные в очередь «Сервис»</a><div class="mh-meta mh-truncate">В «Сервис — дежурные» · MAX</div></div><span class="mh-muted">вчера 19:05</span><button class="ui text button" type="button" aria-label="Ещё" style="padding: 0"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8h.01M8 8h.01M12.5 8h.01" stroke-width="2.4"/></svg></button></div>
+</div>
+<p class="mh-board-note" style="margin: 0">Оглавления появляются, только когда в списке две категории и больше. Порядок категорий постоянный: Звонки → ИИ Супервайзер → Голосовой агент → Связь и АТС.</p>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 16px; min-width: 0" aria-busy="true">
+<span class="mh-state-tag">Загрузка</span>
+<div style="border-top: 1px solid rgba(0,0,0,0.1)">
+<div class="mh-notif-row"><span class="mh-skel" style="width: 36px; height: 20px; border-radius: 10px"></span><div style="display: flex; flex-direction: column; gap: 6px"><span class="mh-skel" style="width: 50%"></span><span class="mh-skel" style="width: 70%; height: 8px"></span></div><span class="mh-skel" style="width: 80px"></span><span></span></div>
+<div class="mh-notif-row"><span class="mh-skel" style="width: 36px; height: 20px; border-radius: 10px"></span><div style="display: flex; flex-direction: column; gap: 6px"><span class="mh-skel" style="width: 40%"></span><span class="mh-skel" style="width: 60%; height: 8px"></span></div><span class="mh-skel" style="width: 80px"></span><span></span></div>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 8px; min-width: 0">
+<span class="mh-state-tag">Ошибка загрузки</span>
+<b>Не удалось загрузить уведомления</b>
+<span class="mh-muted">Сервер АТС не ответил за 10 с. Уже настроенные уведомления продолжают приходить.</span>
+<a href="#">Повторить</a>
+</section>
+</div>
+</div></article></div></section><section class="row"><h2 class="row-title">2 · Новое уведомление</h2><div class="boards"><article class="board" id="NewScenario"><h3 class="board-title">Шаг 1 — сценарий</h3><div class="frame" style="width:1280px">
+<div class="module-messenger-hub" style="width: 100%; box-sizing: border-box; padding: 24px 32px 48px; display: flex; flex-direction: column; gap: 24px; background: #ffffff">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<a href="#Main" class="mh-muted">← Уведомления</a>
+<h2 class="ui header">О чём сообщать?</h2>
+<div class="mh-steps" aria-label="Шаги"><span class="is-current">1 · Сценарий</span><span>2 · Условия</span><span>3 · Куда отправить</span></div>
+</div>
+
+<div style="max-width: 1040px">
+<h3 class="mh-group-title" style="padding-top: 0">Звонки</h3>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding-top: 12px">
+<a class="mh-scenario" href="#NewSetup"><span class="mh-scenario-icon"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 2.5l1.5 3-1.5 1.25a7 7 0 0 0 3.25 3.25L10 8.5l3 1.5v2.25A1.25 1.25 0 0 1 11.75 13.5 10.25 10.25 0 0 1 2.5 4.25 1.25 1.25 0 0 1 3.75 3z"/></svg></span><span style="min-width: 0"><b style="display: block">Пропущенный звонок</b><span class="mh-meta">Кто звонил и кому не ответили</span></span></a>
+<a class="mh-scenario" href="#"><span class="mh-scenario-icon"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><rect x="6" y="2" width="4" height="7.5" rx="2"/><path d="M3.75 7.75a4.25 4.25 0 0 0 8.5 0M8 12v2"/></svg></span><span style="min-width: 0"><b style="display: block">Голосовая почта</b><span class="mh-meta">Новое сообщение в ящике сотрудника</span></span></a>
+</div>
+
+<h3 class="mh-group-title">ИИ Супервайзер</h3>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding-top: 12px">
+<a class="mh-scenario" href="#"><span class="mh-scenario-icon"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v3M8 11v3M2 8h3M11 8h3M4 4l1.75 1.75M10.25 10.25L12 12M12 4l-1.75 1.75M5.75 10.25L4 12"/></svg></span><span style="min-width: 0"><b style="display: block">Звонок требует внимания</b><span class="mh-meta">Низкая оценка, клиенту не помогли</span></span></a>
+<div class="mh-scenario is-disabled" aria-disabled="true"><span class="mh-scenario-icon"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="5" width="10" height="8" rx="2"/><path d="M8 2.5V5M6 9h.01M10 9h.01" /><path d="M6 9h.01M10 9h.01" stroke-width="2"/></svg></span><span style="min-width: 0; display: flex; flex-direction: column; gap: 6px"><b style="color: rgba(0,0,0,0.7)">Сбой воркеров</b><span class="mh-meta">Модуль выключен · <a href="#">Включить</a></span></span></div>
+</div>
+
+<h3 class="mh-group-title">Голосовой агент</h3>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding-top: 12px">
+<div class="mh-scenario is-disabled" aria-disabled="true"><span class="mh-scenario-icon"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 2.5l1.5 3-1.5 1.25a7 7 0 0 0 3.25 3.25L10 8.5l3 1.5v2.25A1.25 1.25 0 0 1 11.75 13.5 10.25 10.25 0 0 1 2.5 4.25 1.25 1.25 0 0 1 3.75 3z"/></svg></span><span style="min-width: 0; display: flex; flex-direction: column; gap: 6px"><b style="color: rgba(0,0,0,0.7)">Заявка на перезвон</b><span class="mh-meta">Нет доступа к модулю · <a href="#">Выдать доступ</a></span></span></div>
+<a class="mh-scenario" href="#"><span class="mh-scenario-icon"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="5" width="10" height="8" rx="2"/><path d="M8 2.5V5M6 9h.01M10 9h.01" /><path d="M6 9h.01M10 9h.01" stroke-width="2"/></svg></span><span style="min-width: 0"><b style="display: block">Агент не отвечает</b><span class="mh-meta">Сбой и восстановление агента</span></span></a>
+</div>
+
+<h3 class="mh-group-title">Связь и АТС</h3>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding-top: 12px">
+<a class="mh-scenario" href="#"><span class="mh-scenario-icon"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="4.5" rx="1"/><rect x="2.5" y="9" width="11" height="4.5" rx="1"/><path d="M5 4.75h.01M5 11.25h.01" stroke-width="2"/></svg></span><span style="min-width: 0"><b style="display: block">Провайдер недоступен</b><span class="mh-meta">И когда связь вернулась</span></span></a>
+<a class="mh-scenario" href="#"><span class="mh-scenario-icon"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5l6 10.5H2z"/><path d="M8 6.5v3M8 11.2v.1"/></svg></span><span style="min-width: 0"><b style="display: block">Системные предупреждения</b><span class="mh-meta">Диск, лицензия, сбои служб</span></span></a>
+<a class="mh-scenario" href="#"><span class="mh-scenario-icon"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M9 1.75L3.5 9H8l-1 5.25L12.5 7H8z"/></svg></span><span style="min-width: 0"><b style="display: block">Запуск АТС</b><span class="mh-meta">После перезагрузки или сбоя питания</span></span></a>
+</div>
+</div>
+<p class="mh-meta" style="margin: 0">Сценарии модулей, которые не установлены, не показываем. Сценарий, который нельзя запустить, виден, но неактивен — с причиной и действием.</p>
+</div>
+</div></article><article class="board" id="NewSetup"><h3 class="board-title">Шаги 2–3 — условия и куда отправить</h3><div class="frame" style="width:1280px">
+<div class="module-messenger-hub" style="width: 100%; box-sizing: border-box; padding: 24px 32px 48px; display: flex; flex-direction: column; gap: 24px; background: #ffffff">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<a href="#NewScenario" class="mh-muted">← Сценарии</a>
+<h2 class="ui header">Пропущенный звонок</h2>
+<div class="mh-steps" aria-label="Шаги"><span class="is-done">1 · Сценарий ✓</span><span class="is-current">2 · Условия</span><span class="is-current">3 · Куда отправить</span></div>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 48px; align-items: flex-start">
+<form class="ui form" style="flex: 999 1 520px; min-width: 0; max-width: 640px; display: flex; flex-direction: column; gap: 32px" aria-label="Настройка уведомления">
+
+<section style="display: flex; flex-direction: column; gap: 12px">
+<h3 class="mh-group-title" style="padding-top: 0">Условия</h3>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
+<button class="mh-chip" type="button"><span class="mh-chip-key">Сотрудники:</span>все<svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6L8 10.5 12.5 6"/></svg></button>
+<button class="mh-chip is-set" type="button"><span class="mh-chip-key">Направление:</span>входящие<svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6L8 10.5 12.5 6"/></svg></button>
+<button class="mh-chip" type="button"><span class="mh-chip-key">Провайдер:</span>любой<svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6L8 10.5 12.5 6"/></svg></button>
+<button class="mh-chip is-add" type="button"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>Условие</button>
+</div>
+<span class="mh-meta">За прошлую неделю подошло бы 214 звонков — около 30 в день.</span>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 16px">
+<h3 class="mh-group-title" style="padding-top: 0">Куда отправить</h3>
+<div class="field" style="gap: 8px"><label>Мессенджер</label>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+<label class="mh-scenario is-selected" style="align-items: center"><input type="radio" name="bot" class="hidden" checked readonly style="position: absolute; opacity: 0"><span class="mh-messenger tg" role="img" aria-label="Telegram">TG</span><span style="min-width: 0"><b style="display: block" class="mh-truncate">Оповещения MIKO</b><span class="mh-meta">Telegram · 4 чата</span></span></label>
+<label class="mh-scenario" style="align-items: center"><input type="radio" name="bot" class="hidden" readonly style="position: absolute; opacity: 0"><span class="mh-messenger max" role="img" aria-label="MAX">MAX</span><span style="min-width: 0"><b style="display: block" class="mh-truncate">МИКО Контроль</b><span class="mh-meta">MAX · 2 чата</span></span></label>
+</div>
+<a href="#Settings" class="mh-meta" style="color: #1673b5">Подключить другой мессенджер — в Настройках</a>
+</div>
+<fieldset class="field" style="border: 0; padding: 0; gap: 10px">
+<label>Кому</label>
+<label class="ui radio checkbox"><input type="radio" class="hidden" readonly><span class="mh-box"></span><span>Сотруднику, которому звонили</span></label>
+<label class="ui radio checkbox"><input type="radio" class="hidden" readonly><span class="mh-box"></span><span>В выбранные чаты</span></label>
+<label class="ui radio checkbox checked"><input type="radio" class="hidden" checked readonly><span class="mh-box"></span><span>Сотруднику, а если у него нет чата — в выбранные чаты</span></label>
+<div class="ui multiple selection dropdown" tabindex="0" role="combobox" aria-label="Чаты" style="margin-left: 24px"><span class="ui label">Отдел продаж — контроль</span></div>
+</fieldset>
+<label class="ui checkbox checked"><input type="checkbox" class="hidden" checked readonly><span class="mh-box"></span><span>Скрывать номер клиента</span></label>
+</section>
+
+<div style="display: flex; gap: 8px; align-items: center"><button class="ui primary button" type="submit">Создать уведомление</button><a class="ui text button" href="#Main">Отмена</a></div>
+</form>
+
+<aside style="flex: 1 1 340px; min-width: 0; max-width: 420px; display: flex; flex-direction: column; gap: 12px" aria-label="Предпросмотр">
+<h3 class="mh-group-title" style="padding-top: 0">Так увидят в Telegram</h3>
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 16px; background: #dfe7ee; border-radius: 8px"><div style="align-self: flex-start; max-width: 420px; width: 100%; background: #ffffff; border-radius: 12px 12px 12px 4px; padding: 10px 12px 6px; box-shadow: 0 1px 1px rgba(0,0,0,0.08); font-family: -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, Arial, sans-serif; font-size: 14px; line-height: 20px; color: #1b1b1b">📞 <b>Пропущенный звонок</b><br><b>+7 968 968-94-44</b> → Иванов И. (233)<br><i>Очередь «Продажи», ждал 38 с</i><div style="text-align: right; font-size: 11px; line-height: 14px; color: rgba(0,0,0,0.45); margin-top: 2px">15:41</div></div><div style="max-width: 420px; width: 100%; display: flex; gap: 4px"><a href="#" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; height: 36px; font-size: 14px; font-weight: 600; text-decoration: none; background: rgba(255,255,255,0.7); color: #1b1b1b; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, &quot">Открыть звонок ↗</a></div></div>
+<button class="ui basic button" type="button" style="align-self: flex-start">Отправить пример себе</button>
+</aside>
+</div>
+</div>
+</div></article><article class="board" id="NewStates"><h3 class="board-title">Нет мессенджера, условие, добавить условие</h3><div class="frame" style="width:1280px">
+<div class="module-messenger-hub" style="width: 1280px; box-sizing: border-box; padding: 32px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px; background: #ffffff; align-items: start">
+
+<section style="display: flex; flex-direction: column; gap: 16px; min-width: 0">
+<span class="mh-state-tag">Мессенджер ещё не подключён</span>
+<h3 class="mh-group-title" style="padding-top: 0">Куда отправить</h3>
+<div style="display: flex; flex-direction: column; gap: 10px; align-items: flex-start; padding: 20px; background: rgba(0,0,0,0.05); border-radius: 8px">
+<b>Подключите Telegram или MAX</b>
+<span class="mh-muted">Нужен один раз — потом выбирайте его для любых уведомлений.</span>
+<button class="ui basic button" type="button"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>Подключить мессенджер</button>
+</div>
+<div style="display: flex; gap: 8px; align-items: center"><button class="ui primary button" type="button" disabled>Создать уведомление</button></div>
+<p class="mh-board-note" style="margin: 0">Подключение открывается поверх формы (тот же мастер, что в Настройках). Введённые условия не теряются.</p>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 16px; min-width: 0">
+<span class="mh-state-tag">Условие открыто</span>
+<div style="position: relative; height: 330px">
+<button class="mh-chip is-set" type="button" aria-expanded="true"><span class="mh-chip-key">Сотрудники:</span>2 выбрано<svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 10L8 5.5 12.5 10"/></svg></button>
+<div class="ui popup" style="left: 0; top: 36px; width: 300px; display: flex; flex-direction: column; gap: 10px">
+<div class="ui form"><input type="search" placeholder="Найти сотрудника или отдел" aria-label="Поиск"></div>
+<span class="mh-meta" style="text-transform: uppercase; letter-spacing: .06em; color: rgba(0,0,0,0.5)">Отделы</span>
+<label class="ui checkbox checked"><input type="checkbox" class="hidden" checked readonly><span class="mh-box"></span><span>Отдел продаж · 12</span></label>
+<label class="ui checkbox"><input type="checkbox" class="hidden" readonly><span class="mh-box"></span><span>Сервис · 6</span></label>
+<span class="mh-meta" style="text-transform: uppercase; letter-spacing: .06em; color: rgba(0,0,0,0.5)">Сотрудники</span>
+<label class="ui checkbox checked"><input type="checkbox" class="hidden" checked readonly><span class="mh-box"></span><span>Петрова А. (241)</span></label>
+<label class="ui checkbox"><input type="checkbox" class="hidden" readonly><span class="mh-box"></span><span>Иванов И. (233)</span></label>
+<div style="display: flex; justify-content: space-between"><button class="ui text button" type="button">Сбросить</button><button class="ui basic button" type="button">Готово</button></div>
+</div>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 16px; min-width: 0">
+<span class="mh-state-tag">Добавить условие</span>
+<div style="position: relative; height: 330px">
+<button class="mh-chip is-add" type="button" aria-expanded="true"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>Условие</button>
+<div class="ui dropdown" style="position: absolute; left: 0; top: 36px; width: 280px"><div class="menu" role="menu">
+<div class="item" role="menuitem">Время: только в нерабочие часы</div>
+<div class="item" role="menuitem">Очередь</div>
+<div class="item" role="menuitem">Номер клиента</div>
+<div class="item" role="menuitem" style="color: rgba(0,0,0,0.3)">Сотрудники · уже есть</div>
+</div></div>
+</div>
+<p class="mh-board-note" style="margin: 0">Список условий зависит от сценария: у «Провайдер недоступен» — только провайдеры, у «Звонок требует внимания» — ещё оценка.</p>
+</section>
+</div>
+</div></article></div></section><section class="row"><h2 class="row-title">3 · Журнал</h2><div class="boards"><article class="board" id="Events"><h3 class="board-title">Журнал</h3><div class="frame" style="width:1280px">
+<div class="module-messenger-hub" style="width: 100%; box-sizing: border-box; padding: 24px 32px 48px; display: flex; flex-direction: column; gap: 24px; background: #ffffff">
+<div style="display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 24px">
+<h2 class="ui header">Уведомления в мессенджеры</h2>
+</div>
+<nav class="ui secondary pointing menu" aria-label="Разделы модуля">
+<a class="item" href="#">Уведомления<span class="ui red circular label" aria-label="требуют внимания: 2">2</span></a>
+<a class="active item" href="#" aria-current="page">Журнал<span class="ui red circular label" aria-label="требуют внимания: 3">3</span></a>
+<a class="item" href="#">Настройки</a>
+</nav>
+
+<form class="ui form" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center" aria-label="Фильтры">
+<div class="ui selection dropdown" tabindex="0" role="combobox" aria-label="Период" style="width: 180px"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg><span class="text">Сегодня</span></div>
+<div class="ui selection dropdown" tabindex="0" role="combobox" aria-label="Тип события" style="width: 180px"><span class="default text">Все события</span></div>
+<div class="ui selection dropdown" tabindex="0" role="combobox" aria-label="Источник" style="width: 180px"><span class="default text">Все источники</span></div>
+<div class="ui selection dropdown" tabindex="0" role="combobox" aria-label="Важность" style="width: 180px"><span class="default text">Любая важность</span></div>
+</form>
+
+<div style="overflow-x: auto">
+<table class="ui selectable table" style="min-width: 860px">
+<colgroup><col style="width: 36px"><col style="width: 64px"><col style="width: 240px"><col><col style="width: 150px"><col style="width: 140px"></colgroup>
+<thead><tr><th></th><th>Время</th><th>Событие</th><th>Кратко</th><th>Важность</th><th>Отправка</th></tr></thead>
+<tbody>
+<tr><td style="color: rgba(0,0,0,0.5)"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg></td><td>15:41</td><td>Пропущенный звонок</td><td class="mh-truncate mh-muted">+7 968 968-94-44 → Иванов И. (233)</td><td><span class="mh-muted">Инфо</span></td><td><span class="mh-dot is-ok">Доставлено · 2 из 2</span></td></tr>
+<tr><td style="color: rgba(0,0,0,0.5)"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg></td><td>15:38</td><td>Голосовой агент не отвечает</td><td class="mh-truncate mh-muted">VA-502</td><td><span class="ui red label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 2h5L14 5.5v5L10.5 14h-5L2 10.5v-5z"/><path d="M8 5v3.5M8 10.8v.1"/></svg>Критично</span></td><td><span class="ui red label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg>Ошибка · 1 из 2</span></td></tr>
+<tr><td style="color: rgba(0,0,0,0.5)"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg></td><td>15:20</td><td>Провайдер недоступен</td><td class="mh-truncate mh-muted">SIP «Мегафон»</td><td><span class="ui red label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 2h5L14 5.5v5L10.5 14h-5L2 10.5v-5z"/><path d="M8 5v3.5M8 10.8v.1"/></svg>Критично</span></td><td><span class="mh-dot is-ok">Доставлено · 3 из 3</span></td></tr>
+<tr class="active"><td><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6L8 10.5 12.5 6"/></svg></td><td>14:02</td><td>Звонок требует внимания</td><td class="mh-truncate mh-muted">Клиенту не помогли, качество 48</td><td><span class="ui yellow label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5l6 10.5H2z"/><path d="M8 6.5v3M8 11.2v.1"/></svg>Предупреждение</span></td><td><span class="ui red label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg>Ошибка · 1 из 3</span></td></tr>
+<tr class="mh-detail"><td colspan="6" style="padding: 8px 12px 20px 112px">
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px">
+<dl style="display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 8px 12px; margin: 0; align-content: start">
+<dt class="mh-muted">Сотрудник</dt><dd style="margin: 0">Петрова А. (241)</dd>
+<dt class="mh-muted">Клиент</dt><dd style="margin: 0">+7 916 ***-**-17</dd>
+<dt class="mh-muted">Оценка</dt><dd style="margin: 0">48 из 100</dd>
+<dt class="mh-muted">Звонок</dt><dd style="margin: 0"><a href="#">1731924120.4471</a></dd>
+</dl>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 16px; align-items: center; align-content: start">
+<span class="mh-truncate">Отдел продаж — контроль</span><span class="mh-dot is-ok">Доставлено</span>
+<span class="mh-truncate">Петрова А.</span><span class="mh-dot is-ok">Доставлено</span>
+<span class="mh-truncate">Канал «Качество звонков»</span><span style="display: inline-flex; gap: 12px; align-items: center"><span class="ui red label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg>Ошибка · 403</span><a href="#">Повторить</a></span>
+</div>
+</div>
+</td></tr>
+<tr><td style="color: rgba(0,0,0,0.5)"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg></td><td>13:47</td><td>Пропущенный звонок</td><td class="mh-truncate mh-muted">+7 903 411-27-90 → очередь «Продажи»</td><td><span class="mh-muted">Инфо</span></td><td><span class="mh-dot is-ok">Доставлено · 1 из 1</span></td></tr>
+<tr><td style="color: rgba(0,0,0,0.5)"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg></td><td>12:10</td><td>Мало места на диске</td><td class="mh-truncate mh-muted">Свободно 8 %</td><td><span class="ui yellow label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5l6 10.5H2z"/><path d="M8 6.5v3M8 11.2v.1"/></svg>Предупреждение</span></td><td><span class="mh-dot is-ok">Доставлено · 2 из 2</span></td></tr>
+<tr><td style="color: rgba(0,0,0,0.5)"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg></td><td>03:10</td><td>АТС запущена</td><td class="mh-truncate mh-muted">После обновления</td><td><span class="mh-muted">Инфо</span></td><td><span class="mh-muted">—</span></td></tr>
+</tbody>
+</table>
+</div>
+
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px">
+<span class="mh-muted">1–7 из 248</span>
+<nav style="display: flex; gap: 4px" aria-label="Страницы"><button class="ui basic icon button" type="button" disabled aria-label="Назад" style="transform: scaleX(-1)"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg></button><button class="ui basic icon button" type="button" aria-label="Вперёд"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg></button></nav>
+</div>
+</div>
+</div></article><article class="board" id="EventsStates"><h3 class="board-title">Журнал — состояния</h3><div class="frame" style="width:1280px">
+<div class="module-messenger-hub" style="width: 1280px; box-sizing: border-box; padding: 32px; display: flex; flex-direction: column; gap: 40px; background: #ffffff">
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px">
+<section style="display: flex; flex-direction: column; gap: 12px; min-width: 0">
+<span class="mh-state-tag">Пусто · событий ещё не было</span>
+<div class="ui segment" style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; padding: 48px 32px; min-height: 340px; justify-content: center">
+<span style="color: rgba(0,0,0,0.5); display: inline-flex"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true" style="width: 24px; height: 24px"><path d="M2 9l2-5.5h8L14 9v4H2z"/><path d="M2 9h3.5l1 1.5h3l1-1.5H14"/></svg></span>
+<h3 class="ui header">Событий пока нет</h3>
+<p class="mh-muted" style="margin: 0; max-width: 420px">События появятся здесь, как только включённый источник что-то сообщит. Включено источников: 0 из 9.</p>
+<div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center"><a class="ui primary button" href="#">Включить источники</a></div>
+<p class="mh-meta" style="margin: 0">Проверить можно сразу: включите «Пропущенные звонки» и не ответьте на тестовый звонок.</p>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 12px; min-width: 0">
+<span class="mh-state-tag">Пусто · по фильтрам ничего</span>
+<div class="ui segment" style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; padding: 48px 32px; min-height: 340px; justify-content: center">
+<span style="color: rgba(0,0,0,0.5); display: inline-flex"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true" style="width: 24px; height: 24px"><path d="M2.5 3.5h11l-4.25 5v4l-2.5 1.25V8.5z"/></svg></span>
+<h3 class="ui header">Нет событий по выбранным фильтрам</h3>
+<p class="mh-muted" style="margin: 0; max-width: 420px">Важность «Критично», источник «Провайдеры», период «Сегодня». За всё время таких событий 12 — последнее 14 ноября.</p>
+<div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center"><button class="ui basic button" type="button">Сбросить фильтры</button><button class="ui text button" type="button">Показать за всё время</button></div>
+</div>
+</section>
+</div>
+
+<section style="display: flex; flex-direction: column; gap: 12px">
+<span class="mh-state-tag">Загрузка</span>
+<table class="ui table" aria-busy="true" aria-label="Загружаем события">
+<colgroup><col style="width: 40px"><col style="width: 72px"><col style="width: 230px"><col style="width: 150px"><col><col style="width: 170px"></colgroup>
+<thead><tr><th></th><th>Время</th><th>Событие</th><th>Важность</th><th>Кратко</th><th>Отправка</th></tr></thead>
+<tbody>
+<tr><td></td><td><span class="mh-skel" style="width: 36px"></span></td><td><span class="mh-skel" style="width: 160px"></span></td><td><span class="mh-skel" style="width: 80px; height: 20px; border-radius: 5px"></span></td><td><span class="mh-skel" style="width: 70%"></span></td><td><span class="mh-skel" style="width: 96px; height: 20px; border-radius: 5px"></span></td></tr>
+<tr><td></td><td><span class="mh-skel" style="width: 36px"></span></td><td><span class="mh-skel" style="width: 130px"></span></td><td><span class="mh-skel" style="width: 80px; height: 20px; border-radius: 5px"></span></td><td><span class="mh-skel" style="width: 55%"></span></td><td><span class="mh-skel" style="width: 96px; height: 20px; border-radius: 5px"></span></td></tr>
+<tr><td></td><td><span class="mh-skel" style="width: 36px"></span></td><td><span class="mh-skel" style="width: 180px"></span></td><td><span class="mh-skel" style="width: 80px; height: 20px; border-radius: 5px"></span></td><td><span class="mh-skel" style="width: 62%"></span></td><td><span class="mh-skel" style="width: 96px; height: 20px; border-radius: 5px"></span></td></tr>
+</tbody>
+</table>
+<p class="mh-board-note" style="margin: 0">При смене фильтра таблица не исчезает: старые строки остаются под полупрозрачной заливкой с ui mini loader в шапке, чтобы страница не прыгала.</p>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 12px">
+<span class="mh-state-tag">Ошибка загрузки · данные уже были на экране</span>
+<div class="ui negative message" role="alert">
+<svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg>
+<div style="flex: 1; min-width: 0"><div class="header">Не удалось обновить журнал</div>Сервер АТС не ответил за 10 секунд. Ниже — данные на 15:40. Отправка уведомлений не зависит от этой страницы и продолжается.</div>
+<button class="ui basic button" type="button" style="background: #fff"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.6"/><path d="M13 2.5V5h-2.5"/></svg>Повторить</button>
+</div>
+<p class="mh-board-note" style="margin: 0">Если данных ещё не было — вместо таблицы та же центрированная заглушка, что в «Источниках»: иконка ошибки, «Не удалось загрузить события», код ответа, «Повторить».</p>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 12px">
+<span class="mh-state-tag">Длинные значения</span>
+<table class="ui table">
+<colgroup><col style="width: 40px"><col style="width: 72px"><col style="width: 230px"><col style="width: 150px"><col><col style="width: 170px"></colgroup>
+<thead><tr><th></th><th>Время</th><th>Событие</th><th>Важность</th><th>Кратко</th><th>Отправка</th></tr></thead>
+<tbody>
+<tr><td><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg></td><td>вчера<br><span class="mh-meta">23:58</span></td><td><b class="mh-clamp-2">Голосовой агент: заявка на перезвон от постоянного клиента</b></td><td><span class="ui yellow label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5l6 10.5H2z"/><path d="M8 6.5v3M8 11.2v.1"/></svg>Предупреждение</span></td><td><span class="mh-clamp-2">+7 968 968-94-44 → Константинопольская-Щедрина Е. В. (2341), очередь «Сервис и гарантийное обслуживание, вторая линия»</span></td><td><span class="ui red label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg>Ошибка · 2 из 7</span></td></tr>
+<tr class="active"><td><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6L8 10.5 12.5 6"/></svg></td><td>15:20</td><td><b>Провайдер недоступен</b></td><td><span class="ui red label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 2h5L14 5.5v5L10.5 14h-5L2 10.5v-5z"/><path d="M8 5v3.5M8 10.8v.1"/></svg>Критично</span></td><td class="mh-truncate">SIP «ООО Мегафон — Центральный филиал, резервный транк для исходящих»</td><td><span class="ui red label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg>Ошибка · 1 из 3</span></td></tr>
+<tr class="mh-detail"><td colspan="6">
+<div class="ui segment mh-flush" style="margin-top: 12px">
+<div style="display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 4px 10px; align-items: start; padding: 10px 12px; background: rgba(255,0,61,0.04)"><span class="mh-messenger tg s" role="img" aria-label="Telegram">TG</span><div style="min-width: 0"><div class="mh-truncate">Дежурная смена технической поддержки — ночные инциденты и аварии на линиях</div><div class="mh-meta" style="color: rgb(189,9,53); overflow-wrap: anywhere">429 Too Many Requests: retry after 37 · Telegram ограничил частоту — модуль сам повторит в 15:21:04</div></div><div style="display: flex; gap: 8px; align-items: center"><span class="ui red label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg>Ошибка · 429</span><button class="ui basic button" type="button" disabled>Повтор через 37 с</button></div></div>
+</div>
+</td></tr>
+</tbody>
+</table>
+<p class="mh-board-note" style="margin: 0">Правила: «Событие» и «Кратко» — до двух строк, дальше многоточие и полный текст в подсказке; время старше суток — дата сверху, время снизу; код ошибки переносится в любом месте; «Повторить» неактивна, пока мессенджер просит подождать, и показывает обратный отсчёт.</p>
+</section>
+</div>
+</div></article></div></section><section class="row"><h2 class="row-title">4 · Настройки и мессенджеры</h2><div class="boards"><article class="board" id="Settings"><h3 class="board-title">Настройки — мессенджеры и общие</h3><div class="frame" style="width:1280px">
+<div class="module-messenger-hub" style="width: 100%; box-sizing: border-box; padding: 24px 32px 48px; display: flex; flex-direction: column; gap: 24px; background: #ffffff">
+<h2 class="ui header">Уведомления в мессенджеры</h2>
+<nav class="ui secondary pointing menu" aria-label="Разделы модуля">
+<a class="item" href="#">Уведомления<span class="ui red circular label" aria-label="требуют внимания: 2">2</span></a>
+<a class="item" href="#">Журнал</a>
+<a class="active item" href="#" aria-current="page">Настройки</a>
+</nav>
+
+<section style="max-width: 880px; display: flex; flex-direction: column">
+<div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 8px"><h3 class="mh-group-title" style="padding: 0; border: 0">Мессенджеры</h3><button class="ui primary button" type="button"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>Подключить мессенджер</button></div>
+
+<div style="display: grid; grid-template-columns: 32px minmax(0, 1fr) auto 28px; gap: 16px; align-items: center; padding: 14px 0"><span class="mh-messenger tg" role="img" aria-label="Telegram">TG</span><div style="min-width: 0"><b>Оповещения MIKO</b><div class="mh-meta">Telegram · @miko_alerts_bot · 4 чата</div></div><span class="mh-dot is-ok">Работает</span><button class="ui text button" type="button" aria-label="Свернуть" aria-expanded="true" style="padding: 0"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 10L8 5.5 12.5 10"/></svg></button></div>
+<div style="padding: 0 0 16px 48px; display: flex; flex-direction: column">
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 200px) minmax(130px, 160px) 52px; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid rgba(0,0,0,0.1)"><span class="mh-truncate">Отдел продаж — контроль <span class="mh-meta">· группа</span></span><div class="ui selection dropdown" tabindex="0" role="combobox" aria-label="Сотрудник"><span class="default text">Без сотрудника</span></div><span class="mh-dot is-ok">Работает</span><div><label class="ui toggle checkbox checked"><input type="checkbox" class="hidden" aria-label="Чат" checked readonly><span class="mh-track"></span></label></div></div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 200px) minmax(130px, 160px) 52px; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid rgba(0,0,0,0.1)"><span class="mh-truncate">Анна Петрова <span class="mh-meta">· личный</span></span><div class="ui selection dropdown" tabindex="0" role="combobox" aria-label="Сотрудник"><span class="text">Петрова А. (241)</span></div><span class="mh-dot is-ok">Работает</span><div><label class="ui toggle checkbox checked"><input type="checkbox" class="hidden" aria-label="Чат" checked readonly><span class="mh-track"></span></label></div></div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 200px) minmax(130px, 160px) 52px; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid rgba(0,0,0,0.1)"><span class="mh-truncate">«Качество звонков» <span class="mh-meta">· канал</span></span><span></span><span class="ui red label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg>Бот удалён из чата</span><div><label class="ui toggle checkbox checked disabled"><input type="checkbox" class="hidden" aria-label="Чат" checked readonly><span class="mh-track"></span></label></div></div>
+<div style="display: flex; gap: 16px; padding-top: 10px; border-top: 1px solid rgba(0,0,0,0.1)"><a href="#ConnectChat"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg> Подключить чат</a><a href="#">Отправить тест</a><a href="#BotForm">Заменить токен</a></div>
+</div>
+
+<div style="display: grid; grid-template-columns: 32px minmax(0, 1fr) auto 28px; gap: 16px; align-items: center; padding: 14px 0; border-top: 1px solid rgba(0,0,0,0.1)"><span class="mh-messenger max" role="img" aria-label="MAX">MAX</span><div style="min-width: 0"><b>МИКО Контроль</b><div class="mh-meta">MAX · @miko_quality_bot · 2 чата</div></div><span class="mh-dot is-ok">Работает</span><button class="ui text button" type="button" aria-label="Развернуть" aria-expanded="false" style="padding: 0"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6L8 10.5 12.5 6"/></svg></button></div>
+<div style="display: grid; grid-template-columns: 32px minmax(0, 1fr) auto 28px; gap: 16px; align-items: center; padding: 14px 0; border-top: 1px solid rgba(0,0,0,0.1); border-bottom: 1px solid rgba(0,0,0,0.1)"><span class="mh-messenger tg" role="img" aria-label="Telegram">TG</span><div style="min-width: 0"><b>Тестовый бот</b><div class="mh-meta">Telegram · 0 чатов</div></div><span style="display: inline-flex; gap: 12px; align-items: center"><span class="ui red label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg>Токен отклонён</span><a href="#BotForm">Заменить</a></span><button class="ui text button" type="button" aria-label="Развернуть" aria-expanded="false" style="padding: 0"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6L8 10.5 12.5 6"/></svg></button></div>
+</section>
+
+<section style="max-width: 560px; display: flex; flex-direction: column; gap: 24px">
+<h3 class="mh-group-title">Общие</h3>
+<div class="ui warning message" role="note"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5l6 10.5H2z"/><path d="M8 6.5v3M8 11.2v.1"/></svg><div>Номера, тексты и записи звонков передаются на серверы Telegram и MAX. Удалить отправленное модуль не может.</div></div>
+<form class="ui form" style="display: flex; flex-direction: column; gap: 24px" aria-label="Общие настройки">
+<div class="field"><label for="ret">Хранить журнал, дней</label><input id="ret" type="number" value="30" style="width: 96px"></div>
+<div class="field"><label for="url">Адрес АТС для кнопки «Открыть звонок»</label><input id="url" type="text" value="https://pbx.example.ru"><span class="mh-help">Без адреса кнопки в сообщении не будет.</span></div>
+<div style="display: flex; align-items: center; gap: 12px"><label class="ui toggle checkbox checked"><input type="checkbox" class="hidden" aria-label="Скрывать номера" checked readonly><span class="mh-track"></span></label><span>Скрывать номера клиентов в новых уведомлениях</span></div>
+<div class="field"><label>Прокси</label><div class="ui selection dropdown" tabindex="0" role="combobox" style="max-width: 260px"><span class="text">Без прокси</span></div></div>
+</form>
+<span class="mh-meta">Изменения сохраняются сразу.</span>
+</section>
+</div>
+</div></article><article class="board" id="BotForm"><h3 class="board-title">Подключить мессенджер — Telegram и MAX</h3><div class="frame" style="width:1280px">
+<div class="module-messenger-hub" style="width: 1280px; box-sizing: border-box; padding: 32px; background: rgba(0,0,0,0.25); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; align-items: start">
+
+<div style="display: flex; flex-direction: column; gap: 8px; min-width: 0">
+<span class="mh-state-tag" style="color: #fff">Новый бот · Telegram · токен проверен</span>
+<div class="ui modal" role="dialog" aria-labelledby="m1">
+<div class="header" id="m1">Добавить бота</div>
+<div class="content ui form" style="display: flex; flex-direction: column; gap: 16px">
+<fieldset class="field" style="border: 0; padding: 0">
+<label>Мессенджер</label>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+<label class="ui radio checkbox checked" style="padding: 10px 12px; border: 1px solid #f27519; border-radius: 8px; background: rgba(242,117,25,0.12)"><input type="radio" name="m1" class="hidden" checked readonly><span class="mh-box"></span><span class="mh-messenger tg s" role="img" aria-label="Telegram">TG</span><span>Telegram</span></label>
+<label class="ui radio checkbox" style="padding: 10px 12px; border: 1px solid rgba(0,0,0,0.1); border-radius: 8px"><input type="radio" name="m1" class="hidden" readonly><span class="mh-box"></span><span class="mh-messenger max s" role="img" aria-label="MAX">MAX</span><span>MAX</span></label>
+</div>
+</fieldset>
+<div class="field"><label for="n1">Название</label><input id="n1" type="text" value="Оповещения MIKO"><span class="mh-help">Видно только в админке. Имя в мессенджере берём из токена.</span></div>
+<div class="field"><label for="t1">Токен бота</label>
+<div style="display: flex; gap: 8px"><input id="t1" type="text" value="7311805522:AAH•••••••••••••••••••••1234" style="font-family: Menlo, Monaco, Consolas, monospace; font-size: 12px"><button class="ui basic button" type="button"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.6"/><path d="M13 2.5V5h-2.5"/></svg>Проверить</button></div>
+<span class="mh-help">Создайте бота у @BotFather командой /newbot и вставьте токен. После сохранения токен больше не показывается целиком.</span>
+</div>
+<div class="ui positive message" role="status"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M5.5 8.2l1.8 1.8 3.3-3.6"/></svg><div>Токен работает. Это бот <b>@miko_alerts_bot</b> — «Оповещения MIKO».</div></div>
+</div>
+<div class="actions"><button class="ui basic button" type="button">Отмена</button><button class="ui primary button" type="button">Сохранить и подключить чат</button></div>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px; min-width: 0">
+<span class="mh-state-tag" style="color: #fff">Новый бот · MAX · бот на модерации</span>
+<div class="ui modal" role="dialog" aria-labelledby="m2">
+<div class="header" id="m2">Добавить бота</div>
+<div class="content ui form" style="display: flex; flex-direction: column; gap: 16px">
+<fieldset class="field" style="border: 0; padding: 0">
+<label>Мессенджер</label>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+<label class="ui radio checkbox" style="padding: 10px 12px; border: 1px solid rgba(0,0,0,0.1); border-radius: 8px"><input type="radio" name="m2" class="hidden" readonly><span class="mh-box"></span><span class="mh-messenger tg s" role="img" aria-label="Telegram">TG</span><span>Telegram</span></label>
+<label class="ui radio checkbox checked" style="padding: 10px 12px; border: 1px solid #f27519; border-radius: 8px; background: rgba(242,117,25,0.12)"><input type="radio" name="m2" class="hidden" checked readonly><span class="mh-box"></span><span class="mh-messenger max s" role="img" aria-label="MAX">MAX</span><span>MAX</span></label>
+</div>
+</fieldset>
+<div class="ui warning message" role="note">
+<svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5l6 10.5H2z"/><path d="M8 6.5v3M8 11.2v.1"/></svg>
+<div style="display: flex; flex-direction: column; gap: 6px; min-width: 0"><div class="header">Бота MAX создаёт организация</div>
+<span>Бота регистрирует юрлицо или ИП на <a href="#">business.max.ru</a>. После создания бот проходит модерацию — <b>до 48 часов</b>. Пока модерация не закончилась, токен не пройдёт проверку.</span>
+<a href="#">Пошаговая инструкция<svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M9 2.5h4.5V7M13.5 2.5L7.5 8.5M11.5 9.5v3.5h-9v-9H6"/></svg></a></div>
+</div>
+<div class="field"><label for="n2">Название</label><input id="n2" type="text" value="МИКО Контроль качества"></div>
+<div class="field error"><label for="t2">Токен бота</label>
+<div style="display: flex; gap: 8px"><input id="t2" type="text" value="f9LHodD0cOK•••••••••••••8a2d" aria-invalid="true" aria-describedby="t2e" style="font-family: Menlo, Monaco, Consolas, monospace; font-size: 12px"><button class="ui basic button" type="button"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.6"/><path d="M13 2.5V5h-2.5"/></svg>Проверить</button></div>
+<span class="mh-help" id="t2e">MAX не принял токен (403): бот ещё на модерации. Сохраните бота сейчас — проверим токен сами каждый час и напишем здесь, когда он заработает.</span>
+</div>
+</div>
+<div class="actions"><button class="ui basic button" type="button">Отмена</button><button class="ui primary button" type="button">Сохранить без проверки</button></div>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px; min-width: 0">
+<span class="mh-state-tag" style="color: #fff">Существующий бот · токен скрыт</span>
+<div class="ui modal" role="dialog" aria-labelledby="m3">
+<div class="header" id="m3">Бот «Оповещения MIKO»</div>
+<div class="content ui form" style="display: flex; flex-direction: column; gap: 16px">
+<div class="field"><label>Мессенджер</label><div style="display: flex; gap: 8px; align-items: center"><span class="mh-messenger tg s" role="img" aria-label="Telegram">TG</span><span>Telegram</span><span class="mh-meta">· сменить нельзя, создайте нового бота</span></div></div>
+<div class="field"><label for="n3">Название</label><input id="n3" type="text" value="Оповещения MIKO"></div>
+<div class="field"><label>Токен бота</label>
+<div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap"><code style="padding: 5px 8px; background: rgba(0,0,0,0.05); border-radius: 6px">••••1234</code><button class="ui basic button" type="button"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="5" cy="11" r="2.5"/><path d="M6.8 9.2L13 3M11 5l1.5 1.5"/></svg>Заменить</button><button class="ui text button" type="button"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.6"/><path d="M13 2.5V5h-2.5"/></svg>Проверить</button></div>
+<span class="mh-help">Сохранён 3 ноября. Целиком токен не показываем — даже администратору.</span>
+</div>
+</div>
+<div class="actions" style="justify-content: space-between"><button class="ui red basic button" type="button"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 9h5.6l.7-9"/></svg>Удалить бота</button><div style="display: flex; gap: 8px"><button class="ui basic button" type="button">Отмена</button><button class="ui primary button" type="button">Сохранить</button></div></div>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px; min-width: 0">
+<span class="mh-state-tag" style="color: #fff">Замена токена · проверка не прошла</span>
+<div class="ui modal" role="dialog" aria-labelledby="m4">
+<div class="header" id="m4">Бот «Оповещения MIKO»</div>
+<div class="content ui form" style="display: flex; flex-direction: column; gap: 16px">
+<div class="field error"><label for="t4">Новый токен</label>
+<div style="display: flex; gap: 8px"><input id="t4" type="text" value="7311805522:AAG•••••••••••••••••••••9f0c" aria-invalid="true" style="font-family: Menlo, Monaco, Consolas, monospace; font-size: 12px"><button class="ui basic button" type="button"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.6"/><path d="M13 2.5V5h-2.5"/></svg>Проверить</button></div>
+<span class="mh-help">Это токен другого бота — @sales_helper_bot. Чаты «Оповещений MIKO» с ним работать не будут. Вставьте токен @miko_alerts_bot или создайте нового бота.</span>
+</div>
+<button class="ui text button" type="button" style="align-self: flex-start">Отменить замену — оставить ••••1234</button>
+<p class="mh-meta" style="margin: 0">Подтверждение удаления бота (ui mini modal): «Удалить бота «Оповещения MIKO»? Отключатся 4 чата, правила с ними перестанут отправлять сообщения. История событий сохранится.» Кнопки: «Отмена» и «Удалить» (red basic).</p>
+</div>
+<div class="actions"><button class="ui basic button" type="button">Отмена</button><button class="ui primary button" type="button" disabled>Сохранить</button></div>
+</div>
+</div>
+</div>
+</div></article><article class="board" id="ConnectChat"><h3 class="board-title">Подключить чат — 4 состояния</h3><div class="frame" style="width:1280px">
+<div class="module-messenger-hub" style="width: 1280px; box-sizing: border-box; padding: 32px; background: rgba(0,0,0,0.25); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; align-items: start">
+
+<div style="display: flex; flex-direction: column; gap: 8px; min-width: 0">
+<span class="mh-state-tag" style="color: #fff">1 · Идёт поиск</span>
+<div class="ui modal" role="dialog" aria-labelledby="c1">
+<div class="header" id="c1">Подключить чат к «Оповещениям MIKO»</div>
+<div class="content" style="display: flex; flex-direction: column; gap: 16px">
+<ol style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px">
+<li><b>Личный чат</b> — откройте <a href="#">@miko_alerts_bot</a> и нажмите <code>/start</code>. В MAX — кнопку «Начать».</li>
+<li><b>Группа</b> — добавьте бота в группу и напишите там любое сообщение.</li>
+<li><b>Канал</b> — назначьте бота администратором канала.</li>
+</ol>
+<div style="display: flex; gap: 8px; align-items: center; padding: 8px 12px; background: rgba(0,0,0,0.05); border-radius: 8px"><span class="mh-muted">Ссылка для сотрудников</span><code class="mh-truncate" style="flex: 1">t.me/miko_alerts_bot?start=link-7F3K</code><button class="ui basic icon button" type="button" aria-label="Скопировать ссылку"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V3.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/></svg></button></div>
+<div style="display: flex; flex-direction: column; gap: 6px" role="status" aria-live="polite">
+<div style="display: flex; justify-content: space-between; gap: 8px; align-items: center"><span style="display: inline-flex; gap: 8px; align-items: center"><span class="ui mini loader" aria-hidden="true"></span>Ждём сообщений в бот…</span><b>Осталось 4:12</b></div>
+<div class="ui progress" aria-hidden="true"><div class="bar" style="width: 84%"></div></div>
+</div>
+<div class="ui segment" style="border-style: dashed; text-align: center; padding: 24px" ><span class="mh-muted">Найденные чаты появятся здесь</span></div>
+</div>
+<div class="actions"><button class="ui basic button" type="button">Остановить поиск</button><button class="ui primary button" type="button" disabled>Сохранить выбранные</button></div>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px; min-width: 0">
+<span class="mh-state-tag" style="color: #fff">2 · Найдено, поиск продолжается</span>
+<div class="ui modal" role="dialog" aria-labelledby="c2">
+<div class="header" id="c2">Подключить чат к «Оповещениям MIKO»</div>
+<div class="content" style="display: flex; flex-direction: column; gap: 16px">
+<p style="margin: 0" class="mh-muted">Личный чат — <code>/start</code> в <a href="#">@miko_alerts_bot</a>. Группа — добавьте бота и напишите сообщение. Канал — сделайте бота администратором.</p>
+<div style="display: flex; flex-direction: column; gap: 6px" role="status" aria-live="polite">
+<div style="display: flex; justify-content: space-between; gap: 8px; align-items: center"><span style="display: inline-flex; gap: 8px; align-items: center"><span class="ui mini loader" aria-hidden="true"></span>Найдено 3 чата, ищем дальше…</span><b>Осталось 2:38</b></div>
+<div class="ui progress" aria-hidden="true"><div class="bar" style="width: 53%"></div></div>
+</div>
+<div class="ui segment mh-flush">
+<label style="display: grid; grid-template-columns: 20px minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; border-bottom: 1px solid rgba(0,0,0,0.1); background: rgba(242,117,25,0.12)"><label class="ui checkbox checked"><input type="checkbox" class="hidden" checked readonly><span class="mh-box"></span><span></span></label><span style="min-width: 0"><span class="mh-truncate" style="display: block; font-weight: 600">Анна Петрова</span><span class="mh-meta">Личный · @a_petrova · 15:46:12</span></span><span class="ui blue label">Новый</span></label>
+<label style="display: grid; grid-template-columns: 20px minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; border-bottom: 1px solid rgba(0,0,0,0.1); background: rgba(242,117,25,0.12)"><label class="ui checkbox checked"><input type="checkbox" class="hidden" checked readonly><span class="mh-box"></span><span></span></label><span style="min-width: 0"><span class="mh-truncate" style="display: block; font-weight: 600">Отдел продаж — контроль</span><span class="mh-meta">Группа · 14 участников · 15:45:40</span></span><span class="ui blue label">Новый</span></label>
+<label style="display: grid; grid-template-columns: 20px minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 10px 12px"><label class="ui checkbox"><input type="checkbox" class="hidden" readonly><span class="mh-box"></span><span></span></label><span style="min-width: 0"><span class="mh-truncate" style="display: block; font-weight: 600; color: rgba(0,0,0,0.7)">Иван Иванов</span><span class="mh-meta">Личный · уже подключён</span></span><span class="ui label">Есть</span></label>
+</div>
+</div>
+<div class="actions"><button class="ui basic button" type="button">Отмена</button><button class="ui primary button" type="button">Сохранить выбранные (2)</button></div>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px; min-width: 0">
+<span class="mh-state-tag" style="color: #fff">3 · Время вышло, чаты найдены</span>
+<div class="ui modal" role="dialog" aria-labelledby="c3">
+<div class="header" id="c3">Подключить чат к «Оповещениям MIKO»</div>
+<div class="content" style="display: flex; flex-direction: column; gap: 16px">
+<div class="ui message" role="status"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M8 4.8V8l2.2 1.4"/></svg><div style="flex: 1">Поиск закончился: прошло 5 минут. Найдено 2 чата — отметьте нужные и сохраните.</div><button class="ui text button" type="button">Искать ещё 5 мин</button></div>
+<div class="ui segment mh-flush">
+<label style="display: grid; grid-template-columns: 20px minmax(0,1fr); gap: 10px; align-items: center; padding: 10px 12px; border-bottom: 1px solid rgba(0,0,0,0.1); background: rgba(242,117,25,0.12)"><label class="ui checkbox checked"><input type="checkbox" class="hidden" checked readonly><span class="mh-box"></span><span></span></label><span style="min-width: 0"><span class="mh-truncate" style="display: block; font-weight: 600">Анна Петрова</span><span class="mh-meta">Личный · @a_petrova</span></span></label>
+<label style="display: grid; grid-template-columns: 20px minmax(0,1fr); gap: 10px; align-items: center; padding: 10px 12px"><label class="ui checkbox"><input type="checkbox" class="hidden" readonly><span class="mh-box"></span><span></span></label><span style="min-width: 0"><span class="mh-truncate" style="display: block; font-weight: 600">Склад и логистика — уведомления о доставках и возвратах</span><span class="mh-meta">Группа · 6 участников</span></span></label>
+</div>
+</div>
+<div class="actions"><button class="ui basic button" type="button">Отмена</button><button class="ui primary button" type="button">Сохранить выбранные (1)</button></div>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px; min-width: 0">
+<span class="mh-state-tag" style="color: #fff">4 · Ничего не найдено</span>
+<div class="ui modal" role="dialog" aria-labelledby="c4">
+<div class="header" id="c4">Подключить чат к «Оповещениям MIKO»</div>
+<div class="content" style="display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 8px 0">
+<span style="color: rgba(0,0,0,0.5); display: inline-flex"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true" style="width: 24px; height: 24px"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg></span>
+<h3 class="ui header">За 5 минут бот не получил ни одного сообщения</h3>
+</div>
+<div class="ui accordion" style="display: flex; flex-direction: column">
+<div class="title"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6L8 10.5 12.5 6"/></svg>Что проверить</div>
+<ul class="content" style="margin: 0; display: flex; flex-direction: column; gap: 6px">
+<li>Писали именно <b>@miko_alerts_bot</b>, а не другому боту с похожим именем.</li>
+<li>В группе бот появился в списке участников, а сообщение отправлено после этого.</li>
+<li>Токен не используется другой программой: Telegram отдаёт сообщения только одному получателю.</li>
+<li>АТС видит api.telegram.org — если нет, укажите прокси в «Настройках».</li>
+</ul>
+</div>
+</div>
+<div class="actions"><button class="ui basic button" type="button">Закрыть</button><button class="ui primary button" type="button"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.6"/><path d="M13 2.5V5h-2.5"/></svg>Искать ещё 5 минут</button></div>
+</div>
+</div>
+</div>
+</div></article><article class="board" id="BotsStates"><h3 class="board-title">Мессенджеры — пусто, загрузка, ошибка, тест</h3><div class="frame" style="width:1280px">
+<div class="module-messenger-hub" style="width: 1280px; box-sizing: border-box; padding: 32px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px 24px; background: #ffffff; align-items: start">
+
+<section style="display: flex; flex-direction: column; gap: 12px; min-width: 0">
+<span class="mh-state-tag">Пусто · ботов нет</span>
+<div class="ui segment" style="display: flex; flex-direction: column; gap: 16px; padding: 32px">
+<div style="display: flex; flex-direction: column; gap: 6px"><h3 class="ui header">Ботов пока нет</h3><p class="mh-muted" style="margin: 0">Бот — это отправитель уведомлений. Добавьте его, затем подключите чаты: личные, группы или каналы.</p></div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+<a class="mh-bot-card" href="#" style="color: inherit; text-decoration: none"><span class="mh-messenger tg" role="img" aria-label="Telegram">TG</span><b>Telegram</b><span class="mh-meta">Бот создаётся за минуту у @BotFather.</span></a>
+<a class="mh-bot-card" href="#" style="color: inherit; text-decoration: none"><span class="mh-messenger max" role="img" aria-label="MAX">MAX</span><b>MAX</b><span class="mh-meta">Бота создаёт организация на business.max.ru, модерация до 48 ч.</span></a>
+</div>
+<button class="ui primary button" type="button" style="align-self: flex-start"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>Добавить бота</button>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 12px; min-width: 0">
+<span class="mh-state-tag">Пусто · у бота нет чатов</span>
+<div class="ui segment" style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; padding: 32px">
+<span style="color: rgba(0,0,0,0.5); display: inline-flex"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true" style="width: 24px; height: 24px"><circle cx="6" cy="6" r="2.25"/><path d="M2 13a4 4 0 0 1 8 0M10.5 4a2.25 2.25 0 0 1 0 4.5M12 9.5a4 4 0 0 1 2 3.5"/></svg></span>
+<h3 class="ui header">К боту не подключено ни одного чата</h3>
+<p class="mh-muted" style="margin: 0; max-width: 400px">Без чатов уведомлениям некуда идти. Подключение занимает до 5 минут: напишите боту или добавьте его в группу.</p>
+<button class="ui basic button" type="button"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>Подключить чат</button>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 12px; min-width: 0">
+<span class="mh-state-tag">Загрузка</span>
+<div style="display: flex; flex-direction: column; gap: 12px" aria-busy="true">
+<div class="mh-bot-card"><div style="display: flex; gap: 12px; align-items: center"><span class="mh-skel" style="width: 32px; height: 32px; border-radius: 8px"></span><div style="display: flex; flex-direction: column; gap: 6px; flex: 1"><span class="mh-skel" style="width: 60%"></span><span class="mh-skel" style="width: 40%; height: 8px"></span></div></div><span class="mh-skel" style="width: 120px; height: 20px; border-radius: 5px"></span></div>
+<div class="mh-bot-card"><div style="display: flex; gap: 12px; align-items: center"><span class="mh-skel" style="width: 32px; height: 32px; border-radius: 8px"></span><div style="display: flex; flex-direction: column; gap: 6px; flex: 1"><span class="mh-skel" style="width: 50%"></span><span class="mh-skel" style="width: 35%; height: 8px"></span></div></div><span class="mh-skel" style="width: 120px; height: 20px; border-radius: 5px"></span></div>
+</div>
+<p class="mh-board-note" style="margin: 0">Проверка токена идёт отдельно от загрузки списка: карточка уже видна, а на месте статуса — ui mini loader и «Проверяем токен…».</p>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 12px; min-width: 0">
+<span class="mh-state-tag">Ошибка загрузки</span>
+<div class="ui negative message" role="alert"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg><div style="flex: 1; min-width: 0"><div class="header">Не удалось загрузить ботов</div>АТС вернула <code>HTTP 500</code>. Уже подключённые боты продолжают отправлять уведомления.</div><button class="ui basic button" type="button" style="background: #fff"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.6"/><path d="M13 2.5V5h-2.5"/></svg>Повторить</button></div>
+<div class="ui warning message" role="status"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5l6 10.5H2z"/><path d="M8 6.5v3M8 11.2v.1"/></svg><div style="min-width: 0"><div class="header">Не проверили токен — нет связи с api.telegram.org</div>Последняя удачная проверка — сегодня в 15:30. Если АТС выходит в интернет через прокси, укажите его в «Настройках».</div></div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 12px; min-width: 0; grid-column: 1 / -1">
+<span class="mh-state-tag">Отправить тест · результат по каждому чату · длинные названия</span>
+<div class="ui segment" style="display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap"><h4 class="ui header">Результат теста · 15:47 · 4 чата</h4><span class="mh-meta">Доставлено 2 · ошибка 1 · в очереди 1</span></div>
+<div style="display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 10px 12px; align-items: center">
+<span class="mh-messenger tg s" role="img" aria-label="Telegram">TG</span><span class="mh-truncate">Отдел продаж — контроль</span><span><span class="mh-dot is-ok">Доставлено</span> <span class="mh-meta">0,4 с</span></span>
+<span class="mh-messenger max s" role="img" aria-label="MAX">MAX</span><span class="mh-truncate" title="Служба технической поддержки клиентов по гарантийному обслуживанию оборудования">Служба технической поддержки клиентов по гарантийному обслуживанию оборудования</span><span><span class="mh-dot is-ok">Доставлено</span> <span class="mh-meta">0,9 с</span></span>
+<span class="mh-messenger tg s" role="img" aria-label="Telegram">TG</span><div style="min-width: 0"><div class="mh-truncate">Канал «Качество звонков»</div><div class="mh-meta" style="color: rgb(189,9,53)">403 Forbidden: bot is not a member of the channel chat — бота нет в канале</div></div><span style="display: inline-flex; gap: 8px; align-items: center"><span class="ui red label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg>Ошибка · 403</span><button class="ui basic button" type="button"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.6"/><path d="M13 2.5V5h-2.5"/></svg>Повторить</button></span>
+<span class="mh-messenger max s" role="img" aria-label="MAX">MAX</span><span class="mh-truncate">Смирнов К.</span><span><span class="mh-dot">В очереди</span> <span class="mh-meta">ждём ответ MAX</span></span>
+</div>
+</div>
+</section>
+</div>
+</div></article></div></section><section class="row"><h2 class="row-title">5 · Сообщение в мессенджере</h2><div class="boards"><article class="board" id="Notifications"><h3 class="board-title">Сообщения в Telegram и MAX</h3><div class="frame" style="width:1600px">
+<div class="module-messenger-hub" style="width: 1600px; box-sizing: border-box; padding: 32px; display: flex; flex-direction: column; gap: 24px; background: #ffffff">
+<div style="display: flex; flex-direction: column; gap: 4px"><h2 class="ui header">Уведомление</h2><p class="mh-muted" style="margin: 0">Один эмодзи-маркер, главное — жирным, одна кнопка. Запись — отдельным сообщением. В MAX цитаты — курсивом.</p></div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; align-items: start">
+<section style="display: flex; flex-direction: column; gap: 8px; min-width: 0"><span class="mh-muted">Telegram · пропущенный</span><div style="display: flex; flex-direction: column; gap: 6px; padding: 16px; background: #dfe7ee; border-radius: 8px"><div style="align-self: flex-start; max-width: 420px; width: 100%; background: #ffffff; border-radius: 12px 12px 12px 4px; padding: 10px 12px 6px; box-shadow: 0 1px 1px rgba(0,0,0,0.08); font-family: -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, Arial, sans-serif; font-size: 14px; line-height: 20px; color: #1b1b1b">📞 <b>Пропущенный звонок</b><br><b>+7 968 968-94-44</b> → Иванов И. (233)<br><i>Очередь «Продажи», ждал 38 с</i><div style="text-align: right; font-size: 11px; line-height: 14px; color: rgba(0,0,0,0.45); margin-top: 2px">15:41</div></div><div style="max-width: 420px; width: 100%; display: flex; gap: 4px"><a href="#" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; height: 36px; font-size: 14px; font-weight: 600; text-decoration: none; background: rgba(255,255,255,0.7); color: #1b1b1b; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, &quot">Открыть звонок ↗</a></div></div></section>
+<section style="display: flex; flex-direction: column; gap: 8px; min-width: 0"><span class="mh-muted">MAX · пропущенный</span><div style="display: flex; flex-direction: column; gap: 6px; padding: 16px; background: #ecebf3; border-radius: 8px"><div style="align-self: flex-start; max-width: 420px; width: 100%; background: #ffffff; border-radius: 12px 12px 12px 4px; padding: 10px 12px 6px; box-shadow: 0 1px 1px rgba(0,0,0,0.08); font-family: -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, Arial, sans-serif; font-size: 14px; line-height: 20px; color: #1b1b1b">📞 <b>Пропущенный звонок</b><br><b>+7 968 968-94-44</b> → Иванов И. (233)<br><i>Очередь «Продажи», ждал 38 с</i><div style="text-align: right; font-size: 11px; line-height: 14px; color: rgba(0,0,0,0.45); margin-top: 2px">15:41</div></div><div style="max-width: 420px; width: 100%; display: flex; gap: 4px"><a href="#" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; height: 36px; font-size: 14px; font-weight: 600; text-decoration: none; background: #ffffff; color: #1f5fbf; border: 1px solid rgba(0,0,0,0.1); border-radius: 10px; font-family: -apple-system, BlinkMacSystemFont, &quot">Открыть звонок ↗</a></div></div></section>
+<section style="display: flex; flex-direction: column; gap: 8px; min-width: 0"><span class="mh-muted">Telegram · требует внимания</span><div style="display: flex; flex-direction: column; gap: 6px; padding: 16px; background: #dfe7ee; border-radius: 8px"><div style="align-self: flex-start; max-width: 420px; width: 100%; background: #ffffff; border-radius: 12px 12px 12px 4px; padding: 10px 12px 6px; box-shadow: 0 1px 1px rgba(0,0,0,0.08); font-family: -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, Arial, sans-serif; font-size: 14px; line-height: 20px; color: #1b1b1b">⚠️ <b>Звонок требует внимания</b> · оценка <b>48</b><br>Петрова А. (241) ← +7 916 204-55-17 · 6:42<br><br><i>Клиенту не помогли: дважды отправили на сайт, решения не предложили.</i><br><br><div style="border-left: 3px solid #3b8fd9; background: rgba(59,143,217,0.08); border-radius: 4px; padding: 2px 8px; margin: 2px 0"><code style="font-family: Menlo, monospace; font-size: 12px">02:14</code> «Я уже третий раз звоню по этому вопросу»</div><div style="border-left: 3px solid #3b8fd9; background: rgba(59,143,217,0.08); border-radius: 4px; padding: 2px 8px; margin: 2px 0"><code style="font-family: Menlo, monospace; font-size: 12px">04:51</code> «Посмотрите на сайте, там всё написано»</div><div style="border-left: 3px solid #3b8fd9; background: rgba(59,143,217,0.08); border-radius: 4px; padding: 2px 8px; margin: 2px 0"><code style="font-family: Menlo, monospace; font-size: 12px">06:20</code> «Тогда я напишу жалобу»</div><br><code style="font-family: Menlo, monospace; font-size: 12px">1731924120.4471</code><div style="text-align: right; font-size: 11px; line-height: 14px; color: rgba(0,0,0,0.45); margin-top: 2px">14:02</div></div><div style="max-width: 420px; width: 100%; display: flex; gap: 4px"><a href="#" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; height: 36px; font-size: 14px; font-weight: 600; text-decoration: none; background: rgba(255,255,255,0.7); color: #1b1b1b; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, &quot">Открыть звонок ↗</a></div><div style="align-self: flex-start; max-width: 420px; width: 100%; background: #ffffff; border-radius: 12px 12px 12px 4px; padding: 10px 12px 6px; box-shadow: 0 1px 1px rgba(0,0,0,0.08); font-family: -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, Arial, sans-serif; font-size: 14px; line-height: 20px; color: #1b1b1b"><div style="display: flex; align-items: center; gap: 10px"><span style="width: 36px; height: 36px; border-radius: 50%; background: #3b8fd9; display: inline-flex; align-items: center; justify-content: center; color: #fff; flex: none"><svg viewBox="0 0 16 16" aria-hidden="true" style="width: 14px; height: 14px; fill: #fff"><path d="M5 3.5v9l7-4.5z"/></svg></span><div style="min-width: 0"><div style="font-weight: 600">call-1731924120.4471.mp3</div><div style="font-size: 12px; color: rgba(0,0,0,0.55)">6:42 · 6,1 МБ</div></div></div><div style="text-align: right; font-size: 11px; line-height: 14px; color: rgba(0,0,0,0.45); margin-top: 2px">14:02</div></div></div></section>
+<section style="display: flex; flex-direction: column; gap: 8px; min-width: 0"><span class="mh-muted">MAX · требует внимания</span><div style="display: flex; flex-direction: column; gap: 6px; padding: 16px; background: #ecebf3; border-radius: 8px"><div style="align-self: flex-start; max-width: 420px; width: 100%; background: #ffffff; border-radius: 12px 12px 12px 4px; padding: 10px 12px 6px; box-shadow: 0 1px 1px rgba(0,0,0,0.08); font-family: -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, Arial, sans-serif; font-size: 14px; line-height: 20px; color: #1b1b1b">⚠️ <b>Звонок требует внимания</b> · оценка <b>48</b><br>Петрова А. (241) ← +7 916 204-55-17 · 6:42<br><br><i>Клиенту не помогли: дважды отправили на сайт, решения не предложили.</i><br><br><div style="margin: 2px 0"><code style="font-family: Menlo, monospace; font-size: 12px">02:14</code> <i>«Я уже третий раз звоню по этому вопросу»</i></div><div style="margin: 2px 0"><code style="font-family: Menlo, monospace; font-size: 12px">04:51</code> <i>«Посмотрите на сайте, там всё написано»</i></div><div style="margin: 2px 0"><code style="font-family: Menlo, monospace; font-size: 12px">06:20</code> <i>«Тогда я напишу жалобу»</i></div><br><code style="font-family: Menlo, monospace; font-size: 12px">1731924120.4471</code><div style="text-align: right; font-size: 11px; line-height: 14px; color: rgba(0,0,0,0.45); margin-top: 2px">14:02</div></div><div style="max-width: 420px; width: 100%; display: flex; gap: 4px"><a href="#" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; height: 36px; font-size: 14px; font-weight: 600; text-decoration: none; background: #ffffff; color: #1f5fbf; border: 1px solid rgba(0,0,0,0.1); border-radius: 10px; font-family: -apple-system, BlinkMacSystemFont, &quot">Открыть звонок ↗</a></div><div style="align-self: flex-start; max-width: 420px; width: 100%; background: #ffffff; border-radius: 12px 12px 12px 4px; padding: 10px 12px 6px; box-shadow: 0 1px 1px rgba(0,0,0,0.08); font-family: -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, Arial, sans-serif; font-size: 14px; line-height: 20px; color: #1b1b1b"><div style="display: flex; align-items: center; gap: 10px"><span style="width: 36px; height: 36px; border-radius: 50%; background: #7a4fc4; display: inline-flex; align-items: center; justify-content: center; color: #fff; flex: none"><svg viewBox="0 0 16 16" aria-hidden="true" style="width: 14px; height: 14px; fill: #fff"><path d="M5 3.5v9l7-4.5z"/></svg></span><div style="min-width: 0"><div style="font-weight: 600">call-1731924120.4471.mp3</div><div style="font-size: 12px; color: rgba(0,0,0,0.55)">6:42 · 6,1 МБ</div></div></div><div style="text-align: right; font-size: 11px; line-height: 14px; color: rgba(0,0,0,0.45); margin-top: 2px">14:02</div></div></div></section>
+</div>
+<p class="mh-meta" style="margin: 0">Маркеры: 📞 пропущенный · 📨 голосовая почта · ⚠️ предупреждение · 🔴 критично · ✅ восстановлено · 🔄 запуск АТС.</p>
+</div>
+</div></article></div></section><section class="row"><h2 class="row-title">Дизайн-система модуля</h2><div class="boards"><article class="board" id="Tokens"><h3 class="board-title">Дизайн-токены и соответствие Fomantic UI</h3><div class="frame" style="width:1280px">
+<div class="module-messenger-hub" style="width: 1280px; box-sizing: border-box; padding: 32px; display: flex; flex-direction: column; gap: 32px; background: #ffffff">
+<div style="display: flex; flex-direction: column; gap: 6px; max-width: 960px"><h2 class="ui header">Дизайн-токены ModuleMessengerHub</h2><p class="mh-muted" style="margin: 0">Все токены — CSS custom properties на корне <code>.module-messenger-hub</code>, остальная админка их не видит. Значения взяты из дизайн-системы MIKO (Gravity UI 7.50, светлая тема). Колонка «Fomantic» — какую переменную темы (site.variables) и какие селекторы переопределяет токен. Полный файл — <code>mh-theme.css</code> в этом проекте.</p></div>
+<section style="display: flex; flex-direction: column; gap: 10px"><h3 class="ui header">Цвет · поверхности</h3><table class="ui table"><thead><tr><th style="width: 48px"></th><th style="width: 250px">Токен</th><th style="width: 160px">Значение</th><th style="width: 290px">MIKO / Gravity</th><th>Fomantic UI</th></tr></thead><tbody>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: #ffffff; border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-color-bg</code></td><td style="overflow-wrap: anywhere"><code>#ffffff</code></td><td style="overflow-wrap: anywhere"><code>g-color-base-background</code></td><td style="overflow-wrap: anywhere">@white · .ui.segment, .ui.table</td></tr>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: rgba(0,0,0,.05); border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-color-bg-subtle</code></td><td style="overflow-wrap: anywhere"><code>rgba(0,0,0,.05)</code></td><td style="overflow-wrap: anywhere"><code>g-color-base-generic</code></td><td style="overflow-wrap: anywhere">.ui.secondary.segment, .ui.table thead th</td></tr>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: rgba(0,0,0,.05); border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-color-bg-hover</code></td><td style="overflow-wrap: anywhere"><code>rgba(0,0,0,.05)</code></td><td style="overflow-wrap: anywhere"><code>g-color-base-simple-hover</code></td><td style="overflow-wrap: anywhere">.ui.selectable.table tr:hover, .menu .item:hover</td></tr>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: rgba(0,0,0,.15); border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-color-bg-active</code></td><td style="overflow-wrap: anywhere"><code>rgba(0,0,0,.15)</code></td><td style="overflow-wrap: anywhere"><code>g-color-base-generic-hover</code></td><td style="overflow-wrap: anywhere">.ui.button:hover / :active</td></tr>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: rgba(242,117,25,.12); border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-color-selection</code></td><td style="overflow-wrap: anywhere"><code>rgba(242,117,25,.12)</code></td><td style="overflow-wrap: anywhere"><code>g-color-base-selection</code></td><td style="overflow-wrap: anywhere">.ui.table tr.active, .dropdown .item.selected</td></tr>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: #ffffff; border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-color-float</code></td><td style="overflow-wrap: anywhere"><code>#ffffff</code></td><td style="overflow-wrap: anywhere"><code>g-color-base-float</code></td><td style="overflow-wrap: anywhere">.ui.popup, .ui.dropdown .menu</td></tr>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: #ffffff; border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-color-modal</code></td><td style="overflow-wrap: anywhere"><code>#ffffff</code></td><td style="overflow-wrap: anywhere"><code>g-color-base-modal</code></td><td style="overflow-wrap: anywhere">.ui.modal</td></tr>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: rgba(0,0,0,.25); border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-color-veil</code></td><td style="overflow-wrap: anywhere"><code>rgba(0,0,0,.25)</code></td><td style="overflow-wrap: anywhere"><code>g-color-sfx-veil</code></td><td style="overflow-wrap: anywhere">@dimmerBackgroundColor · .ui.dimmer</td></tr>
+</tbody></table></section>
+<section style="display: flex; flex-direction: column; gap: 10px"><h3 class="ui header">Цвет · текст и ссылки</h3><table class="ui table"><thead><tr><th style="width: 48px"></th><th style="width: 250px">Токен</th><th style="width: 160px">Значение</th><th style="width: 290px">MIKO / Gravity</th><th>Fomantic UI</th></tr></thead><tbody>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: rgba(0,0,0,.85); border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-color-text</code></td><td style="overflow-wrap: anywhere"><code>rgba(0,0,0,.85)</code></td><td style="overflow-wrap: anywhere"><code>g-color-text-primary</code></td><td style="overflow-wrap: anywhere">@textColor</td></tr>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: rgba(0,0,0,.7); border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-color-text-meta</code></td><td style="overflow-wrap: anywhere"><code>rgba(0,0,0,.7)</code></td><td style="overflow-wrap: anywhere"><code>g-color-text-complementary</code></td><td style="overflow-wrap: anywhere">@mutedTextColor · .meta, .description, th</td></tr>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: rgba(0,0,0,.5); border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-color-text-secondary</code></td><td style="overflow-wrap: anywhere"><code>rgba(0,0,0,.5)</code></td><td style="overflow-wrap: anywhere"><code>g-color-text-secondary</code></td><td style="overflow-wrap: anywhere">@lightTextColor · плейсхолдеры (4,0:1)</td></tr>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: rgba(0,0,0,.3); border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-color-text-hint</code></td><td style="overflow-wrap: anywhere"><code>rgba(0,0,0,.3)</code></td><td style="overflow-wrap: anywhere"><code>g-color-text-hint</code></td><td style="overflow-wrap: anywhere">@disabledTextColor · .disabled</td></tr>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: #1673b5; border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-color-link</code></td><td style="overflow-wrap: anywhere"><code>#1673b5</code></td><td style="overflow-wrap: anywhere"><code>g-color-text-link</code></td><td style="overflow-wrap: anywhere">@linkColor</td></tr>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: #0f5c94; border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-color-link-hover</code></td><td style="overflow-wrap: anywhere"><code>#0f5c94</code></td><td style="overflow-wrap: anywhere"><code>g-color-text-link-hover</code></td><td style="overflow-wrap: anywhere">@linkHoverColor</td></tr>
+</tbody></table></section>
+<section style="display: flex; flex-direction: column; gap: 10px"><h3 class="ui header">Цвет · бренд</h3><table class="ui table"><thead><tr><th style="width: 48px"></th><th style="width: 250px">Токен</th><th style="width: 160px">Значение</th><th style="width: 290px">MIKO / Gravity</th><th>Fomantic UI</th></tr></thead><tbody>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: #f27519; border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-color-brand</code></td><td style="overflow-wrap: anywhere"><code>#f27519</code></td><td style="overflow-wrap: anywhere"><code>g-color-base-brand</code></td><td style="overflow-wrap: anywhere">@primaryColor, @orange · .ui.primary.button, toggle checked, checkbox checked, progress .bar</td></tr>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: #db6510; border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-color-brand-hover</code></td><td style="overflow-wrap: anywhere"><code>#db6510</code></td><td style="overflow-wrap: anywhere"><code>g-color-base-brand-hover</code></td><td style="overflow-wrap: anywhere">@primaryColorHover · .ui.primary.button:hover</td></tr>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: #ffffff; border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-color-on-brand</code></td><td style="overflow-wrap: anywhere"><code>#ffffff</code></td><td style="overflow-wrap: anywhere"><code>g-color-text-brand-contrast</code></td><td style="overflow-wrap: anywhere">@primaryTextColor (2,9:1 — см. допущения)</td></tr>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: #b04e06; border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-color-brand-text</code></td><td style="overflow-wrap: anywhere"><code>#b04e06</code></td><td style="overflow-wrap: anywhere"><code>g-color-text-brand-heavy</code></td><td style="overflow-wrap: anywhere">текст выбранного сегмента, активная страница</td></tr>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: #f27519; border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-color-brand-line</code></td><td style="overflow-wrap: anywhere"><code>#f27519</code></td><td style="overflow-wrap: anywhere"><code>g-color-line-brand</code></td><td style="overflow-wrap: anywhere">.ui.secondary.pointing.menu .active.item border</td></tr>
+</tbody></table></section>
+<section style="display: flex; flex-direction: column; gap: 10px"><h3 class="ui header">Цвет · линии</h3><table class="ui table"><thead><tr><th style="width: 48px"></th><th style="width: 250px">Токен</th><th style="width: 160px">Значение</th><th style="width: 290px">MIKO / Gravity</th><th>Fomantic UI</th></tr></thead><tbody>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: rgba(0,0,0,.1); border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-color-line</code></td><td style="overflow-wrap: anywhere"><code>rgba(0,0,0,.1)</code></td><td style="overflow-wrap: anywhere"><code>g-color-line-generic</code></td><td style="overflow-wrap: anywhere">@borderColor, @inputBorderColor</td></tr>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: rgba(0,0,0,.15); border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-color-line-hover</code></td><td style="overflow-wrap: anywhere"><code>rgba(0,0,0,.15)</code></td><td style="overflow-wrap: anywhere"><code>g-color-line-generic-hover</code></td><td style="overflow-wrap: anywhere">@inputHoverBorderColor</td></tr>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: rgba(107,132,153,.8); border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-color-focus</code></td><td style="overflow-wrap: anywhere"><code>rgba(107,132,153,.8)</code></td><td style="overflow-wrap: anywhere"><code>g-color-line-focus</code></td><td style="overflow-wrap: anywhere">@focusedFormBorderColor, :focus-visible</td></tr>
+</tbody></table></section>
+<section style="display: flex; flex-direction: column; gap: 10px"><h3 class="ui header">Цвет · статусы</h3><table class="ui table"><thead><tr><th style="width: 48px"></th><th style="width: 250px">Токен</th><th style="width: 160px">Значение</th><th style="width: 290px">MIKO / Gravity</th><th>Fomantic UI</th></tr></thead><tbody>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: rgba(50,186,118,.15); border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-positive-bg / -text / -line</code></td><td style="overflow-wrap: anywhere"><code>rgba(50,186,118,.15)</code></td><td style="overflow-wrap: anywhere"><code>g-color-base-positive-light · text-positive-heavy · line-positive</code></td><td style="overflow-wrap: anywhere">.ui.green.label, .ui.positive.message</td></tr>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: rgba(255,190,92,.3); border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-warning-bg / -text / -line</code></td><td style="overflow-wrap: anywhere"><code>rgba(255,190,92,.3)</code></td><td style="overflow-wrap: anywhere"><code>g-color-base-warning-light · text-warning-heavy · line-warning</code></td><td style="overflow-wrap: anywhere">.ui.yellow.label, .ui.warning.message</td></tr>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: rgba(255,0,61,.15); border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-danger-bg / -text / -line</code></td><td style="overflow-wrap: anywhere"><code>rgba(255,0,61,.15)</code></td><td style="overflow-wrap: anywhere"><code>g-color-base-danger-light · text-danger-heavy · line-danger</code></td><td style="overflow-wrap: anywhere">.ui.red.label, .ui.negative.message, .field.error</td></tr>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: rgb(233,3,58); border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-danger-solid</code></td><td style="overflow-wrap: anywhere"><code>rgb(233,3,58)</code></td><td style="overflow-wrap: anywhere"><code>g-color-base-danger-heavy</code></td><td style="overflow-wrap: anywhere">.ui.red.circular.label (счётчик на вкладке)</td></tr>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: rgba(54,151,241,.15); border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-info-bg / -text / -line</code></td><td style="overflow-wrap: anywhere"><code>rgba(54,151,241,.15)</code></td><td style="overflow-wrap: anywhere"><code>g-color-base-info-light · text-info-heavy · line-info</code></td><td style="overflow-wrap: anywhere">.ui.blue.label, .ui.info.message</td></tr>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: rgba(107,132,153,.15); border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-misc-bg / -text</code></td><td style="overflow-wrap: anywhere"><code>rgba(107,132,153,.15)</code></td><td style="overflow-wrap: anywhere"><code>g-color-base-misc-light · text-misc-heavy</code></td><td style="overflow-wrap: anywhere">.ui.grey.label</td></tr>
+<tr><td><span style="display: inline-block; width: 28px; height: 20px; border-radius: 5px; background: rgba(0,0,0,.05); border: 1px solid rgba(0,0,0,0.1)"></span></td><td style="overflow-wrap: anywhere"><code>--mh-neutral-bg</code></td><td style="overflow-wrap: anywhere"><code>rgba(0,0,0,.05)</code></td><td style="overflow-wrap: anywhere"><code>g-color-base-neutral-light</code></td><td style="overflow-wrap: anywhere">.ui.label (без цвета), .ui.message</td></tr>
+</tbody></table></section>
+<section style="display: flex; flex-direction: column; gap: 10px"><h3 class="ui header">Типографика</h3><p class="mh-muted" style="margin: 0">Шрифт <code>--mh-font-sans</code>: Inter 400/600, файлы woff2 кладём в модуль (Fomantic по умолчанию тянет Lato из Google Fonts — отключаем <code>@importGoogleFonts: false</code>). Без файла — системный стек: -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial. Кириллица есть во всех.</p><table class="ui table"><thead><tr><th style="width: 48px"></th><th style="width: 250px">Токен</th><th style="width: 160px">Размер / вес</th><th style="width: 290px">MIKO</th><th>Fomantic UI</th></tr></thead><tbody>
+<tr><td></td><td><code>--mh-text-display</code><div style="font-size: 28px; line-height: 1.3; font-weight: 600; font-family: inherit; margin-top: 6px">Пропущенный звонок</div></td><td><code>28/36 · 600</code></td><td><code>display-1</code></td><td>.ui.statistic > .value</td></tr>
+<tr><td></td><td><code>--mh-text-title</code><div style="font-size: 20px; line-height: 1.3; font-weight: 600; font-family: inherit; margin-top: 6px">Пропущенный звонок</div></td><td><code>20/24 · 600</code></td><td><code>header-1</code></td><td>h2.ui.header, .ui.modal > .header</td></tr>
+<tr><td></td><td><code>--mh-text-sub-l</code><div style="font-size: 17px; line-height: 1.3; font-weight: 600; font-family: inherit; margin-top: 6px">Пропущенный звонок</div></td><td><code>17/24 · 600</code></td><td><code>subheader-3</code></td><td>h3.ui.header — заголовок сегмента</td></tr>
+<tr><td></td><td><code>--mh-text-sub</code><div style="font-size: 15px; line-height: 1.3; font-weight: 600; font-family: inherit; margin-top: 6px">Пропущенный звонок</div></td><td><code>15/20 · 600</code></td><td><code>subheader-2</code></td><td>h4.ui.header — карточка, блок</td></tr>
+<tr><td></td><td><code>--mh-text-body-l</code><div style="font-size: 15px; line-height: 1.3; font-weight: 600; font-family: inherit; margin-top: 6px">Пропущенный звонок</div></td><td><code>15/20 · 600</code></td><td><code>body-2 (вес 600)</code></td><td>.ui.primary.button</td></tr>
+<tr><td></td><td><code>--mh-text-body</code><div style="font-size: 13px; line-height: 1.3; font-weight: 400; font-family: inherit; margin-top: 6px">Пропущенный звонок</div></td><td><code>13/18 · 400</code></td><td><code>body-1</code></td><td>@fontSize, @emSize — весь текст модуля</td></tr>
+<tr><td></td><td><code>--mh-text-caption</code><div style="font-size: 11px; line-height: 1.3; font-weight: 400; font-family: inherit; margin-top: 6px">Пропущенный звонок</div></td><td><code>11/16 · 400</code></td><td><code>caption-2</code></td><td>.ui.label, th, .mh-meta, .field .help</td></tr>
+<tr><td></td><td><code>--mh-font-mono</code><div style="font-size: 12px; line-height: 1.3; font-weight: 400; font-family: Menlo, Monaco, Consolas, monospace; margin-top: 6px">Пропущенный звонок</div></td><td><code>12/18</code></td><td><code>code-1</code></td><td>code, pre — коды ошибок, ID звонков, токены</td></tr>
+</tbody></table></section>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px">
+<section style="display: flex; flex-direction: column; gap: 10px; min-width: 0"><h3 class="ui header">Отступы · сетка 4 px</h3><table class="ui table"><thead><tr><th style="width: 180px">Токен</th><th style="width: 140px">Шаг</th><th>Где</th></tr></thead><tbody>
+<tr><td><code>--mh-space-half</code></td><td><span style="display: inline-flex; align-items: center; gap: 8px"><span style="display: inline-block; width: 2px; height: 12px; background: #f27519; border-radius: 1px"></span>2 px</span></td><td>нудж иконки</td></tr>
+<tr><td><code>--mh-space-1</code></td><td><span style="display: inline-flex; align-items: center; gap: 8px"><span style="display: inline-block; width: 4px; height: 12px; background: #f27519; border-radius: 1px"></span>4 px</span></td><td>внутри плотных контролов</td></tr>
+<tr><td><code>--mh-space-2</code></td><td><span style="display: inline-flex; align-items: center; gap: 8px"><span style="display: inline-block; width: 8px; height: 12px; background: #f27519; border-radius: 1px"></span>8 px</span></td><td>иконка ↔ подпись, .ui.label</td></tr>
+<tr><td><code>--mh-space-3</code></td><td><span style="display: inline-flex; align-items: center; gap: 8px"><span style="display: inline-block; width: 12px; height: 12px; background: #f27519; border-radius: 1px"></span>12 px</span></td><td>контролы формы, колонки сетки</td></tr>
+<tr><td><code>--mh-space-4</code></td><td><span style="display: inline-flex; align-items: center; gap: 8px"><span style="display: inline-block; width: 16px; height: 12px; background: #f27519; border-radius: 1px"></span>16 px</span></td><td>ячейка, компактный сегмент</td></tr>
+<tr><td><code>--mh-space-5</code></td><td><span style="display: inline-flex; align-items: center; gap: 8px"><span style="display: inline-block; width: 20px; height: 12px; background: #f27519; border-radius: 1px"></span>20 px</span></td><td>.ui.segment @padding</td></tr>
+<tr><td><code>--mh-space-6</code></td><td><span style="display: inline-flex; align-items: center; gap: 8px"><span style="display: inline-block; width: 24px; height: 12px; background: #f27519; border-radius: 1px"></span>24 px</span></td><td>модальное окно, секция</td></tr>
+<tr><td><code>--mh-space-8</code></td><td><span style="display: inline-flex; align-items: center; gap: 8px"><span style="display: inline-block; width: 32px; height: 12px; background: #f27519; border-radius: 1px"></span>32 px</span></td><td>поля рабочей области</td></tr>
+<tr><td><code>--mh-space-10</code></td><td><span style="display: inline-flex; align-items: center; gap: 8px"><span style="display: inline-block; width: 40px; height: 12px; background: #f27519; border-radius: 1px"></span>40 px</span></td><td>между блоками страницы</td></tr>
+</tbody></table></section>
+<section style="display: flex; flex-direction: column; gap: 10px; min-width: 0"><h3 class="ui header">Радиусы, тени, размеры</h3><table class="ui table"><thead><tr><th style="width: 160px">Токен</th><th style="width: 70px"></th><th>MIKO → Fomantic</th></tr></thead><tbody>
+<tr><td><code>--mh-radius-xs</code></td><td><span style="display: inline-block; width: 36px; height: 24px; border: 1.5px solid rgba(0,0,0,0.5); border-radius: 3px"></span></td><td><code>g-border-radius-xs</code> · 3 px → checkbox</td></tr>
+<tr><td><code>--mh-radius-s</code></td><td><span style="display: inline-block; width: 36px; height: 24px; border: 1.5px solid rgba(0,0,0,0.5); border-radius: 5px"></span></td><td><code>g-border-radius-s</code> · 5 px → .ui.label</td></tr>
+<tr><td><code>--mh-radius-m</code></td><td><span style="display: inline-block; width: 36px; height: 24px; border: 1.5px solid rgba(0,0,0,0.5); border-radius: 6px"></span></td><td><code>g-border-radius-m</code> · 6 px → @defaultBorderRadius · button, input, dropdown</td></tr>
+<tr><td><code>--mh-radius-l</code></td><td><span style="display: inline-block; width: 36px; height: 24px; border: 1.5px solid rgba(0,0,0,0.5); border-radius: 8px"></span></td><td><code>g-border-radius-l</code> · 8 px → segment, table, popup, message, карточка бота</td></tr>
+<tr><td><code>--mh-radius-xl</code></td><td><span style="display: inline-block; width: 36px; height: 24px; border: 1.5px solid rgba(0,0,0,0.5); border-radius: 10px"></span></td><td><code>g-border-radius-xl</code> · 10 px → .ui.modal</td></tr>
+<tr><td><code>--mh-shadow-float</code></td><td><span style="display: inline-block; width: 36px; height: 24px; border-radius: 6px; background: #fff; box-shadow: 0 8px 20px rgba(0,0,0,0.15)"></span></td><td><code>0 8px 20px sfx-shadow</code> → @floatingShadow · popup, dropdown menu</td></tr>
+<tr><td><code>--mh-shadow-modal</code></td><td><span style="display: inline-block; width: 36px; height: 24px; border-radius: 6px; background: #fff; box-shadow: 0 16px 40px rgba(0,0,0,0.15)"></span></td><td><code>0 16px 40px sfx-shadow</code> → .ui.modal. У сегментов и таблиц теней нет — только граница.</td></tr>
+<tr><td><code>--mh-control-m</code></td><td>28 px</td><td>Размер m: кнопки, поля, dropdown в таблицах и формах настроек</td></tr>
+<tr><td><code>--mh-control-l</code></td><td>36 px</td><td>Размер l: .ui.large.button в мастерах и пустых состояниях</td></tr>
+</tbody></table></section></div>
+<section class="ui segment" style="display: flex; flex-direction: column; gap: 10px"><h3 class="ui header">Как подключить</h3>
+<pre style="margin: 0; padding: 12px; background: rgba(0,0,0,0.05); border-radius: 6px; font-family: Menlo, Monaco, Consolas, monospace; font-size: 12px; line-height: 18px; white-space: pre-wrap">&lt;!-- Volt: ModuleMessengerHub/App/Views/index/index.volt --&gt;
+&lt;link rel="stylesheet" href="/assets/ModuleMessengerHub/css/mh-theme.css"&gt;
+&lt;div class="module-messenger-hub"&gt;
+  &lt;div class="ui secondary pointing menu" id="mh-tabs"&gt;…&lt;/div&gt;
+  &lt;div class="ui tab active" data-tab="sources"&gt;…&lt;/div&gt;
+&lt;/div&gt;
+$('#mh-tabs .item').tab({ history: true });   // вкладки = #sources, #events, …
+$('.module-messenger-hub .ui.checkbox').checkbox();</pre>
+<p class="mh-meta" style="margin: 0">Цвета Fomantic (.green, .yellow, .red, .blue, .grey, .primary) переопределяются только внутри корня — у остальной админки MikoPBX они не меняются. Модификаторы «состояние источника» не вводим: состояние = цвет метки + иконка + слово.</p></section>
+</div>
+</div></article><article class="board" id="Components"><h3 class="board-title">Компоненты модуля</h3><div class="frame" style="width:1280px">
+<div class="module-messenger-hub" style="width: 1280px; box-sizing: border-box; padding: 32px; display: flex; flex-direction: column; gap: 32px; background: #ffffff">
+<div style="display: flex; flex-direction: column; gap: 6px; max-width: 960px"><h2 class="ui header">Компоненты модуля</h2><p class="mh-muted" style="margin: 0">Всё собрано из стандартных компонентов Fomantic UI, перекрашенных токенами. Под каждым — разметка, которой его собирать.</p></div>
+
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; align-items: start">
+<section class="ui segment" style="display: flex; flex-direction: column; gap: 12px; min-width: 0">
+<h4 class="ui header">Состояние источника</h4>
+<div style="display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px 12px; align-items: center">
+<span><span class="mh-dot is-ok">Доступен</span></span><span class="mh-meta">работает, события идут</span>
+<span><span class="mh-dot">Выключен</span></span><span class="mh-meta">выключен пользователем</span>
+<span><span class="mh-dot is-dashed">Модуль не установлен</span></span><span class="mh-meta">пунктир — модуля нет совсем</span>
+<span><span class="ui yellow label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5v5"/><path d="M4.8 4.4a5 5 0 1 0 6.4 0"/></svg>Модуль выключен</span></span><span class="mh-meta">нужно действие: включить модуль</span>
+<span><span class="ui yellow label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5.25a2.5 2.5 0 0 1 5 0V7"/></svg>Нет доступа</span></span><span class="mh-meta">нужно действие: выдать доступ</span>
+<span><span class="ui red label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg>Ошибка</span></span><span class="mh-meta">сбой: код и время рядом</span>
+</div>
+<p class="mh-meta" style="margin: 0">Нормальные состояния — тихие: точка и текст. Метка с цветом появляется, только когда нужно действие (жёлтая) или что-то сломалось (красная).</p>
+<code style="font-size: 11px; color: rgba(0,0,0,0.7)">.ui.{green|yellow|red|basic}.label &gt; svg + текст</code>
+</section>
+
+<section class="ui segment" style="display: flex; flex-direction: column; gap: 12px; min-width: 0">
+<h4 class="ui header">Важность события</h4>
+<div style="display: flex; flex-wrap: wrap; gap: 8px"><span class="mh-muted">Инфо</span><span class="ui yellow label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5l6 10.5H2z"/><path d="M8 6.5v3M8 11.2v.1"/></svg>Предупреждение</span><span class="ui red label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 2h5L14 5.5v5L10.5 14h-5L2 10.5v-5z"/><path d="M8 5v3.5M8 10.8v.1"/></svg>Критично</span></div>
+<p class="mh-meta" style="margin: 0">Иконки разной формы: круг, треугольник, восьмиугольник — различимы и в ч/б, и при дальтонизме.</p>
+<code style="font-size: 11px; color: rgba(0,0,0,0.7)">.ui.blue / .yellow / .red.label</code>
+<h4 class="ui header" style="margin-top: 8px">Статус доставки</h4>
+<div style="display: flex; flex-wrap: wrap; gap: 8px"><span class="mh-dot is-ok">Доставлено</span><span class="mh-dot">В очереди</span><span class="ui red label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg>Ошибка · 429</span><span class="mh-dot">Пропущено</span></div>
+<div style="display: flex; gap: 8px; align-items: center"><span class="ui red label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg>Ошибка · 403</span><button class="ui basic button" type="button"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.6"/><path d="M13 2.5V5h-2.5"/></svg>Повторить</button></div>
+<p class="mh-meta" style="margin: 0">«Доставлено» и «В очереди» — тихие, метка только у ошибки.</p>
+</section>
+
+<section class="ui segment" style="display: flex; flex-direction: column; gap: 12px; min-width: 0">
+<h4 class="ui header">Кнопки</h4>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center"><button class="ui primary button" type="button">Сохранить</button><button class="ui primary loading button" type="button" aria-label="Сохраняем">Сохранить</button><button class="ui primary button" type="button" disabled>Сохранить</button></div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center"><button class="ui basic button" type="button"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.6"/><path d="M13 2.5V5h-2.5"/></svg>Проверить</button><button class="ui text button" type="button">Заменить</button><button class="ui basic icon button" type="button" aria-label="Изменить"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M10.5 2.75l2.75 2.75L6 12.75H3.25V10z"/></svg></button><button class="ui red basic button" type="button"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 9h5.6l.7-9"/></svg>Удалить</button></div>
+<p class="mh-meta" style="margin: 0">Одна оранжевая кнопка на экран. Подпись на оранжевом — 15 px, 600. Остальное — basic и text.</p>
+<h4 class="ui header" style="margin-top: 8px">Переключатели</h4>
+<div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center"><label class="ui toggle checkbox checked"><input type="checkbox" class="hidden" aria-label="Вкл" checked readonly><span class="mh-track"></span></label><label class="ui toggle checkbox"><input type="checkbox" class="hidden" aria-label="Выкл" readonly><span class="mh-track"></span></label><label class="ui toggle checkbox disabled"><input type="checkbox" class="hidden" aria-label="Недоступно" readonly><span class="mh-track"></span></label><label class="ui checkbox checked"><input type="checkbox" class="hidden" checked readonly><span class="mh-box"></span><span>Отмечено</span></label><label class="ui checkbox"><input type="checkbox" class="hidden" readonly><span class="mh-box"></span><span>Нет</span></label><label class="ui radio checkbox checked"><input type="radio" class="hidden" checked readonly><span class="mh-box"></span><span>Выбрано</span></label></div>
+<code style="font-size: 11px; color: rgba(0,0,0,0.7)">.ui.toggle.checkbox.checked · .ui.checkbox · .ui.radio.checkbox</code>
+</section>
+</div>
+
+<section style="display: flex; flex-direction: column; gap: 12px">
+<h3 class="ui header">Карточка бота</h3>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+<div class="mh-bot-card"><div style="display: flex; gap: 12px; align-items: center; min-width: 0"><span class="mh-messenger tg" role="img" aria-label="Telegram">TG</span><div style="min-width: 0; flex: 1"><div class="mh-truncate" style="font-weight: 600">Оповещения MIKO</div><div class="mh-meta mh-truncate">Telegram · @miko_alerts_bot</div></div></div><div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center"><span class="mh-dot is-ok">Токен работает</span><span class="mh-meta">Чатов: 4</span></div></div>
+<div class="mh-bot-card is-selected"><div style="display: flex; gap: 12px; align-items: center; min-width: 0"><span class="mh-messenger max" role="img" aria-label="MAX">MAX</span><div style="min-width: 0; flex: 1"><div class="mh-truncate" style="font-weight: 600">МИКО Контроль качества и обслуживания клиентов</div><div class="mh-meta mh-truncate">MAX · @miko_quality_bot</div></div></div><div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center"><span class="ui label"><span class="ui mini loader" aria-hidden="true"></span>Проверяем токен…</span><span class="mh-meta">Чатов: 2</span></div><span class="mh-meta">Выбранная: оранжевая рамка 2 px</span></div>
+<div class="mh-bot-card"><div style="display: flex; gap: 12px; align-items: center; min-width: 0"><span class="mh-messenger max" role="img" aria-label="MAX">MAX</span><div style="min-width: 0; flex: 1"><div class="mh-truncate" style="font-weight: 600">Новый бот MAX</div><div class="mh-meta mh-truncate">MAX · имя появится после модерации</div></div></div><div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center"><span class="ui yellow label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M8 4.8V8l2.2 1.4"/></svg>На модерации · до 48 ч</span><span class="mh-meta">Чатов: 0</span></div></div>
+</div>
+<p class="mh-meta" style="margin: 0">Плитка TG / MAX — место под официальный значок мессенджера из его пресс-кита (32 px, скругление 8 px). Значки не перерисовываем.</p>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 12px">
+<h3 class="ui header">Строка чата</h3>
+<div class="ui segment mh-flush">
+<div class="mh-chat-row"><span><label class="ui checkbox"><input type="checkbox" class="hidden" readonly><span class="mh-box"></span><span></span></label></span><div style="min-width: 0"><div class="mh-truncate" style="font-weight: 600">Отдел продаж — контроль</div><div class="mh-meta">14 участников</div></div><span class="mh-muted" style="display: inline-flex; gap: 6px; align-items: center"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6" cy="6" r="2.25"/><path d="M2 13a4 4 0 0 1 8 0M10.5 4a2.25 2.25 0 0 1 0 4.5M12 9.5a4 4 0 0 1 2 3.5"/></svg>Группа</span><div class="ui selection dropdown"><span class="default text">Не привязан</span></div><div><span class="mh-dot is-ok">Работает</span></div><div><label class="ui toggle checkbox checked"><input type="checkbox" class="hidden" aria-label="Чат" checked readonly><span class="mh-track"></span></label></div></div>
+<div class="mh-chat-row"><span><label class="ui checkbox"><input type="checkbox" class="hidden" readonly><span class="mh-box"></span><span></span></label></span><div style="min-width: 0"><div class="mh-truncate" style="font-weight: 600">Иван Иванов</div><div class="mh-meta">@ivanov_ii</div></div><span class="mh-muted" style="display: inline-flex; gap: 6px; align-items: center"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="5.5" r="2.75"/><path d="M2.75 13.5a5.25 5.25 0 0 1 10.5 0"/></svg>Личный</span><div class="ui selection dropdown"><span class="text">Иванов И. (233)</span></div><div><span class="mh-dot">Выключен</span></div><div><label class="ui toggle checkbox"><input type="checkbox" class="hidden" aria-label="Чат" readonly><span class="mh-track"></span></label></div></div>
+<div class="mh-chat-row" style="background: rgba(255,0,61,0.04)"><span><label class="ui checkbox"><input type="checkbox" class="hidden" readonly><span class="mh-box"></span><span></span></label></span><div style="min-width: 0"><div class="mh-truncate" style="font-weight: 600">Канал «Качество звонков»</div><div class="mh-meta" style="color: rgb(189,9,53)">Бот удалён 17 нояб., 18:20</div></div><span class="mh-muted" style="display: inline-flex; gap: 6px; align-items: center"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v3h2l5 3v-9l-5 3z"/><path d="M12 6a2.5 2.5 0 0 1 0 4"/></svg>Канал</span><div class="ui selection dropdown" style="opacity: .6"><span class="default text">Не привязан</span></div><div><span class="ui red label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg>Бот удалён из чата</span></div><div><label class="ui toggle checkbox checked disabled"><input type="checkbox" class="hidden" aria-label="Чат" checked readonly><span class="mh-track"></span></label></div></div>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 12px">
+<h3 class="ui header">Строка события и строка источника</h3>
+<table class="ui selectable table">
+<colgroup><col style="width: 40px"><col style="width: 72px"><col style="width: 230px"><col style="width: 150px"><col><col style="width: 170px"></colgroup>
+<tbody>
+<tr><td><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg></td><td>15:41</td><td><b>Пропущенный звонок</b></td><td><span class="mh-muted">Инфо</span></td><td class="mh-truncate">+7 968 968-94-44 → Иванов И. (233)</td><td><span class="mh-dot is-ok">Доставлено · 2 из 2</span></td></tr>
+<tr class="active"><td><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6L8 10.5 12.5 6"/></svg></td><td>15:20</td><td><b>Провайдер недоступен</b></td><td><span class="ui red label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 2h5L14 5.5v5L10.5 14h-5L2 10.5v-5z"/><path d="M8 5v3.5M8 10.8v.1"/></svg>Критично</span></td><td class="mh-truncate">SIP «Мегафон» · регистрация потеряна</td><td><span class="ui red label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg>Ошибка · 1 из 3</span></td></tr>
+</tbody>
+</table>
+<div class="mh-list">
+<div class="mh-source-row"><div><label class="ui toggle checkbox checked"><input type="checkbox" class="hidden" aria-label="Пропущенные звонки" checked readonly><span class="mh-track"></span></label></div><span>Пропущенные звонки</span><span class="mh-dot is-ok">Работает · 2 мин назад</span><span></span></div>
+<div class="mh-source-row" style="align-items: start"><div><label class="ui toggle checkbox checked"><input type="checkbox" class="hidden" aria-label="Голосовой агент" checked readonly><span class="mh-track"></span></label></div><div style="min-width: 0"><span>Голосовой агент: состояние</span><div class="mh-meta">Не отвечает с 15:38 · <code>VA-502</code></div></div><span><span class="ui red label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg>Ошибка</span></span><a href="#" style="text-align: right">Повторить</a></div>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 12px">
+<h3 class="ui header">Сообщения на странице</h3>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+<div class="ui info message"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M8 7.25v3.5M8 5.2v.1"/></svg><div>Включённый источник рассылает события с момента включения.</div></div>
+<div class="ui warning message"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5l6 10.5H2z"/><path d="M8 6.5v3M8 11.2v.1"/></svg><div>Бота MAX создаёт организация, модерация до 48 часов.</div></div>
+<div class="ui negative message"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg><div>Не удалось загрузить события. <a href="#">Повторить</a></div></div>
+<div class="ui positive message"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M5.5 8.2l1.8 1.8 3.3-3.6"/></svg><div>Токен работает. Это бот @miko_alerts_bot.</div></div>
+</div>
+</section>
+</div>
+</div></article><article class="board" id="Copy"><h3 class="board-title">Тексты интерфейса</h3><div class="frame" style="width:1280px">
+<div class="module-messenger-hub" style="width: 1280px; box-sizing: border-box; padding: 32px; display: flex; flex-direction: column; gap: 28px; background: #ffffff">
+<div style="display: flex; flex-direction: column; gap: 6px; max-width: 960px"><h2 class="ui header">Тексты интерфейса</h2><p class="mh-muted" style="margin: 0">Ключи — для файла переводов модуля (Messages/ru.php). В фигурных скобках — подстановки.</p></div>
+<section class="ui secondary segment" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px">
+<div><b>На «вы», спокойно</b><p class="mh-muted" style="margin: 4px 0 0">Без восклицательных знаков и «Упс». Говорим как инженер поддержки MIKO: коротко и по делу.</p></div>
+<div><b>Ошибка = три части</b><p class="mh-muted" style="margin: 4px 0 0">Что случилось (с кодом и временем), что делаем сами, что сделать вам. И что не пострадало.</p></div>
+<div><b>Кнопка — глагол</b><p class="mh-muted" style="margin: 4px 0 0">«Проверить», «Повторить», «Подключить чат». Не «ОК» и не «Применить».</p></div>
+<div><b>Честные цифры</b><p class="mh-muted" style="margin: 4px 0 0">«1 из 4», «осталось 4:12», «4 попытки подряд» — вместо «что-то пошло не так».</p></div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px"><h3 class="ui header">Общее</h3><table class="ui table"><thead><tr><th style="width: 260px">Ключ</th><th>Текст</th><th style="width: 280px">Где</th></tr></thead><tbody>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>menu.item</code></td><td style="vertical-align: top">Уведомления в мессенджеры</td><td class="mh-muted" style="vertical-align: top">Пункт меню в группе «Интеграции»</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>page.subtitle</code></td><td style="vertical-align: top">События АТС и модулей — в Telegram и MAX. Здесь видно, что пришло, кому ушло и что не дошло.</td><td class="mh-muted" style="vertical-align: top">Под заголовком страницы</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>tabs</code></td><td style="vertical-align: top">Источники · События · Боты и чаты · Правила · Настройки</td><td class="mh-muted" style="vertical-align: top">Вкладки</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>common.retry</code></td><td style="vertical-align: top">Повторить</td><td class="mh-muted" style="vertical-align: top">Кнопка после ошибки</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>common.load_error</code></td><td style="vertical-align: top">Не удалось загрузить {что}. Сервер АТС вернул {код}. Отправка уведомлений продолжается — проблема только в этой странице.</td><td class="mh-muted" style="vertical-align: top">Ошибка загрузки любой вкладки</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>common.timeout</code></td><td style="vertical-align: top">Сервер АТС не ответил за 10 секунд.</td><td class="mh-muted" style="vertical-align: top">Таймаут</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>common.saved</code></td><td style="vertical-align: top">Настройки сохранены. Новые сообщения уйдут с ними.</td><td class="mh-muted" style="vertical-align: top">Тост, 4 с</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>common.unsaved</code></td><td style="vertical-align: top">Есть несохранённые изменения</td><td class="mh-muted" style="vertical-align: top">Рядом с «Сохранить»</td></tr>
+</tbody></table></section>
+<section style="display: flex; flex-direction: column; gap: 10px"><h3 class="ui header">Источники</h3><table class="ui table"><thead><tr><th style="width: 260px">Ключ</th><th>Текст</th><th style="width: 280px">Где</th></tr></thead><tbody>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>sources.intro</code></td><td style="vertical-align: top">Включите источники, из которых модуль берёт события. Включённый источник рассылает события с момента включения — прошлые не отправляются.</td><td class="mh-muted" style="vertical-align: top">Над списком</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>sources.enabled_popup</code></td><td style="vertical-align: top">{Источник} включён в {время}. Будем присылать только новые события. То, что было раньше, рассылать не будем.</td><td class="mh-muted" style="vertical-align: top">Popup после включения, кнопка «Понятно»</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>state.ok / off / noinst / modoff / noacc / err</code></td><td style="vertical-align: top">Доступен · Выключен · Модуль не установлен · Модуль выключен · Нет доступа · Ошибка</td><td class="mh-muted" style="vertical-align: top">Метки состояния</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>state.modoff.hint</code></td><td style="vertical-align: top">Модуль «{модуль}» выключен — событий не будет, пока его не включат.</td><td class="mh-muted" style="vertical-align: top">Описание строки · действие «Включить модуль»</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>state.noacc.hint</code></td><td style="vertical-align: top">Модуль отказал в доступе (HTTP 403). Разрешите доступ для «Уведомлений в мессенджеры» в настройках модуля.</td><td class="mh-muted" style="vertical-align: top">Описание · «Настройки модуля»</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>state.noinst.hint</code></td><td style="vertical-align: top">Переключатель недоступен: модуль не установлен.</td><td class="mh-muted" style="vertical-align: top">Описание · «Установить модуль»</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>state.err.title</code></td><td style="vertical-align: top">{Модуль} не отвечает с {время}</td><td class="mh-muted" style="vertical-align: top">Заголовок раскрытой ошибки</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>state.err.body</code></td><td style="vertical-align: top">Запрос состояния вернул {код} за {N} с. Повторяем каждую минуту, неудачных попыток подряд: {N}. Пока источник в ошибке, события не формируются.</td><td class="mh-muted" style="vertical-align: top">Текст ошибки</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>sources.none_enabled</code></td><td style="vertical-align: top">Уведомления сейчас не отправляются. Ни один источник не включён. Включите хотя бы один — например, «Пропущенные звонки».</td><td class="mh-muted" style="vertical-align: top">Пустое состояние</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>sources.no_modules</code></td><td style="vertical-align: top">Модулей-источников пока нет. Поставьте «ИИ Супервайзер» или «Голосовой агент» — их события появятся в группе «Модули» сами.</td><td class="mh-muted" style="vertical-align: top">Пустая группа «Модули»</td></tr>
+</tbody></table></section>
+<section style="display: flex; flex-direction: column; gap: 10px"><h3 class="ui header">События</h3><table class="ui table"><thead><tr><th style="width: 260px">Ключ</th><th>Текст</th><th style="width: 280px">Где</th></tr></thead><tbody>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>events.empty</code></td><td style="vertical-align: top">Событий пока нет. События появятся здесь, как только включённый источник что-то сообщит.</td><td class="mh-muted" style="vertical-align: top">Пустое · кнопка «Включить источники»</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>events.empty_filtered</code></td><td style="vertical-align: top">Нет событий по выбранным фильтрам. За всё время таких событий {N} — последнее {дата}.</td><td class="mh-muted" style="vertical-align: top">Кнопки «Сбросить фильтры», «Показать за всё время»</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>severity</code></td><td style="vertical-align: top">Инфо · Предупреждение · Критично</td><td class="mh-muted" style="vertical-align: top">Метки важности</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>delivery</code></td><td style="vertical-align: top">Доставлено · В очереди · Ошибка · {код} · Пропущено</td><td class="mh-muted" style="vertical-align: top">Статусы отправки</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>delivery.skip.reason</code></td><td style="vertical-align: top">Чат выключен в «Ботах и чатах» / У сотрудника нет чата / Правило выключено</td><td class="mh-muted" style="vertical-align: top">Пояснение под «Пропущено»</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>delivery.retry_hint</code></td><td style="vertical-align: top">Повтор отправляет то же сообщение только этому получателю. Остальные его второй раз не получат.</td><td class="mh-muted" style="vertical-align: top">Под списком получателей</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>delivery.rate_limit</code></td><td style="vertical-align: top">{Мессенджер} ограничил частоту — модуль сам повторит в {время}.</td><td class="mh-muted" style="vertical-align: top">Ошибка 429, кнопка «Повтор через N с»</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>events.autorefresh</code></td><td style="vertical-align: top">Список обновляется сам каждые 30 с · обновлено в {время}</td><td class="mh-muted" style="vertical-align: top">Над таблицей</td></tr>
+</tbody></table></section>
+<section style="display: flex; flex-direction: column; gap: 10px"><h3 class="ui header">Боты и чаты</h3><table class="ui table"><thead><tr><th style="width: 260px">Ключ</th><th>Текст</th><th style="width: 280px">Где</th></tr></thead><tbody>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>bots.empty</code></td><td style="vertical-align: top">Ботов пока нет. Бот — это отправитель уведомлений. Добавьте его, затем подключите чаты: личные, группы или каналы.</td><td class="mh-muted" style="vertical-align: top">Пустое состояние</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>bot.token.help.tg</code></td><td style="vertical-align: top">Создайте бота у @BotFather командой /newbot и вставьте токен. После сохранения токен больше не показывается целиком.</td><td class="mh-muted" style="vertical-align: top">Под полем токена</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>bot.token.ok</code></td><td style="vertical-align: top">Токен работает. Это бот @{username} — «{имя}».</td><td class="mh-muted" style="vertical-align: top">После «Проверить»</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>bot.token.401</code></td><td style="vertical-align: top">Telegram ответил «Unauthorized». Токен отозван в @BotFather или введён с ошибкой.</td><td class="mh-muted" style="vertical-align: top">Ошибка токена</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>bot.token.other_bot</code></td><td style="vertical-align: top">Это токен другого бота — @{username}. Чаты «{бот}» с ним работать не будут.</td><td class="mh-muted" style="vertical-align: top">При замене токена</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>bot.max.notice</code></td><td style="vertical-align: top">Бота MAX создаёт организация. Бота регистрирует юрлицо или ИП на business.max.ru. После создания бот проходит модерацию — до 48 часов.</td><td class="mh-muted" style="vertical-align: top">Предупреждение в форме MAX</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>bot.max.moderation</code></td><td style="vertical-align: top">MAX не принял токен (403): бот ещё на модерации. Сохраните бота — проверим токен сами каждый час.</td><td class="mh-muted" style="vertical-align: top">Ошибка токена MAX</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>connect.steps</code></td><td style="vertical-align: top">Личный чат — откройте @{бот} и нажмите /start (в MAX — «Начать»). Группа — добавьте бота и напишите любое сообщение. Канал — назначьте бота администратором.</td><td class="mh-muted" style="vertical-align: top">Инструкция</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>connect.searching</code></td><td style="vertical-align: top">Ждём сообщений в бот… · Найдено {N} чата, ищем дальше… · Осталось {м:сс}</td><td class="mh-muted" style="vertical-align: top">Идёт поиск</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>connect.timeout</code></td><td style="vertical-align: top">Поиск закончился: прошло 5 минут. Найдено {N} — отметьте нужные и сохраните.</td><td class="mh-muted" style="vertical-align: top">Время вышло</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>connect.nothing</code></td><td style="vertical-align: top">За 5 минут бот не получил ни одного сообщения.</td><td class="mh-muted" style="vertical-align: top">Ничего не найдено · «Что проверить»</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>chat.removed</code></td><td style="vertical-align: top">Бот удалён из чата {дата}, {время}</td><td class="mh-muted" style="vertical-align: top">Строка чата · ссылка «Как вернуть»</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>test.message</code></td><td style="vertical-align: top">Проверка связи от АТС MikoPBX ({адрес}). Если вы его видите — уведомления будут приходить сюда.</td><td class="mh-muted" style="vertical-align: top">Текст тестового сообщения</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>bot.delete.confirm</code></td><td style="vertical-align: top">Удалить бота «{бот}»? Отключатся {N} чата, правила с ними перестанут отправлять сообщения. История событий сохранится.</td><td class="mh-muted" style="vertical-align: top">Модальное подтверждение</td></tr>
+</tbody></table></section>
+<section style="display: flex; flex-direction: column; gap: 10px"><h3 class="ui header">Правила и настройки</h3><table class="ui table"><thead><tr><th style="width: 260px">Ключ</th><th>Текст</th><th style="width: 280px">Где</th></tr></thead><tbody>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>rules.intro</code></td><td style="vertical-align: top">Правила решают, какие события и кому отправлять. Проверяем сверху вниз: если чат подходит под несколько правил, он получит одно сообщение — по правилу, которое выше.</td><td class="mh-muted" style="vertical-align: top">Над списком</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>rules.empty</code></td><td style="vertical-align: top">Правил пока нет. События собираются и видны в журнале, но никуда не отправляются.</td><td class="mh-muted" style="vertical-align: top">Пустое</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>rules.order_saved</code></td><td style="vertical-align: top">Порядок сохранён · Отменить</td><td class="mh-muted" style="vertical-align: top">Тост после перемещения</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>rule.to</code></td><td style="vertical-align: top">Выбранным чатам · Сотруднику из события · Сотруднику из события, а если у него нет чата — выбранным чатам</td><td class="mh-muted" style="vertical-align: top">Кому отправлять</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>rule.mask.help</code></td><td style="vertical-align: top">+7 916 204-55-17 превратится в +7 916 ***-**-17.</td><td class="mh-muted" style="vertical-align: top">Под «Скрывать номер клиента»</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>rule.record.help</code></td><td style="vertical-align: top">Отдельным сообщением сразу после текста. Файлы больше 50 МБ не отправляем — останется ссылка «Открыть звонок».</td><td class="mh-muted" style="vertical-align: top">Под «Прикладывать запись»</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>settings.privacy</code></td><td style="vertical-align: top">Данные уходят во внешний мессенджер. Номера клиентов, тексты событий — включая описания и цитаты от ИИ — и записи разговоров передаются на серверы Telegram и MAX и хранятся там по их правилам. Удалить отправленное из чатов модуль не может.</td><td class="mh-muted" style="vertical-align: top">Обязательный блок, всегда виден</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>settings.url.internal</code></td><td style="vertical-align: top">Это адрес внутренней сети: кнопка откроет звонок только из офиса или через VPN. Если поле пустое, кнопки в сообщении не будет.</td><td class="mh-muted" style="vertical-align: top">Под адресом АТС</td></tr>
+<tr><td style="overflow-wrap: anywhere; vertical-align: top"><code>settings.retention</code></td><td style="vertical-align: top">Сейчас хранится {N} событий ({размер}). Старые удаляем каждую ночь в 03:00.</td><td class="mh-muted" style="vertical-align: top">Под сроком хранения</td></tr>
+</tbody></table></section>
+</div>
+</div></article><article class="board" id="Assumptions"><h3 class="board-title">Допущения</h3><div class="frame" style="width:1280px">
+<div class="module-messenger-hub" style="width: 1280px; box-sizing: border-box; padding: 32px; display: flex; flex-direction: column; gap: 24px; background: #ffffff">
+<div style="display: flex; flex-direction: column; gap: 6px; max-width: 960px"><h2 class="ui header">Допущения</h2><p class="mh-muted" style="margin: 0">Где брендбук MIKO не дал ответа или противоречит ограничениям АТС, решение сдержанное и отмечено здесь.</p></div>
+<table class="ui table">
+<colgroup><col style="width: 44px"><col style="width: 300px"><col><col style="width: 200px"></colgroup>
+<thead><tr><th>№</th><th>Вопрос</th><th>Решение</th><th>Проверить с</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><b>Брендбук описан на Gravity UI (React), модуль — на Fomantic UI</b></td><td>Компоненты Gravity не монтируем. Берём из брендбука только значения: цвета <code>g-color-*</code>, шкалу текста, сетку 4 px, радиусы, тени — и перекладываем их на компоненты Fomantic через токены <code>--mh-*</code>.</td><td class="mh-muted">Фронтенд MikoPBX</td></tr>
+<tr><td>2</td><td><b>Шрифт Inter без интернета</b></td><td>Кладём Inter 400/600 (woff2, лицензия OFL) в ассеты модуля. Если файла нет — системный стек: -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial. Подгрузку Lato из Google Fonts в Fomantic отключаем внутри модуля.</td><td class="mh-muted">Сборка модуля</td></tr>
+<tr><td>3</td><td><b>Иконки</b></td><td>В брендбуке иконки Gravity (16 px, обводка). В Fomantic свой шрифт иконок, и он на них не похож. Кладём нужные SVG Gravity (около 40 штук) локальным спрайтом и рисуем через <code>&lt;svg&gt;&lt;use&gt;</code>. В макетах — линейные иконки того же размера и веса.</td><td class="mh-muted">Фронтенд</td></tr>
+<tr><td>4</td><td><b>Белый на оранжевом — 2,9:1</b></td><td>Оставляем фирменную пару, но текст на оранжевых кнопках — 15 px и вес 600, как требует брендбук. Оранжевый — только у главной кнопки экрана, отмеченных переключателей и активной вкладки (там подчёркивание, текст тёмный).</td><td class="mh-muted">Бренд MIKO</td></tr>
+<tr><td>5</td><td><b>Цвета шести состояний источника</b></td><td>В брендбуке нет. Цвет означает, кто должен действовать: зелёный — всё работает, серый — выключено намеренно (пунктир — модуля нет совсем), жёлтый — нужно действие администратора, красный — сбой. Внутри одного цвета состояния различаются иконкой и словом. В метках используем тёмные варианты текста (<code>*-heavy</code>), чтобы мелкий текст был контрастным.</td><td class="mh-muted">Продукт</td></tr>
+<tr><td>6</td><td><b>Размер контролов</b></td><td>По брендбуку — m (28 px), это плотнее, чем стандартный Fomantic (36 px). Подходит для админки на мыши; для сенсорных экранов не рассчитано. Главные кнопки в модальных окнах — тоже 28 px, в пустых состояниях — l (36 px).</td><td class="mh-muted">UX MikoPBX</td></tr>
+<tr><td>7</td><td><b>Значки Telegram и MAX</b></td><td>Не перерисовываем товарные знаки. В макетах — плитки TG / MAX; в продукте ставим официальные значки из пресс-китов мессенджеров в той же плитке 32 × 32.</td><td class="mh-muted">Юристы, бренд</td></tr>
+<tr><td>8</td><td><b>Зачем порядок правил</b></td><td>В ТЗ порядок есть, но его смысл не описан. Принято: чат, который подходит под несколько правил, получает одно сообщение — по верхнему правилу (с его маскированием и записью).</td><td class="mh-muted">Продукт</td></tr>
+<tr><td>9</td><td><b>Важность «Звонка требует внимания»</b></td><td>Оценка ниже 60 — предупреждение, ниже 30 — критично. Пороги — в настройках модуля ИИ Супервайзер, не здесь.</td><td class="mh-muted">Команда ИИ Супервайзера</td></tr>
+<tr><td>10</td><td><b>Разметка MAX</b></td><td>Рассчитываем на жирный, курсив, моноширинный текст, ссылки и link-кнопки. Блочные цитаты не используем, цитаты — курсивом в «ёлочках». Лимит текста — 3 500 символов, записи — 50 МБ (как в Telegram). Сверить с актуальной документацией Bot API MAX.</td><td class="mh-muted">Бэкенд</td></tr>
+<tr><td>11</td><td><b>Ссылка «Открыть звонок» на внутренний адрес</b></td><td>Кнопку разрешаем и с внутренним адресом, но в настройках честно предупреждаем, что она откроется только из офиса или через VPN. Если адрес не указан, кнопки нет.</td><td class="mh-muted">Бэкенд</td></tr>
+<tr><td>12</td><td><b>Обновление «на лету»</b></td><td>Без WebSocket: «Источники» и «События» опрашивают сервер каждые 30 с, поиск чатов — каждые 2 с. Новые строки появляются сверху без прыжка прокрутки.</td><td class="mh-muted">Бэкенд</td></tr>
+<tr><td>13</td><td><b>Перетаскивание правил</b></td><td>Fomantic не умеет перетаскивать. Используем нативный HTML5 drag-and-drop на jQuery (без сторонних библиотек), а для клавиатуры и как запасной вариант — кнопки со стрелками.</td><td class="mh-muted">Фронтенд</td></tr>
+<tr><td>14</td><td><b>Токены MIKO в меню темы холста</b></td><td>Файл токенов MIKO не скопирован на этот холст: сервис отказал, потому что дизайн-систему редактировал кто-то вне вашей организации. Все значения взяты из прочитанного <code>tokens.json</code> и записаны в <code>mh-theme.css</code>.</td><td class="mh-muted">—</td></tr>
+<tr><td>15</td><td><b>Источники и Правила объединены в «Уведомления»</b></td><td>Отдельных переключателей источников нет: источник включается сам, когда на него есть хотя бы одно уведомление. Состояние источника видно в строке уведомления и на карточке сценария. Вкладки: Уведомления · Журнал · Настройки.</td><td class="mh-muted">Продукт</td></tr>
+<tr><td>16</td><td><b>Новые условия в мастере</b></td><td>Кроме сотрудников, направления и провайдера предложены «время: нерабочие часы», «очередь», «номер клиента», а у ИИ Супервайзера — «оценка». Это расширение ТЗ — нужно подтвердить.</td><td class="mh-muted">Продукт</td></tr>
+<tr><td>17</td><td><b>Общие настройки без кнопки «Сохранить»</b></td><td>Сохраняются сразу с тостом — так на экране «Настройки» остаётся одно главное действие: «Подключить мессенджер».</td><td class="mh-muted">UX MikoPBX</td></tr>
+</tbody>
+</table>
+</div>
+</div></article></div></section>
+</body>
+</html>

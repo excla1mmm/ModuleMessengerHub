@@ -1,0 +1,22 @@
+{
+    "advice": {
+        "warning": [
+            {
+                "messageTpl": "adv_ProblemWithInternetConnection",
+                "messageParams": [],
+                "severity": "warning",
+                "category": "connection"
+            }
+        ],
+        "error": [
+            {
+                "messageTpl": "adv_SipPasswordWeak",
+                "messageParams": {
+                    "record": "203"
+                },
+                "severity": "critical",
+                "category": "security"
+            }
+        ]
+    }
+}

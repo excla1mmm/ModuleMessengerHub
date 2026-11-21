@@ -1,0 +1,14 @@
+{
+    "health": {
+        "state": "unreachable",
+        "checked_at": 1791073200,
+        "latency_ms": 5000,
+        "error": "connect timeout",
+        "runtime_version": "",
+        "active_calls": 0,
+        "max_calls": 0,
+        "stages": []
+    },
+    "agents": [],
+    "sync_requested": false
+}

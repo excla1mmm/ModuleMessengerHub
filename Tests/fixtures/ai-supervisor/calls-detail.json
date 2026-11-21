@@ -1,0 +1,132 @@
+{
+    "id": 4102,
+    "stt_result_id": 7301,
+    "stt_job_id": 6201,
+    "call_id": "mikopbx-1791068005.100",
+    "call_timestamp": 1791068005,
+    "duration": 187,
+    "src_num": "79000000001",
+    "dst_num": "204",
+    "src_display": "",
+    "dst_display": "Ivanov I.",
+    "src_is_employee": false,
+    "dst_is_employee": true,
+    "internal_call": false,
+    "customer_facing_employees": [
+        {
+            "number": "204",
+            "display": "Ivanov I.",
+            "first_cdr_id": 501
+        }
+    ],
+    "analysis_status": "analyzed",
+    "analysis_pipeline": {
+        "state": "complete",
+        "enabled": 2,
+        "completed": 2,
+        "active": 0,
+        "failed": 0
+    },
+    "is_reviewed": false,
+    "ai_result": {
+        "id": 9001,
+        "transcript_ref_id": 4102,
+        "job_id": 6300,
+        "job_type": "call_summary",
+        "provider": "openai",
+        "model": "gpt-4o-mini",
+        "summary": "Клиент спорит по счёту за сентябрь, сотрудник дважды обещал перезвонить и не перезвонил.",
+        "sentiment": "negative",
+        "risk_score": 0.72,
+        "quality_score": 0.41,
+        "list_view": {
+            "schema_version": "1.2",
+            "topics": [
+                "Биллинг"
+            ],
+            "risks": [
+                {
+                    "label": "Обещание без исполнения",
+                    "severity": "high"
+                }
+            ],
+            "risk_drivers": [
+                {
+                    "label": "Повторная жалоба"
+                }
+            ],
+            "contact_reason": "Спор по счёту",
+            "next_action": "Перезвонить клиенту до 19:00",
+            "evidence_count": 3
+        },
+        "created_at": 1791072000,
+        "updated_at": 1791072600,
+        "metrics": {
+            "schema_version": "1.2",
+            "evidence_count": 3,
+            "risk_count": 1
+        },
+        "indicators": {
+            "schema_version": "1.2",
+            "short_summary": "Клиент спорит по счёту, обещания не исполнены",
+            "detailed_summary": "Разговор о счёте за сентябрь; сотрудник дважды обещал уточнить и перезвонить, перезвона не было.",
+            "contact_reason": "Спор по счёту",
+            "outcome": "Требуется перезвон",
+            "next_actions": [
+                {
+                    "text": "Перезвонить клиенту до 19:00"
+                }
+            ],
+            "topics": [
+                "Биллинг"
+            ],
+            "risks": [
+                {
+                    "type": "promise_unfulfilled",
+                    "label": "Обещание без исполнения",
+                    "severity": "high",
+                    "description": "Обещанный перезвон не состоялся"
+                }
+            ],
+            "risk_drivers": [
+                {
+                    "label": "Повторная жалоба",
+                    "description": "Второй звонок по тому же счёту"
+                }
+            ],
+            "evidence": [
+                {
+                    "segment_id": "call:mikopbx-1791068005.100:r7301:s0",
+                    "quote": "Вы снова обещаете перезвонить, но в прошлый раз никто не позвонил.",
+                    "start_ms": 42000,
+                    "end_ms": 47500
+                },
+                {
+                    "segment_id": "call:mikopbx-1791068005.100:r7301:s5",
+                    "quote": "Счёт за сентябрь выставлен неверно, тут лишние минуты.",
+                    "start_ms": 61000,
+                    "end_ms": 65800
+                },
+                {
+                    "segment_id": "call:mikopbx-1791068005.100:r7301:s9",
+                    "quote": "Хорошо, я уточню и перезвоню вам в течение часа.",
+                    "start_ms": 158000,
+                    "end_ms": 162500
+                }
+            ]
+        }
+    },
+    "quality_v2": {
+        "employees": [
+            {
+                "employee_key": "204",
+                "extension": "204",
+                "name": "Ivanov I.",
+                "status": "scored",
+                "score": 41
+            }
+        ]
+    },
+    "created_at": 1791068100,
+    "updated_at": 1791072600
+}

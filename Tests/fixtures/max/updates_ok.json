@@ -1,0 +1,42 @@
+{
+  "updates": [
+    {
+      "update_type": "bot_added",
+      "timestamp": 1790944901000,
+      "chat_id": -70000000000001,
+      "user": {"user_id": 444555666, "first_name": "Иван", "last_name": "Петров", "is_bot": false},
+      "is_channel": false
+    },
+    {
+      "update_type": "bot_started",
+      "timestamp": 1790944902000,
+      "chat_id": 90000000000002,
+      "user": {"user_id": 777888999, "first_name": "Пётр", "last_name": "Сидоров", "is_bot": false},
+      "payload": null,
+      "user_locale": "ru"
+    },
+    {
+      "update_type": "bot_added",
+      "timestamp": 1790944903000,
+      "chat_id": -70000000000003,
+      "user": {"user_id": 444555666, "first_name": "Иван", "last_name": "Петров", "is_bot": false},
+      "is_channel": true
+    },
+    {
+      "update_type": "bot_removed",
+      "timestamp": 1790944904000,
+      "chat_id": -70000000000004,
+      "user": {"user_id": 444555666, "first_name": "Иван", "last_name": "Петров", "is_bot": false},
+      "is_channel": false
+    },
+    {
+      "update_type": "user_removed",
+      "timestamp": 1790944905000,
+      "chat_id": -70000000000001,
+      "user": {"user_id": 777888999, "first_name": "Пётр", "last_name": "Сидоров", "is_bot": false},
+      "admin_id": 444555666,
+      "is_channel": false
+    }
+  ],
+  "marker": 98765432
+}

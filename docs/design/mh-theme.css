@@ -1,0 +1,366 @@
+/* =====================================================================
+   ModuleMessengerHub — тема MIKO для Fomantic UI
+   Все токены и переопределения ограничены корнем .module-messenger-hub,
+   остальная админка MikoPBX не затрагивается.
+   Источник значений: дизайн-система MIKO (Gravity UI 7.50, тема light).
+   В комментарии к каждому токену: g-токен MIKO → переменная LESS Fomantic
+   (site.variables) → селекторы, которые переопределяются ниже.
+   ===================================================================== */
+
+.module-messenger-hub {
+  /* ---------- Шрифты ---------- */
+  /* Inter кладём в модуль (woff2, OFL) — АТС часто без интернета.
+     Если файла нет — системный стек.                       → @pageFont, @headerFont */
+  --mh-font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* g-font-family-monospace                                → @codeFont, .ui.label code, pre */
+  --mh-font-mono: Menlo, Monaco, Consolas, "Liberation Mono", "Ubuntu Mono", "DejaVu Sans Mono", "Courier New", monospace;
+
+  /* ---------- Типографика (Gravity text variants) ---------- */
+  --mh-text-caption: 11px;  --mh-lh-caption: 16px;   /* caption-2    → .ui.label, .meta, table th  */
+  --mh-text-body: 13px;     --mh-lh-body: 18px;      /* body-1       → @fontSize, @emSize базового текста */
+  --mh-text-body-l: 15px;   --mh-lh-body-l: 20px;    /* body-2       → .ui.primary.button, .ui.message */
+  --mh-text-sub: 15px;      --mh-lh-sub: 20px;       /* subheader-2  → .ui.header (h4), card title */
+  --mh-text-sub-l: 17px;    --mh-lh-sub-l: 24px;     /* subheader-3  → .ui.header (h3), заголовок сегмента */
+  --mh-text-title: 20px;    --mh-lh-title: 24px;     /* header-1     → .ui.header (h2), заголовок страницы */
+  --mh-text-display: 28px;  --mh-lh-display: 36px;   /* display-1    → .ui.statistic > .value */
+  --mh-weight-regular: 400;                          /* @normal */
+  --mh-weight-accent: 600;                           /* @bold (Fomantic по умолчанию 700) */
+
+  /* ---------- Цвет: поверхности ---------- */
+  --mh-color-bg: #ffffff;                       /* g-color-base-background  → @white, .ui.segment, .ui.table */
+  --mh-color-bg-subtle: rgba(0, 0, 0, 0.05);    /* g-color-base-generic     → .ui.secondary.segment, thead th */
+  --mh-color-bg-hover: rgba(0, 0, 0, 0.05);     /* g-color-base-simple-hover→ .ui.selectable.table tr:hover, .menu .item:hover */
+  --mh-color-bg-active: rgba(0, 0, 0, 0.15);    /* g-color-base-generic-hover → .ui.basic.button:active */
+  --mh-color-selection: rgba(242, 117, 25, 0.12);       /* g-color-base-selection → .ui.table tr.active, .dropdown .item.selected */
+  --mh-color-selection-hover: rgba(242, 117, 25, 0.2);  /* g-color-base-selection-hover */
+  --mh-color-float: #ffffff;                    /* g-color-base-float       → .ui.popup, .ui.dropdown .menu */
+  --mh-color-modal: #ffffff;                    /* g-color-base-modal       → .ui.modal > .content */
+  --mh-color-veil: rgba(0, 0, 0, 0.25);         /* g-color-sfx-veil         → .ui.dimmer (@dimmerBackgroundColor) */
+
+  /* ---------- Цвет: текст ---------- */
+  --mh-color-text: rgba(0, 0, 0, 0.85);         /* g-color-text-primary       → @textColor */
+  --mh-color-text-meta: rgba(0, 0, 0, 0.7);     /* g-color-text-complementary → @mutedTextColor, .meta, .description */
+  --mh-color-text-secondary: rgba(0, 0, 0, 0.5);/* g-color-text-secondary (4,0:1) → @lightTextColor, только ≥15px и плейсхолдеры */
+  --mh-color-text-hint: rgba(0, 0, 0, 0.3);     /* g-color-text-hint → @disabledTextColor, .disabled */
+  --mh-color-link: #1673b5;                     /* g-color-text-link       → @linkColor */
+  --mh-color-link-hover: #0f5c94;               /* g-color-text-link-hover → @linkHoverColor */
+
+  /* ---------- Цвет: бренд ---------- */
+  --mh-color-brand: #f27519;                    /* g-color-base-brand       → @primaryColor, @orange: .ui.primary.button, toggle:checked, .pointing.menu .active */
+  --mh-color-brand-hover: #db6510;              /* g-color-base-brand-hover → @primaryColorHover */
+  --mh-color-on-brand: #ffffff;                 /* g-color-text-brand-contrast → @primaryTextColor (2,9:1 — см. допущения) */
+  --mh-color-brand-text: #b04e06;               /* g-color-text-brand-heavy → акцентный текст, активная вкладка */
+  --mh-color-brand-line: #f27519;               /* g-color-line-brand       → .ui.pointing.menu .active.item border */
+
+  /* ---------- Цвет: линии ---------- */
+  --mh-color-line: rgba(0, 0, 0, 0.1);          /* g-color-line-generic       → @borderColor, @inputBorderColor */
+  --mh-color-line-hover: rgba(0, 0, 0, 0.15);   /* g-color-line-generic-hover → @inputHoverBorderColor */
+  --mh-color-focus: rgba(107, 132, 153, 0.8);   /* g-color-line-focus         → @focusedFormBorderColor, :focus-visible */
+
+  /* ---------- Цвет: статусы (light = фон, text = heavy-вариант текста, line = граница) ---------- */
+  --mh-positive-bg: rgba(50, 186, 118, 0.15);   /* g-color-base-positive-light → .ui.green.label, .ui.positive.message */
+  --mh-positive-text: rgb(45, 139, 93);         /* g-color-text-positive-heavy */
+  --mh-positive-line: rgba(50, 186, 118, 0.8);  /* g-color-line-positive */
+  --mh-warning-bg: rgba(255, 190, 92, 0.3);     /* g-color-base-warning-light → .ui.yellow.label, .ui.warning.message */
+  --mh-warning-text: rgb(189, 92, 10);          /* g-color-text-warning-heavy */
+  --mh-warning-line: rgb(233, 174, 86);         /* g-color-line-warning */
+  --mh-danger-bg: rgba(255, 0, 61, 0.15);       /* g-color-base-danger-light → .ui.red.label, .ui.negative.message, .ui.form .error */
+  --mh-danger-text: rgb(189, 9, 53);            /* g-color-text-danger-heavy */
+  --mh-danger-line: rgba(255, 0, 61, 0.8);      /* g-color-line-danger       → .field.error input border */
+  --mh-danger-solid: rgb(233, 3, 58);           /* g-color-base-danger-heavy → .ui.red.button (удаление) */
+  --mh-info-bg: rgba(54, 151, 241, 0.15);       /* g-color-base-info-light   → .ui.blue.label, .ui.info.message */
+  --mh-info-text: rgb(48, 114, 179);            /* g-color-text-info-heavy */
+  --mh-info-line: rgba(54, 151, 241, 0.8);      /* g-color-line-info */
+  --mh-misc-bg: rgba(107, 132, 153, 0.15);      /* g-color-base-misc-light   → .ui.grey.label */
+  --mh-misc-text: rgb(85, 101, 117);            /* g-color-text-misc-heavy */
+  --mh-neutral-bg: rgba(0, 0, 0, 0.05);         /* g-color-base-neutral-light → .ui.basic.label */
+
+  /* ---------- Отступы (сетка 4px) ---------- */
+  --mh-space-half: 2px;  /* g-spacing-half */
+  --mh-space-1: 4px;     /* g-spacing-1  → внутри плотных контролов */
+  --mh-space-2: 8px;     /* g-spacing-2  → иконка ↔ подпись, .ui.label padding */
+  --mh-space-3: 12px;    /* g-spacing-3  → контролы в форме, .ui.form .field margin */
+  --mh-space-4: 16px;    /* g-spacing-4  → ячейка таблицы, компактный сегмент */
+  --mh-space-5: 20px;    /* g-spacing-5  → .ui.segment padding (@padding) */
+  --mh-space-6: 24px;    /* g-spacing-6  → секции внутри сегмента */
+  --mh-space-8: 32px;    /* g-spacing-8  → боковые поля рабочей области */
+  --mh-space-10: 40px;   /* g-spacing-10 → между секциями страницы */
+
+  /* ---------- Радиусы ---------- */
+  --mh-radius-xs: 3px;   /* g-border-radius-xs → .ui.checkbox label:before */
+  --mh-radius-s: 5px;    /* g-border-radius-s  → .ui.label, .ui.mini.button */
+  --mh-radius-m: 6px;    /* g-border-radius-m  → @defaultBorderRadius: .ui.button, input, .ui.dropdown */
+  --mh-radius-l: 8px;    /* g-border-radius-l  → .ui.segment, .ui.table, .ui.popup, .ui.message, card */
+  --mh-radius-xl: 10px;  /* g-border-radius-xl → .ui.modal */
+
+  /* ---------- Тени (только всплывающие слои) ---------- */
+  --mh-shadow-float: 0 8px 20px 0 rgba(0, 0, 0, 0.15);  /* g-color-sfx-shadow → @floatingShadow: .ui.popup, .ui.dropdown .menu */
+  --mh-shadow-modal: 0 16px 40px 0 rgba(0, 0, 0, 0.15); /* g-color-sfx-shadow → .ui.modal (@modalBoxShadow) */
+
+  /* ---------- Размеры контролов ---------- */
+  --mh-control-m: 28px;  /* размер m — таблицы, фильтры, формы настроек */
+  --mh-control-l: 36px;  /* размер l — главные действия, модальные окна */
+
+  font-family: var(--mh-font-sans);
+  font-size: var(--mh-text-body);
+  line-height: var(--mh-lh-body);
+  color: var(--mh-color-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ================= Базовые элементы ================= */
+.module-messenger-hub *, .module-messenger-hub *::before, .module-messenger-hub *::after { box-sizing: border-box; }
+.module-messenger-hub a { color: var(--mh-color-link); text-decoration: none; }
+.module-messenger-hub a:hover { color: var(--mh-color-link-hover); text-decoration: underline; }
+.module-messenger-hub :focus-visible { outline: 2px solid var(--mh-color-focus); outline-offset: 1px; border-radius: 2px; }
+.module-messenger-hub code, .module-messenger-hub .mh-mono { font-family: var(--mh-font-mono); font-size: 12px; }
+.module-messenger-hub .mh-meta { color: var(--mh-color-text-meta); font-size: var(--mh-text-caption); line-height: var(--mh-lh-caption); }
+.module-messenger-hub .mh-muted { color: var(--mh-color-text-meta); }
+.module-messenger-hub .mh-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.module-messenger-hub .mh-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.module-messenger-hub svg.mh-i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ================= .ui.header ================= */
+.module-messenger-hub .ui.header { margin: 0; font-family: var(--mh-font-sans); font-weight: var(--mh-weight-accent); color: var(--mh-color-text); }
+.module-messenger-hub h2.ui.header { font-size: var(--mh-text-title); line-height: var(--mh-lh-title); }
+.module-messenger-hub h3.ui.header { font-size: var(--mh-text-sub-l); line-height: var(--mh-lh-sub-l); }
+.module-messenger-hub h4.ui.header { font-size: var(--mh-text-sub); line-height: var(--mh-lh-sub); }
+.module-messenger-hub .ui.header .sub.header { font-weight: 400; font-size: var(--mh-text-body); line-height: var(--mh-lh-body); color: var(--mh-color-text-meta); margin-top: 4px; }
+
+/* ================= .ui.menu (вкладки) ================= */
+.module-messenger-hub .ui.secondary.pointing.menu { display: flex; flex-wrap: wrap; gap: 0 4px; border-bottom: 1px solid var(--mh-color-line); margin: 0; }
+.module-messenger-hub .ui.secondary.pointing.menu .item { display: inline-flex; align-items: center; gap: 8px; padding: 10px 12px 9px; margin-bottom: -1px; border-bottom: 2px solid transparent; color: var(--mh-color-text-meta); font-size: var(--mh-text-body); font-weight: 400; white-space: nowrap; background: none; border-top: 0; border-left: 0; border-right: 0; font-family: inherit; cursor: pointer; }
+.module-messenger-hub .ui.secondary.pointing.menu .item:hover { color: var(--mh-color-text); text-decoration: none; }
+.module-messenger-hub .ui.secondary.pointing.menu .active.item { color: var(--mh-color-text); font-weight: var(--mh-weight-accent); border-bottom-color: var(--mh-color-brand-line); }
+.module-messenger-hub .ui.menu .item .ui.label { margin: 0; }
+
+/* ================= .ui.segment ================= */
+.module-messenger-hub .ui.segment { background: var(--mh-color-bg); border: 1px solid var(--mh-color-line); border-radius: var(--mh-radius-l); padding: var(--mh-space-5); box-shadow: none; margin: 0; }
+.module-messenger-hub .ui.segment.mh-flush { padding: 0; overflow: hidden; }
+.module-messenger-hub .ui.secondary.segment { background: var(--mh-color-bg-subtle); border-color: transparent; }
+.module-messenger-hub .ui.segment.mh-section-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 0; border-bottom: 1px solid var(--mh-color-line); border-radius: 0; background: var(--mh-color-bg); }
+
+/* ================= .ui.button ================= */
+.module-messenger-hub .ui.button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: var(--mh-control-m); padding: 0 12px; border-radius: var(--mh-radius-m); border: 1px solid transparent; background: var(--mh-color-bg-subtle); color: var(--mh-color-text); font-family: inherit; font-size: var(--mh-text-body); font-weight: 400; line-height: 1; white-space: nowrap; cursor: pointer; margin: 0; text-decoration: none; }
+.module-messenger-hub .ui.button:hover { background: var(--mh-color-bg-active); text-decoration: none; color: var(--mh-color-text); }
+.module-messenger-hub .ui.basic.button { background: transparent; border-color: var(--mh-color-line); }
+.module-messenger-hub .ui.basic.button:hover { border-color: var(--mh-color-line-hover); background: var(--mh-color-bg-hover); }
+.module-messenger-hub .ui.primary.button { background: var(--mh-color-brand); color: var(--mh-color-on-brand); font-weight: var(--mh-weight-accent); font-size: var(--mh-text-body-l); }
+.module-messenger-hub .ui.primary.button:hover { background: var(--mh-color-brand-hover); color: var(--mh-color-on-brand); }
+.module-messenger-hub .ui.blue.basic.button { border-color: var(--mh-info-line); color: var(--mh-color-link); background: transparent; }
+.module-messenger-hub .ui.red.basic.button { border-color: var(--mh-danger-line); color: var(--mh-danger-text); background: transparent; }
+.module-messenger-hub .ui.text.button { background: transparent; color: var(--mh-color-link); padding: 0 6px; }
+.module-messenger-hub .ui.text.button:hover { background: var(--mh-color-bg-hover); color: var(--mh-color-link-hover); }
+.module-messenger-hub .ui.large.button { height: var(--mh-control-l); padding: 0 16px; }
+.module-messenger-hub .ui.icon.button { width: var(--mh-control-m); padding: 0; }
+.module-messenger-hub .ui.disabled.button, .module-messenger-hub .ui.button[disabled] { opacity: 1; background: var(--mh-color-bg-subtle); color: var(--mh-color-text-hint); cursor: default; border-color: transparent; }
+.module-messenger-hub .ui.loading.button { color: transparent; position: relative; }
+.module-messenger-hub .ui.loading.button::after { content: ""; position: absolute; width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; animation: mh-spin .8s linear infinite; }
+
+/* ================= .ui.label — статусы, важность, доставка ================= */
+.module-messenger-hub .ui.label { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: var(--mh-radius-s); font-size: var(--mh-text-caption); line-height: var(--mh-lh-caption); font-weight: 400; white-space: nowrap; background: var(--mh-neutral-bg); color: var(--mh-color-text-meta); border: 1px solid transparent; margin: 0; max-width: 100%; }
+.module-messenger-hub .ui.label svg.mh-i { width: 14px; height: 14px; }
+.module-messenger-hub .ui.green.label  { background: var(--mh-positive-bg); color: var(--mh-positive-text); }
+.module-messenger-hub .ui.yellow.label { background: var(--mh-warning-bg);  color: var(--mh-warning-text); }
+.module-messenger-hub .ui.red.label    { background: var(--mh-danger-bg);   color: var(--mh-danger-text); }
+.module-messenger-hub .ui.blue.label   { background: var(--mh-info-bg);     color: var(--mh-info-text); }
+.module-messenger-hub .ui.grey.label   { background: var(--mh-misc-bg);     color: var(--mh-misc-text); }
+.module-messenger-hub .ui.basic.label  { background: transparent; border-color: var(--mh-color-line-hover); color: var(--mh-color-text-meta); border-style: dashed; }
+.module-messenger-hub .ui.circular.label { min-width: 20px; justify-content: center; padding: 0 6px; border-radius: 10px; }
+.module-messenger-hub .ui.orange.circular.label { background: var(--mh-color-brand); color: #fff; font-weight: 600; }
+.module-messenger-hub .ui.red.circular.label { background: var(--mh-danger-solid); color: #fff; font-weight: 600; }
+
+/* ================= .ui.toggle.checkbox / .ui.checkbox ================= */
+.module-messenger-hub .ui.checkbox { position: relative; display: inline-flex; align-items: center; gap: 8px; min-height: 20px; cursor: pointer; font-size: var(--mh-text-body); }
+.module-messenger-hub .ui.checkbox input.hidden { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.module-messenger-hub .ui.toggle.checkbox .mh-track { position: relative; width: 36px; height: 20px; border-radius: 10px; background: var(--mh-color-bg-active); flex: none; transition: background .15s; }
+.module-messenger-hub .ui.toggle.checkbox .mh-track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: left .15s; }
+.module-messenger-hub .ui.toggle.checkbox.checked .mh-track { background: var(--mh-color-brand); }
+.module-messenger-hub .ui.toggle.checkbox.checked .mh-track::after { left: 18px; }
+.module-messenger-hub .ui.toggle.checkbox.disabled { cursor: default; }
+.module-messenger-hub .ui.toggle.checkbox.disabled .mh-track { opacity: .45; }
+.module-messenger-hub .ui.checkbox .mh-box { width: 16px; height: 16px; border-radius: var(--mh-radius-xs); border: 1px solid var(--mh-color-line-hover); background: #fff; flex: none; display: inline-flex; align-items: center; justify-content: center; }
+.module-messenger-hub .ui.checkbox.checked .mh-box { background: var(--mh-color-brand); border-color: var(--mh-color-brand); }
+.module-messenger-hub .ui.checkbox.checked .mh-box::after { content: ""; width: 9px; height: 5px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(-45deg) translate(1px,-1px); }
+.module-messenger-hub .ui.radio.checkbox .mh-box { border-radius: 50%; }
+.module-messenger-hub .ui.radio.checkbox.checked .mh-box { background: #fff; border: 5px solid var(--mh-color-brand); }
+.module-messenger-hub .ui.radio.checkbox.checked .mh-box::after { display: none; }
+
+/* ================= .ui.table ================= */
+.module-messenger-hub .ui.table { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--mh-color-bg); border: 1px solid var(--mh-color-line); border-radius: var(--mh-radius-l); overflow: hidden; margin: 0; table-layout: fixed; }
+.module-messenger-hub .ui.table th { text-align: left; font-weight: 400; font-size: var(--mh-text-caption); line-height: var(--mh-lh-caption); color: var(--mh-color-text-meta); background: var(--mh-color-bg-subtle); padding: 8px 12px; border-bottom: 1px solid var(--mh-color-line); white-space: nowrap; }
+.module-messenger-hub .ui.table td { padding: 10px 12px; border-bottom: 1px solid var(--mh-color-line); vertical-align: middle; }
+.module-messenger-hub .ui.table tr:last-child td { border-bottom: 0; }
+.module-messenger-hub .ui.selectable.table tbody tr:hover td { background: var(--mh-color-bg-hover); }
+.module-messenger-hub .ui.table tr.active td { background: var(--mh-color-selection); }
+.module-messenger-hub .ui.table tr.mh-detail td { background: #fff; padding: 0 12px 16px 48px; }
+.module-messenger-hub .ui.table.mh-wrap { overflow-x: auto; display: block; }
+
+/* ================= .ui.form ================= */
+.module-messenger-hub .ui.form .field { display: flex; flex-direction: column; gap: 6px; margin: 0; }
+.module-messenger-hub .ui.form .field > label { font-weight: var(--mh-weight-accent); font-size: var(--mh-text-body); color: var(--mh-color-text); }
+.module-messenger-hub .ui.form .field .mh-help { font-size: var(--mh-text-caption); line-height: var(--mh-lh-caption); color: var(--mh-color-text-meta); }
+.module-messenger-hub .ui.form input[type=text], .module-messenger-hub .ui.form input[type=number], .module-messenger-hub .ui.form input[type=search], .module-messenger-hub .ui.form textarea, .module-messenger-hub .ui.input input { height: var(--mh-control-m); padding: 0 8px; border: 1px solid var(--mh-color-line); border-radius: var(--mh-radius-m); font-family: inherit; font-size: var(--mh-text-body); color: var(--mh-color-text); background: #fff; width: 100%; min-width: 0; }
+.module-messenger-hub .ui.form input::placeholder { color: var(--mh-color-text-secondary); }
+.module-messenger-hub .ui.form .field.error input { border-color: var(--mh-danger-line); background: #fff; }
+.module-messenger-hub .ui.form .field.error .mh-help { color: var(--mh-danger-text); }
+.module-messenger-hub .ui.selection.dropdown { display: flex; align-items: center; gap: 6px; height: var(--mh-control-m); min-height: var(--mh-control-m); padding: 0 28px 0 8px; border: 1px solid var(--mh-color-line); border-radius: var(--mh-radius-m); background: #fff; position: relative; font-size: var(--mh-text-body); color: var(--mh-color-text); min-width: 0; cursor: pointer; }
+.module-messenger-hub .ui.selection.dropdown::after { content: ""; position: absolute; right: 11px; top: 50%; width: 6px; height: 6px; border-right: 1.5px solid var(--mh-color-text-meta); border-bottom: 1.5px solid var(--mh-color-text-meta); transform: translateY(-70%) rotate(45deg); }
+.module-messenger-hub .ui.selection.dropdown .text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.module-messenger-hub .ui.selection.dropdown .default.text { color: var(--mh-color-text-secondary); }
+.module-messenger-hub .ui.multiple.dropdown { height: auto; padding-top: 3px; padding-bottom: 3px; flex-wrap: wrap; gap: 4px; }
+.module-messenger-hub .ui.multiple.dropdown .ui.label { background: var(--mh-color-bg-subtle); color: var(--mh-color-text); }
+.module-messenger-hub .ui.dropdown .menu { background: var(--mh-color-float); border-radius: var(--mh-radius-l); box-shadow: var(--mh-shadow-float); padding: 4px; }
+.module-messenger-hub .ui.dropdown .menu .item { padding: 6px 8px; border-radius: var(--mh-radius-s); }
+.module-messenger-hub .ui.dropdown .menu .item.selected { background: var(--mh-color-selection); }
+.module-messenger-hub .ui.dropdown .menu .header { font-size: var(--mh-text-caption); color: var(--mh-color-text-meta); padding: 6px 8px 2px; }
+
+/* ================= .ui.message ================= */
+.module-messenger-hub .ui.message { display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; border-radius: var(--mh-radius-l); background: var(--mh-neutral-bg); color: var(--mh-color-text); box-shadow: none; margin: 0; font-size: var(--mh-text-body); line-height: var(--mh-lh-body); }
+.module-messenger-hub .ui.message .header { font-weight: var(--mh-weight-accent); margin-bottom: 2px; }
+.module-messenger-hub .ui.message > svg.mh-i { margin-top: 1px; }
+.module-messenger-hub .ui.info.message     { background: var(--mh-info-bg); }
+.module-messenger-hub .ui.info.message > svg.mh-i { color: var(--mh-info-text); }
+.module-messenger-hub .ui.warning.message  { background: var(--mh-warning-bg); }
+.module-messenger-hub .ui.warning.message > svg.mh-i { color: var(--mh-warning-text); }
+.module-messenger-hub .ui.negative.message { background: var(--mh-danger-bg); }
+.module-messenger-hub .ui.negative.message > svg.mh-i { color: var(--mh-danger-text); }
+.module-messenger-hub .ui.positive.message { background: var(--mh-positive-bg); }
+.module-messenger-hub .ui.positive.message > svg.mh-i { color: var(--mh-positive-text); }
+
+/* ================= .ui.popup ================= */
+.module-messenger-hub .ui.popup { position: absolute; z-index: 5; background: var(--mh-color-float); border-radius: var(--mh-radius-l); box-shadow: var(--mh-shadow-float); padding: 12px 14px; font-size: var(--mh-text-body); line-height: var(--mh-lh-body); color: var(--mh-color-text); max-width: 320px; border: 0; }
+
+/* ================= .ui.modal ================= */
+.module-messenger-hub .ui.modal { background: var(--mh-color-modal); border-radius: var(--mh-radius-xl); box-shadow: var(--mh-shadow-modal); display: flex; flex-direction: column; overflow: hidden; }
+.module-messenger-hub .ui.modal > .header { padding: 20px 24px 8px; font-size: var(--mh-text-title); line-height: var(--mh-lh-title); font-weight: 600; border: 0; }
+.module-messenger-hub .ui.modal > .content { padding: 12px 24px 20px; }
+.module-messenger-hub .ui.modal > .actions { padding: 16px 24px; border-top: 1px solid var(--mh-color-line); display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; background: var(--mh-color-bg); }
+.module-messenger-hub .ui.dimmer { background: var(--mh-color-veil); }
+
+/* ================= .ui.progress ================= */
+.module-messenger-hub .ui.progress { height: 6px; border-radius: 3px; background: var(--mh-color-bg-subtle); overflow: hidden; margin: 0; }
+.module-messenger-hub .ui.progress .bar { height: 100%; border-radius: 3px; background: var(--mh-color-brand); min-width: 0; }
+.module-messenger-hub .ui.grey.progress .bar { background: var(--mh-misc-text); }
+
+/* ================= .ui.statistic ================= */
+.module-messenger-hub .ui.statistic { display: flex; flex-direction: column; gap: 2px; margin: 0; }
+.module-messenger-hub .ui.statistic > .value { font-size: var(--mh-text-display); line-height: var(--mh-lh-display); font-weight: 600; color: var(--mh-color-text); }
+.module-messenger-hub .ui.statistic > .label { font-size: var(--mh-text-body); color: var(--mh-color-text-meta); text-transform: none; font-weight: 400; }
+
+/* ================= .ui.accordion ================= */
+.module-messenger-hub .ui.accordion .title { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 0; font-weight: 600; }
+.module-messenger-hub .ui.accordion .content { padding: 0 0 8px 24px; }
+
+/* ================= Загрузка: .ui.placeholder (скелетон) и .ui.loader ================= */
+.module-messenger-hub .ui.placeholder .line, .module-messenger-hub .mh-skel { display: block; height: 10px; border-radius: 4px; background: linear-gradient(90deg, rgba(0,0,0,.05) 0%, rgba(0,0,0,.09) 50%, rgba(0,0,0,.05) 100%); background-size: 200% 100%; animation: mh-shimmer 1.4s ease-in-out infinite; }
+.module-messenger-hub .ui.loader { width: 24px; height: 24px; border-radius: 50%; border: 2.5px solid var(--mh-color-bg-active); border-top-color: var(--mh-color-brand); animation: mh-spin .8s linear infinite; display: inline-block; }
+.module-messenger-hub .ui.mini.loader { width: 14px; height: 14px; border-width: 2px; }
+@keyframes mh-spin { to { transform: rotate(360deg); } }
+@keyframes mh-shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+
+/* ================= Модульные компоненты ================= */
+/* Строка источника */
+.module-messenger-hub .mh-source-row { display: grid; grid-template-columns: 52px minmax(0, 1fr) minmax(150px, 220px) minmax(120px, 200px) minmax(110px, 170px); align-items: center; column-gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--mh-color-line); }
+.module-messenger-hub .mh-source-row:last-child { border-bottom: 0; }
+.module-messenger-hub .mh-source-row.is-off .mh-source-name { color: var(--mh-color-text-meta); }
+/* Плитка мессенджера (место под официальный логотип) */
+.module-messenger-hub .mh-messenger { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: var(--mh-radius-l); font-size: 10px; font-weight: 600; letter-spacing: .02em; flex: none; }
+.module-messenger-hub .mh-messenger.tg  { background: rgba(54, 151, 241, 0.15); color: rgb(48, 114, 179); }
+.module-messenger-hub .mh-messenger.max { background: rgba(143, 82, 204, 0.15); color: rgb(110, 60, 160); }
+.module-messenger-hub .mh-messenger.s { width: 20px; height: 20px; font-size: 8px; border-radius: 5px; }
+/* Карточка бота */
+.module-messenger-hub .mh-bot-card { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid var(--mh-color-line); border-radius: var(--mh-radius-l); background: #fff; min-width: 0; }
+.module-messenger-hub .mh-bot-card.is-selected { border-color: var(--mh-color-brand-line); box-shadow: inset 0 0 0 1px var(--mh-color-brand-line); }
+/* Строка чата */
+.module-messenger-hub .mh-chat-row { display: grid; grid-template-columns: 28px minmax(0, 1.4fr) 96px minmax(160px, 1fr) minmax(140px, 180px) 52px; align-items: center; column-gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--mh-color-line); }
+.module-messenger-hub .mh-chat-row:last-child { border-bottom: 0; }
+/* Канва-подписи для макетов (не часть модуля) */
+.mh-board-note { font-family: "Inter", -apple-system, "Segoe UI", sans-serif; font-size: 11px; line-height: 16px; color: rgba(0,0,0,.7); }
+.mh-state-tag { display: inline-block; font-family: "Inter", -apple-system, "Segoe UI", sans-serif; font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: rgba(0,0,0,.7); }
+
+/* ================= Спокойный режим (v2): меньше рамок, заливок и меток ================= */
+.module-messenger-hub .ui.segment { border: 0; padding: 0; background: transparent; }
+.module-messenger-hub .ui.segment.mh-card { border: 1px solid var(--mh-color-line); padding: var(--mh-space-5); background: var(--mh-color-bg); }
+.module-messenger-hub .ui.segment.mh-section-head { padding: 0 0 8px; border: 0; background: transparent; gap: 8px; }
+.module-messenger-hub .ui.segment.mh-section-head h3.ui.header { font-size: var(--mh-text-sub); line-height: var(--mh-lh-sub); }
+.module-messenger-hub .ui.table { border: 0; border-radius: 0; }
+.module-messenger-hub .ui.table th { background: transparent; padding: 8px 12px; }
+.module-messenger-hub .ui.table td { padding: 12px; }
+.module-messenger-hub .mh-list { border-top: 1px solid var(--mh-color-line); }
+.module-messenger-hub .mh-source-row { grid-template-columns: 52px minmax(0, 1fr) minmax(170px, 240px) minmax(110px, 160px); padding: 14px 0; }
+.module-messenger-hub .mh-chat-row { padding: 12px 0; }
+/* Тихий статус: точка + текст — для «нормальных» состояний */
+.module-messenger-hub .mh-dot { display: inline-flex; align-items: center; gap: 8px; color: var(--mh-color-text-meta); font-size: var(--mh-text-body); white-space: nowrap; }
+.module-messenger-hub .mh-dot::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--mh-color-text-hint); flex: none; }
+.module-messenger-hub .mh-dot.is-ok::before { background: rgb(48, 170, 110); }
+.module-messenger-hub .mh-dot.is-dashed::before { background: transparent; border: 1.5px dashed var(--mh-color-text-secondary); width: 9px; height: 9px; }
+.module-messenger-hub .mh-ok-icon { color: rgb(48, 170, 110); display: inline-flex; }
+.module-messenger-hub .mh-hint { color: var(--mh-color-text-secondary); display: inline-flex; cursor: help; }
+
+/* ================= v3: единый список уведомлений, сценарии ================= */
+/* Оглавление секции — полупрозрачное, появляется только когда секций больше одной */
+.module-messenger-hub .mh-group-title { display: block; margin: 0; padding: 28px 0 8px; font-size: var(--mh-text-caption); line-height: var(--mh-lh-caption); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--mh-color-text-secondary); border-bottom: 1px solid var(--mh-color-line); }
+.module-messenger-hub .mh-group-title:first-child { padding-top: 0; }
+/* Строка уведомления */
+.module-messenger-hub .mh-notif-row { display: grid; grid-template-columns: 52px minmax(0, 1fr) minmax(120px, auto) 28px; align-items: center; column-gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--mh-color-line); }
+.module-messenger-hub .mh-notif-row .mh-notif-title { font-weight: 600; color: var(--mh-color-text); }
+.module-messenger-hub .mh-notif-row.is-off .mh-notif-title { color: var(--mh-color-text-meta); font-weight: 400; }
+/* Карточка сценария */
+.module-messenger-hub .mh-scenario { display: flex; gap: 12px; align-items: flex-start; padding: 16px; border: 1px solid var(--mh-color-line); border-radius: var(--mh-radius-l); background: var(--mh-color-bg); color: inherit; text-decoration: none; text-align: left; font: inherit; cursor: pointer; min-width: 0; }
+.module-messenger-hub .mh-scenario:hover { border-color: var(--mh-color-brand-line); text-decoration: none; color: inherit; }
+.module-messenger-hub .mh-scenario.is-selected { border-color: var(--mh-color-brand-line); box-shadow: inset 0 0 0 1px var(--mh-color-brand-line); }
+.module-messenger-hub .mh-scenario.is-disabled { cursor: default; background: var(--mh-color-bg-subtle); border-color: transparent; }
+.module-messenger-hub .mh-scenario .mh-scenario-icon { width: 32px; height: 32px; border-radius: var(--mh-radius-l); background: var(--mh-color-bg-subtle); display: inline-flex; align-items: center; justify-content: center; flex: none; color: var(--mh-color-text-meta); }
+/* Фильтр-«фраза»: dropdown в тексте */
+.module-messenger-hub .mh-chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 14px; border: 1px solid var(--mh-color-line); background: var(--mh-color-bg); font: inherit; color: var(--mh-color-text); cursor: pointer; white-space: nowrap; }
+.module-messenger-hub .mh-chip .mh-chip-key { color: var(--mh-color-text-meta); }
+.module-messenger-hub .mh-chip.is-set { border-color: transparent; background: var(--mh-color-selection); }
+.module-messenger-hub .mh-chip.is-add { border-style: dashed; color: var(--mh-color-link); }
+/* Шаги мастера */
+.module-messenger-hub .mh-steps { display: flex; gap: 24px; flex-wrap: wrap; font-size: var(--mh-text-body); color: var(--mh-color-text-secondary); }
+.module-messenger-hub .mh-steps .is-current { color: var(--mh-color-text); font-weight: 600; }
+.module-messenger-hub .mh-steps .is-done { color: var(--mh-color-text-meta); }
+
+/* ================= v4: посадка в админку MikoPBX ================= */
+/* Админка MikoPBX — Fomantic с базой 14px. Модуль выравнивается по ней, а не по 13px Gravity. */
+.module-messenger-hub {
+  --mh-text-body: 14px;   --mh-lh-body: 20px;
+  --mh-text-caption: 12px; --mh-lh-caption: 16px;
+  --mh-control-m: 32px;   /* как .ui.button и input в админке */
+  letter-spacing: 0;
+}
+.module-messenger-hub * { letter-spacing: inherit; }
+.module-messenger-hub .ui.button { height: var(--mh-control-m); padding: 0 14px; }
+.module-messenger-hub .ui.primary.button { font-size: 14px; }
+/* Одна ширина для форм — поля не растягиваются на всю карточку */
+.module-messenger-hub .mh-form-col { max-width: 560px; width: 100%; }
+/* Панель действий мастера */
+.module-messenger-hub .mh-actions { display: flex; align-items: center; gap: 8px; padding-top: 20px; border-top: 1px solid var(--mh-color-line); }
+.module-messenger-hub .mh-actions .mh-spacer { flex: 1; }
+/* Сетка сценариев: заполняет строку, без пустых «дыр» */
+.module-messenger-hub .mh-scenario-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; padding-top: 12px; }
+/* Пробное событие — маленькая метка в строке, не отдельной строкой */
+.module-messenger-hub .mh-probe { display: inline-flex; align-items: center; height: 18px; padding: 0 6px; margin-left: 8px; border-radius: 4px; background: var(--mh-misc-bg); color: var(--mh-misc-text); font-size: 11px; line-height: 16px; vertical-align: 1px; }
+/* Сегментированный выбор (направление звонка) */
+.module-messenger-hub .mh-seg { display: inline-flex; gap: 2px; padding: 2px; background: var(--mh-color-bg-subtle); border-radius: var(--mh-radius-m); flex-wrap: wrap; }
+.module-messenger-hub .mh-seg button { height: 28px; padding: 0 12px; border: 0; border-radius: 5px; background: transparent; font: inherit; color: var(--mh-color-text-meta); cursor: pointer; }
+.module-messenger-hub .mh-seg button[aria-pressed="true"] { background: #fff; color: var(--mh-color-text); box-shadow: 0 1px 2px rgba(0,0,0,.12); font-weight: 600; }
+/* Первый запуск: два шага */
+.module-messenger-hub .mh-onboard { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.module-messenger-hub .mh-onboard-step { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; padding: 24px; border: 1px solid var(--mh-color-line); border-radius: var(--mh-radius-l); }
+.module-messenger-hub .mh-onboard-step.is-locked { background: var(--mh-color-bg-subtle); border-color: transparent; }
+.module-messenger-hub .mh-step-num { width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; background: var(--mh-color-brand); color: #fff; }
+.module-messenger-hub .is-locked .mh-step-num { background: var(--mh-color-bg-active); color: var(--mh-color-text-meta); }
+
+/* Оболочка MikoPBX для макетов (не часть модуля) */
+.mh-host { font-family: "Inter", -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: rgba(0,0,0,.87); background: #fff; }
+.mh-host-head { display: flex; gap: 16px; align-items: center; }
+.mh-host-head h1 { margin: 0; font-size: 28px; line-height: 34px; font-weight: 700; }
+.mh-host-head p { margin: 2px 0 0; font-size: 16px; color: rgba(0,0,0,.6); }
+.mh-host-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border: 1px solid rgba(34,36,38,.15); border-radius: 4px; box-shadow: 0 1px 2px rgba(34,36,38,.15); }
+.mh-host-toggle { display: inline-flex; align-items: center; gap: 12px; font-size: 15px; }
+.mh-host-toggle .t { width: 50px; height: 24px; border-radius: 12px; background: #2185d0; position: relative; }
+.mh-host-toggle .t::after { content: ""; position: absolute; right: 2px; top: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+.mh-host-gear { width: 38px; height: 38px; border: 1px solid rgba(34,36,38,.15); border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; color: rgba(0,0,0,.6); }
+.mh-host-card { border: 1px solid rgba(34,36,38,.15); border-radius: 8px; padding: 32px 40px 40px; }

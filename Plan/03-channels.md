@@ -1,7 +1,7 @@
 # 03. Каналы: Telegram и MAX
 
-Оба канала реализуют один контракт. Факты об API ниже собраны 18.11.2026; перед реализацией
-сверить с официальной документацией (ссылки в конце) — API мессенджеров меняются.
+Оба канала реализуют один контракт. Факты об API ниже: Telegram собраны 18.11.2026, MAX сверены с
+официальной документацией 21.11.2026 (раздел MAX). API мессенджеров меняются — сверять при изменениях.
 
 ## Контракт адаптера канала
 
@@ -47,29 +47,159 @@ interface ChannelInterface
 | Получатель недоступен | 403 «bot was blocked by the user», 403 «bot was kicked…», 400 «chat not found» → `recipient_gone` |
 | Миграция группы | 400 с `parameters.migrate_to_chat_id` → обновить `chat_id` получателя и повторить |
 
+### Реализация этапа 2 (20.11.2026)
+
+- `Lib/Channels/Telegram/TelegramApi.php` — `getMe`, `getUpdates` (только сеанс подключения),
+  `sendMessage` (HTML + inline `url`-кнопка), `deleteMessage`, хуки `sendAudio`/`sendDocument` (этап 3a).
+  Ответы и ошибки изолированы в `Tests/fixtures/telegram/`.
+- `TelegramHtml`: экранирование всех данных (`&`, `<`, `>`), лимит 4096 символов — сокращается самый
+  длинный абзац с многоточием, ID звонка и кнопка сохраняются; кнопки только с `http(s)`-ссылками.
+- Нормализованные коды: `telegram.429.rate_limit` (+ `retry_after`), `telegram.403.blocked`,
+  `telegram.403.kicked`, `telegram.400.chat_not_found`, `telegram.400.migrate`,
+  `telegram.401.unauthorized`, `telegram.409.webhook_set`; сеть — `http.timeout`, `http.tls`,
+  `http.unavailable`. Токен, URL и тело запроса не попадают ни в код, ни в лог.
+- `deleteMessage` идемпотентен: «message to delete not found» считается успехом (этап 2d).
+- Вложения — этап 3a: в этапе 2 `send()` доставляет текст, `sendAudio`/`sendDocument` уже реализованы
+  в клиенте; файл больше лимита канала в этапе 3a заменится ссылкой в тексте.
+- Неизвестный исход (таймаут после отправки) — не более одного повтора (`uncertain`, Plan/08).
+
 ## MAX Bot API
+
+Факты сверены с официальной документацией **21.11.2026**: `https://dev.max.ru/docs-api` (страницы
+методов, «Общее описание», «Форматирование», «Клавиатура», «Получение ID чата») и официальная
+OpenAPI-схема `max-messenger/api-schema` 0.0.34. **Живая проверка на тестовой станции 21.11.2026**
+(этап 3d, реальный тестовый бот): `GET /me`, `GET /updates`, `GET /chats/{chatId}`, `POST /messages`
+(в группу по `chat_id` и в диалог по `user_id`), `DELETE /messages`, `GET/POST/DELETE /subscriptions`,
+лимит 4000, «бот удалён из группы», «пользователь заблокировал бота». Ниже помечено, что откуда.
 
 | Что | Значение |
 |---|---|
-| Адрес | `https://platform-api2.max.ru` (`platform-api.max.ru` — устаревший) |
-| Токен | заголовок `Authorization: <token>` без `Bearer`; в query больше не поддерживается |
-| TLS | сертификат НУЦ Минцифры — нужен корневой сертификат в доверенных (поставлять с модулем или путь в настройках); проверку TLS не отключать |
-| Бот | создаёт **клиент** на business.max.ru: верифицированный профиль организации/ИП/самозанятого (резидент РФ), модерация до 48 ч в рабочие дни; токен — после модерации |
-| Проверка токена | `GET /me` |
-| Получение чатов | `GET /chats` не поддерживается с июня 2026; `chat_id` только из событий `bot_added`, `bot_started` через `GET /updates` (long polling рекомендован только для разработки — у нас он только на 5 минут подключения) или вебхук `POST /subscriptions` |
-| Отправка | `POST /messages?chat_id=…` или `?user_id=…`; `format: markdown` или `html`; текст до **4000** символов |
-| Кнопка | вложение `inline_keyboard`, кнопка `type: link` (текст ≤ 128, URL ≤ 2048) |
-| Аудио | `POST /uploads?type=audio` → `url` + `token` → загрузка файла → вложение `{type: audio, payload: {token}}`; MP3/M4A; до 256 МБ и 60 мин |
-| Готовность вложения | ответ `attachment.not.ready` → пауза и повтор с ростом интервала |
-| Лимиты | ≤ 2 сообщения/с в один чат; ≤ 30 rps суммарно на `platform-api2.max.ru` |
-| Ошибки | разбирать поле `code` (бывает HTTP 200 с `success: false`); коды «бот удалён/заблокирован» в документации не перечислены — выяснить на тестовом боте |
+| Адрес | `https://platform-api2.max.ru` (`platform-api.max.ru` — устаревший); платформа требует сертификат Минцифры в доверенных — **подтверждено** |
+| Токен | заголовок `Authorization: <token>`, **без** `Bearer`; передача через query больше не поддерживается — **подтверждено** |
+| TLS | `*.max.ru` (MAX LLC) ← `Russian Trusted Sub CA` ← `Russian Trusted Root CA` (НУЦ Минцифры); станция этот корень не знает — см. «Корневой сертификат» ниже |
+| Бот | создаёт **клиент** на business.max.ru: верифицированный профиль организации/ИП/самозанятого (резидент РФ), модерация до 48 ч в рабочие дни; токен — после модерации — **подтверждено** |
+| Проверка токена | `GET /me` → `{user_id, first_name, name, username, is_bot, …}`; ошибка — 401 `{code: "verify.token", message: …}` — **подтверждено** |
+| Получение чатов | `GET /chats` не поддерживается с июня 2026; `chat_id` — только из событий `POST /subscriptions` (вебхук) или `GET /updates` — **подтверждено**. Long polling ограничен скоростью и сроком хранения, только для разработки; нельзя два long polling у бота или long polling вместе с вебхуком — **живое:** при активной подписке `GET /updates` отвечает **200 с пустой страницей** (не 405), см. ниже |
+| `GET /updates` | параметры: `limit` 1..1000 (100), `timeout` 0..90 с (30), `marker` (int64; без него — все неподтверждённые), `types` — список через запятую; ответ `{updates[], marker}` — **подтверждено** |
+| События | `bot_added` (`chat_id`, `user`, `is_channel`), `bot_started` (`chat_id` диалога, `user`, `payload`, `user_locale`), `bot_removed`, `user_removed`, `bot_stopped`, `message_created`, … Названия чата в событиях **нет** — **подтверждено** |
+| Отправка | `POST /messages?chat_id=…` или `?user_id=…` (`disable_link_preview` — в query); тело: `text` ≤ **4000**, `format` (`html`/`markdown`), `attachments[]`, `notify`; ответ 200 `{message: {recipient, timestamp, body: {mid, seq, text}, sender}}`; ошибки 400/401/403/500 — **подтверждено живым ботом** |
+| Лимит 4000 | Считается **длина поля `text` целиком, вместе с HTML-тегами**: текст 4004 символа (видимых 3979) и 4010 символов отклонены с `400 {"code":"proto.payload","message":"Field 'text' size (N) must be at most 4000"}` — **живое, 21.11.2026**. Поэтому рендер мерит блок с тегами и сущностями и держит запас 32 символа |
+| Кнопка | вложение `inline_keyboard`; кнопка `type: link` — текст 1..128, URL до 2048; до 210 кнопок, до 30 рядов, 7 в ряд (для `link` — 3) — **подтверждено** |
+| Разметка | HTML: `<b>/<strong>`, `<i>/<em>`, `<s>/<del>`, `<u>/<ins>`, `<code>/<pre>`, `<a href>`, `<mark>`, `<h1>…<h5>`, `<blockquote>`; Markdown тоже поддержан — **подтверждено** |
+| Аудио | `POST /uploads?type=audio|video|image|file` → `{url, token}`; загрузка по `url` (multipart или resumable), затем вложение `{type: audio, payload: {token}}`; аудио до 256 МБ и 60 мин, файл до 4 ГБ — **подтверждено** |
+| Готовность вложения | `attachment.not.ready` (HTTP 200 + `success:false`) → пауза и повтор с ростом интервала — **подтверждено** |
+| Удаление | `DELETE /messages?message_id=…`; бот должен быть админом с правом удаления; в диалоге — только свои сообщения, в чате/канале — любые; ≤ 2 удаления/с в один чат; ответ 200 `{success, code, message}`, ошибки 401/403/500 — **подтверждено**. Возрастного лимита в документации **нет** — проверить (Q9) |
+| Лимиты | ≤ 2 сообщения/с в один чат; **≤ 30 rps суммарно** на `platform-api2.max.ru` (включая загрузки) — **подтверждено** |
+| Ошибки | два формата: 4xx `{code, message}` (POST /messages, GET /me, GET /updates) и HTTP 200 `{success:false, code, message}` (DELETE /messages, subscriptions, …); `code` — машиночитаемый ключ (`not.found`, `chat.denied`, `proto.payload`), `message` — текст, в коды не попадает; 5xx документированного тела не имеет — **подтверждено** |
+| Бот удалён из чата | `POST /messages?chat_id=…` → **404** `{"code":"error.not.found","message":"error.not.found"}` — **живое** (бот удалён из группы) |
+| Пользователь заблокировал бота | `POST /messages?user_id=…` → **403** `{"code":"chat.denied","message":"Key: error.dialog.suspended, args: [<user_id>,]."}` — **живое** (диалог «приостановлен») |
+| Подписка (вебхук) | `POST /subscriptions` → `{"success":true}`; `GET /subscriptions` → `{"subscriptions":[{url,time}]}`; `DELETE /subscriptions?url=…`; **при активной подписке `GET /updates` → 200 и `{"updates":[],"marker":…}`** — молчаливая пустая страница, код ошибки не приходит — **живое, 21.11.2026** |
+
+### Q9 — закрыто на живом боте 21.11.2026
+
+- «Бота удалили из чата» → **404 `error.not.found`** → `recipient_gone`, `max.404.not_found`, чат `gone`.
+- «Пользователь заблокировал бота» → **403 `chat.denied`** с `message: "Key: error.dialog.suspended, …"`
+  → `recipient_gone`, `max.403.chat_denied`, чат `gone`.
+- Вебхук-подписка: `GET /updates` отвечает **200 с пустой страницей**, а не 405; поэтому код
+  `max.405.webhook_set` ставится по проверке `GET /subscriptions` на первой пустой странице сеанса
+  поиска (матчинг 405 тоже остаётся).
+- Удаление свежего сообщения работает (`retracted`), **возрастной лимит не выяснен**: на тестовом
+  боте нет сообщения старше суток. Подсказка в интерфейсе так и говорит — «MAX не документирует срок».
+- `Retry-After` в 429 за сессию не встретился (ни одного 429) — заголовок читается, но не подтверждён.
+- Может ли бот писать первым — не проверялось: бот писал в диалог только после «Начать».
+- 5xx и таймауты на живом боте не воспроизводились.
+
+### Реализация этапа 3b (21.11.2026)
+
+- `Lib/Channels/Max/MaxApi.php` — `me`, `updates` (только сеанс подключения), `sendMessage`
+  (HTML + `inline_keyboard` из `link`-кнопок), `deleteMessage`, хуки этапа 3a: `requestUpload`,
+  `sendAudio`, `sendDocument`. База URL инъектируется для тестов.
+- `MaxMarkup` — `RenderedMessage` → `format: html`. Выбран HTML, а не Markdown: MAX документирует
+  допустимые теги, а экранирование HTML однозначно; в Markdown пришлось бы экранировать `* _ ~ + ^
+  # > [ ]` по недокументированным правилам. Лимит 4000 с общим правилом обрезки
+  (`Lib/Channels/TextTruncator.php`, общий с Telegram): сокращается самый длинный абзац, ID и кнопка
+  сохраняются. Мерится **отрендеренный** блок — сущности (`&amp;`) и теги (`<blockquote>…</blockquote>`),
+  иначе `&`-тяжёлый текст уходил за 4000 и терялся на 400. Кнопки — только `http(s)`, текст ≤ 128, URL ≤ 2048, по одной в ряд.
+- `MaxChannel` — контракт `ChannelInterface`; `limits()` = `ChannelLimits::max()` (4000, 1/с в чат,
+  30/с на бота, 256 МБ).
+- Личные диалоги: `bot_started` даёт и `chat_id` диалога, и `user.user_id`. Хаб хранит **user_id** как
+  `chat_id` получателя и отправляет `?user_id=…` (документированный способ отправить сообщение
+  пользователю); группы и каналы — `?chat_id=…`. Заголовок диалога — имя пользователя из события;
+  у групп названия в событии нет, администратор задаёт его в интерфейсе.
+- `bot_removed`/`user_removed`/`bot_stopped` при поиске чатов не создают.
+- Общая фабрика: `Lib/Channels/ChannelFactory.php` — единственное место сборки каналов для REST,
+  воркера доставки и воркера поиска чатов; прокси у обоих, CA-bundle только у MAX.
+- Коды: `max.401.unauthorized`, `max.403.chat_denied`, `max.403.forbidden`, `max.404.not_found`,
+  `max.404.unknown`, `max.405.not_allowed`, `max.405.webhook_set`, `max.429.rate_limit` (+ `Retry-After`),
+  `max.200.<code>`, `max.<5xx>.server_error`, `max.attachment.not_ready`, `max.200.malformed`,
+  `max.tls.untrusted_ca`, `max.upload.failed`; сеть — `http.timeout`, `http.unavailable`.
+
+### Сопоставление ответов MAX → SendResult
+
+| Ответ MAX | Итог | Код | Источник |
+|---|---|---|---|
+| 200 + `message.body.mid` | `sent(mid)` | — | документация (POST /messages) |
+| 200 + JSON без `mid` | `sent()` (доставлено, ID неизвестен) | — | документация (200 = создано) + предположение |
+| 200 + неразборчивое тело | `retry(10, uncertain)` — не более одного повтора | `max.200.malformed` | предположение (Plan/08) |
+| 200 + `success:false` + `attachment.not.ready` | `retry(10)` с ростом паузы | `max.attachment.not_ready` | документация (uploads) |
+| 200 + `success:false` + иной `code` | `permanent` | `max.200.<code>` | предположение (Q9) |
+| 200 + `success:false` без `code` | `permanent` | `max.200.error` | предположение (Q9) |
+| 401 | `permanent` | `max.401.unauthorized` | документация |
+| 403 + `chat.denied` | `recipient_gone` | `max.403.chat_denied` | **живое:** «user suspended bot» (диалог заблокирован) |
+| 403 + иной код | `permanent` | `max.403.forbidden` | предположение |
+| 4xx + JSON `code` `not.found` / `chat.not.found` / **`error.not.found`** | `recipient_gone` (при удалении — `sent`) | `max.404.not_found` | **живое:** бот удалён из группы (`error.not.found`) |
+| 404 без JSON-кода (например, HTML-страница шлюза) | `permanent` — «получателя нет» не доказано | `max.404.unknown` | предположение |
+| 400 + `code` `proto.payload` (текст длиннее 4000) | `permanent` | `max.400.proto_payload` | **живое:** `Field 'text' size (N) must be at most 4000` |
+| пустая страница `GET /updates` при активной подписке | ошибка сеанса поиска | `max.405.webhook_set` | **живое:** 200 + `GET /subscriptions` не пуст |
+| 405 (`GET /updates`) | ошибка сеанса поиска | `max.405.webhook_set` | предположение (на боте не встретилось) |
+| 429 (+ `Retry-After`) | `retry(retry_after)` | `max.429.rate_limit` | документация; на боте не встретилось |
+| 5xx | `retry(30)` | `max.<5xx>.server_error` | документация (5xx) |
+| TLS-ошибка curl | `permanent` | `max.tls.untrusted_ca` | предположение (диагностика) |
+| таймаут/сеть | `retry(10, uncertain)` | `http.timeout` / `http.unavailable` | Plan/08 |
+
+### Корневой сертификат НУЦ Минцифры
+
+- **Источник:** `https://gu-st.ru/content/Other/doc/russiantrustedca.pem` — официальная выдача НУЦ
+  Минцифры (тип `application/x-x509-ca-cert`, `Last-Modified: 15.09.2022`,
+  `Access-Control-Allow-Origin: *`). В модуле поставляется **только корневой сертификат**
+  (из официального файла, байт в байт): `Lib/Channels/Max/certs/russian_trusted_ca.pem`
+  (SHA-256 файла `aa800ef345422d6158c6fafe1c06c429dbda21c3df4bb1ccb45a920ec1111399`).
+- **Отпечаток SHA-256 (DER, закреплён в коде):**
+  - `Russian Trusted Root CA` — `D2:6D:2D:02:31:B7:C3:9F:92:CC:73:85:12:BA:54:10:35:19:E4:40:5D:68:B5:BD:70:3E:97:88:CA:8E:CF:31`
+    (до 27.02.2032). Промежуточный `Russian Trusted Sub CA`
+    (`BB:BD:E2:10:…:FD:9B`, до 06.03.2027) **не поставляется и не закрепляется**: сервер присылает
+    его в handshake, поэтому его ротация не требует новой версии модуля.
+- **Проверка цепочки (21.11.2026, станция и рабочая машина):** `platform-api2.max.ru` отдаёт **leaf `*.max.ru` + `Russian Trusted
+  Sub CA`** (то есть промежуточный сертификат приходит в handshake); корень `Russian Trusted Root CA` в
+  системе отсутствует (curl без bundle падает на `unable to get local issuer certificate`). С
+  поставляемым файлом и с собранным bundle `GET /me` отвечает 401 `verify.token`, `verify return
+  code: 0` — TLS проходит, отключение проверки не нужно. Так как Sub CA приходит от сервера,
+  возможно закрепление **только** Root CA (ротация Sub CA не потребует новой версии модуля); решение
+  и минусы — в `Plan/09`, пока поставляются оба.
+- **Лицензия:** это публичный сертификат открытого ключа, опубликованный Минцифры именно для
+  установки в доверенные хранилища; выдача отдаётся с `Access-Control-Allow-Origin: *`, т.е.
+  распространение не ограничено, а сам файл распространяется без изменений. Текста отдельного
+  лицензионного соглашения на странице выдачи нет — при смене файла (новый Root CA после 2032)
+  перепроверить источник, отпечатки и условия.
+- **Как подключается** (`Lib/Channels/Max/MaxCaBundle.php`): bundle = системный CA-файл АТС +
+  поставляемый PEM, собирается в `sys_get_temp_dir()/module-messenger-hub-ca-<uid>/<hash>.pem` и
+  передаётся **только** транспорту MAX (`CURLOPT_CAINFO`). Telegram и системное хранилище не
+  трогаются, `CURLOPT_SSL_VERIFYPEER` всегда `true`.
+- **`max_ca_bundle_path`** из настроек заменяет поставляемый файл (например, если MAX перейдёт на
+  другой корень); файл должен содержать хотя бы один PEM-сертификат, иначе настройка отклоняется;
+  нечитаемый путь — предупреждение в лог и возврат к проверенному поставляемому bundle.
+- **Защита от подмены:** каждый сертификат файла сверяется с закреплённым отпечатком. Несовпадение —
+  файл не используется вообще (fail-closed): TLS падает штатно с кодом `max.tls.untrusted_ca`,
+  в лог пишется `ca_bundle_invalid`. Ошибка TLS — `permanent`, без бесконечных повторов.
+
 
 ## Форматирование
 
 Шаблоны рендерятся в нейтральную разметку (`RenderedMessage`: заголовок, строки «ключ: значение»,
-абзацы, цитаты, кнопки, вложения). Адаптер канала превращает её в HTML (Telegram) или markdown/html (MAX)
+абзацы, цитаты, кнопки, вложения). Адаптер канала превращает её в HTML (Telegram) или HTML (MAX)
 и **экранирует** всё, что пришло из данных (имена, тексты расшифровок).
-Обрезка под лимит канала: сокращается самый длинный абзац с многоточием; ID и кнопка сохраняются.
+Обрезка под лимит канала: сокращается самый длинный абзац с многоточием; ID и кнопка сохраняются —
+правило одно для обоих каналов (`Lib/Channels/TextTruncator.php`).
 
 ## Вложения (этап 3+)
 
@@ -80,6 +210,12 @@ interface ChannelInterface
 ## Источники
 
 - Telegram: https://core.telegram.org/bots/api
-- MAX: https://dev.max.ru/docs-api, https://dev.max.ru/docs-api/methods/POST/messages,
-  https://dev.max.ru/docs-api/methods/POST/uploads, https://dev.max.ru/docs-api/use-cases/getting-chat-id/,
-  https://dev.max.ru/docs/chatbots/bots-create/create/
+- MAX: https://dev.max.ru/docs-api, https://dev.max.ru/docs-api/methods/GET/me/,
+  https://dev.max.ru/docs-api/methods/GET/updates/, https://dev.max.ru/docs-api/methods/POST/messages/,
+  https://dev.max.ru/docs-api/methods/DELETE/messages/, https://dev.max.ru/docs-api/methods/POST/uploads/,
+  https://dev.max.ru/docs-api/use-cases/sending-messages/text-formatting/,
+  https://dev.max.ru/docs-api/use-cases/sending-messages/keyboard/,
+  https://dev.max.ru/docs-api/use-cases/getting-chat-id/,
+  https://dev.max.ru/docs/chatbots/bots-create/create/,
+  OpenAPI-схема: https://github.com/max-messenger/api-schema
+- Сертификат НУЦ Минцифры: https://gu-st.ru/content/Other/doc/russiantrustedca.pem

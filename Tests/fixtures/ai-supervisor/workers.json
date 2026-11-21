@@ -1,0 +1,47 @@
+{
+    "items": [
+        {
+            "id": 12,
+            "worker_uid": "mac-worker-01",
+            "name": "Office mac mini",
+            "ip": "192.0.2.10",
+            "status": "online",
+            "capabilities": [
+                "call_summary",
+                "voice_analytics"
+            ],
+            "app_version": "1.4.2",
+            "platform": "darwin",
+            "model": "",
+            "ai_server_status": "",
+            "llm_cooldown": {
+                "active": false
+            },
+            "api_version": 3,
+            "api_update_required": false,
+            "last_seen": 1791072600,
+            "last_activity": "2026-11-18 12:10:00"
+        },
+        {
+            "id": 13,
+            "worker_uid": "win-worker-02",
+            "name": "Backup pc",
+            "ip": "192.0.2.11",
+            "status": "offline",
+            "capabilities": [
+                "call_summary"
+            ],
+            "app_version": "1.4.0",
+            "platform": "win32",
+            "model": "",
+            "ai_server_status": "",
+            "llm_cooldown": {
+                "active": false
+            },
+            "api_version": 3,
+            "api_update_required": false,
+            "last_seen": 1791070800,
+            "last_activity": "2026-11-18 11:40:00"
+        }
+    ]
+}

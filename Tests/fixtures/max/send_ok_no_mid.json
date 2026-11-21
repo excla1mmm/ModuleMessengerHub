@@ -1,0 +1,7 @@
+{
+  "message": {
+    "recipient": {"chat_id": -70000000000001, "chat_type": "chat"},
+    "timestamp": 1790944906000,
+    "body": {"seq": 43, "text": "Тестовое сообщение"}
+  }
+}

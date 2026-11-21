@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ModuleMessengerHub — макеты v3</title>
+<style>
+/* =====================================================================
+   ModuleMessengerHub — тема MIKO для Fomantic UI
+   Все токены и переопределения ограничены корнем .module-messenger-hub,
+   остальная админка MikoPBX не затрагивается.
+   Источник значений: дизайн-система MIKO (Gravity UI 7.50, тема light).
+   В комментарии к каждому токену: g-токен MIKO → переменная LESS Fomantic
+   (site.variables) → селекторы, которые переопределяются ниже.
+   ===================================================================== */
+
+.module-messenger-hub {
+  /* ---------- Шрифты ---------- */
+  /* Inter кладём в модуль (woff2, OFL) — АТС часто без интернета.
+     Если файла нет — системный стек.                       → @pageFont, @headerFont */
+  --mh-font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* g-font-family-monospace                                → @codeFont, .ui.label code, pre */
+  --mh-font-mono: Menlo, Monaco, Consolas, "Liberation Mono", "Ubuntu Mono", "DejaVu Sans Mono", "Courier New", monospace;
+
+  /* ---------- Типографика (Gravity text variants) ---------- */
+  --mh-text-caption: 11px;  --mh-lh-caption: 16px;   /* caption-2    → .ui.label, .meta, table th  */
+  --mh-text-body: 13px;     --mh-lh-body: 18px;      /* body-1       → @fontSize, @emSize базового текста */
+  --mh-text-body-l: 15px;   --mh-lh-body-l: 20px;    /* body-2       → .ui.primary.button, .ui.message */
+  --mh-text-sub: 15px;      --mh-lh-sub: 20px;       /* subheader-2  → .ui.header (h4), card title */
+  --mh-text-sub-l: 17px;    --mh-lh-sub-l: 24px;     /* subheader-3  → .ui.header (h3), заголовок сегмента */
+  --mh-text-title: 20px;    --mh-lh-title: 24px;     /* header-1     → .ui.header (h2), заголовок страницы */
+  --mh-text-display: 28px;  --mh-lh-display: 36px;   /* display-1    → .ui.statistic > .value */
+  --mh-weight-regular: 400;                          /* @normal */
+  --mh-weight-accent: 600;                           /* @bold (Fomantic по умолчанию 700) */
+
+  /* ---------- Цвет: поверхности ---------- */
+  --mh-color-bg: #ffffff;                       /* g-color-base-background  → @white, .ui.segment, .ui.table */
+  --mh-color-bg-subtle: rgba(0, 0, 0, 0.05);    /* g-color-base-generic     → .ui.secondary.segment, thead th */
+  --mh-color-bg-hover: rgba(0, 0, 0, 0.05);     /* g-color-base-simple-hover→ .ui.selectable.table tr:hover, .menu .item:hover */
+  --mh-color-bg-active: rgba(0, 0, 0, 0.15);    /* g-color-base-generic-hover → .ui.basic.button:active */
+  --mh-color-selection: rgba(242, 117, 25, 0.12);       /* g-color-base-selection → .ui.table tr.active, .dropdown .item.selected */
+  --mh-color-selection-hover: rgba(242, 117, 25, 0.2);  /* g-color-base-selection-hover */
+  --mh-color-float: #ffffff;                    /* g-color-base-float       → .ui.popup, .ui.dropdown .menu */
+  --mh-color-modal: #ffffff;                    /* g-color-base-modal       → .ui.modal > .content */
+  --mh-color-veil: rgba(0, 0, 0, 0.25);         /* g-color-sfx-veil         → .ui.dimmer (@dimmerBackgroundColor) */
+
+  /* ---------- Цвет: текст ---------- */
+  --mh-color-text: rgba(0, 0, 0, 0.85);         /* g-color-text-primary       → @textColor */
+  --mh-color-text-meta: rgba(0, 0, 0, 0.7);     /* g-color-text-complementary → @mutedTextColor, .meta, .description */
+  --mh-color-text-secondary: rgba(0, 0, 0, 0.5);/* g-color-text-secondary (4,0:1) → @lightTextColor, только ≥15px и плейсхолдеры */
+  --mh-color-text-hint: rgba(0, 0, 0, 0.3);     /* g-color-text-hint → @disabledTextColor, .disabled */
+  --mh-color-link: #1673b5;                     /* g-color-text-link       → @linkColor */
+  --mh-color-link-hover: #0f5c94;               /* g-color-text-link-hover → @linkHoverColor */
+
+  /* ---------- Цвет: бренд ---------- */
+  --mh-color-brand: #f27519;                    /* g-color-base-brand       → @primaryColor, @orange: .ui.primary.button, toggle:checked, .pointing.menu .active */
+  --mh-color-brand-hover: #db6510;              /* g-color-base-brand-hover → @primaryColorHover */
+  --mh-color-on-brand: #ffffff;                 /* g-color-text-brand-contrast → @primaryTextColor (2,9:1 — см. допущения) */
+  --mh-color-brand-text: #b04e06;               /* g-color-text-brand-heavy → акцентный текст, активная вкладка */
+  --mh-color-brand-line: #f27519;               /* g-color-line-brand       → .ui.pointing.menu .active.item border */
+
+  /* ---------- Цвет: линии ---------- */
+  --mh-color-line: rgba(0, 0, 0, 0.1);          /* g-color-line-generic       → @borderColor, @inputBorderColor */
+  --mh-color-line-hover: rgba(0, 0, 0, 0.15);   /* g-color-line-generic-hover → @inputHoverBorderColor */
+  --mh-color-focus: rgba(107, 132, 153, 0.8);   /* g-color-line-focus         → @focusedFormBorderColor, :focus-visible */
+
+  /* ---------- Цвет: статусы (light = фон, text = heavy-вариант текста, line = граница) ---------- */
+  --mh-positive-bg: rgba(50, 186, 118, 0.15);   /* g-color-base-positive-light → .ui.green.label, .ui.positive.message */
+  --mh-positive-text: rgb(45, 139, 93);         /* g-color-text-positive-heavy */
+  --mh-positive-line: rgba(50, 186, 118, 0.8);  /* g-color-line-positive */
+  --mh-warning-bg: rgba(255, 190, 92, 0.3);     /* g-color-base-warning-light → .ui.yellow.label, .ui.warning.message */
+  --mh-warning-text: rgb(189, 92, 10);          /* g-color-text-warning-heavy */
+  --mh-warning-line: rgb(233, 174, 86);         /* g-color-line-warning */
+  --mh-danger-bg: rgba(255, 0, 61, 0.15);       /* g-color-base-danger-light → .ui.red.label, .ui.negative.message, .ui.form .error */
+  --mh-danger-text: rgb(189, 9, 53);            /* g-color-text-danger-heavy */
+  --mh-danger-line: rgba(255, 0, 61, 0.8);      /* g-color-line-danger       → .field.error input border */
+  --mh-danger-solid: rgb(233, 3, 58);           /* g-color-base-danger-heavy → .ui.red.button (удаление) */
+  --mh-info-bg: rgba(54, 151, 241, 0.15);       /* g-color-base-info-light   → .ui.blue.label, .ui.info.message */
+  --mh-info-text: rgb(48, 114, 179);            /* g-color-text-info-heavy */
+  --mh-info-line: rgba(54, 151, 241, 0.8);      /* g-color-line-info */
+  --mh-misc-bg: rgba(107, 132, 153, 0.15);      /* g-color-base-misc-light   → .ui.grey.label */
+  --mh-misc-text: rgb(85, 101, 117);            /* g-color-text-misc-heavy */
+  --mh-neutral-bg: rgba(0, 0, 0, 0.05);         /* g-color-base-neutral-light → .ui.basic.label */
+
+  /* ---------- Отступы (сетка 4px) ---------- */
+  --mh-space-half: 2px;  /* g-spacing-half */
+  --mh-space-1: 4px;     /* g-spacing-1  → внутри плотных контролов */
+  --mh-space-2: 8px;     /* g-spacing-2  → иконка ↔ подпись, .ui.label padding */
+  --mh-space-3: 12px;    /* g-spacing-3  → контролы в форме, .ui.form .field margin */
+  --mh-space-4: 16px;    /* g-spacing-4  → ячейка таблицы, компактный сегмент */
+  --mh-space-5: 20px;    /* g-spacing-5  → .ui.segment padding (@padding) */
+  --mh-space-6: 24px;    /* g-spacing-6  → секции внутри сегмента */
+  --mh-space-8: 32px;    /* g-spacing-8  → боковые поля рабочей области */
+  --mh-space-10: 40px;   /* g-spacing-10 → между секциями страницы */
+
+  /* ---------- Радиусы ---------- */
+  --mh-radius-xs: 3px;   /* g-border-radius-xs → .ui.checkbox label:before */
+  --mh-radius-s: 5px;    /* g-border-radius-s  → .ui.label, .ui.mini.button */
+  --mh-radius-m: 6px;    /* g-border-radius-m  → @defaultBorderRadius: .ui.button, input, .ui.dropdown */
+  --mh-radius-l: 8px;    /* g-border-radius-l  → .ui.segment, .ui.table, .ui.popup, .ui.message, card */
+  --mh-radius-xl: 10px;  /* g-border-radius-xl → .ui.modal */
+
+  /* ---------- Тени (только всплывающие слои) ---------- */
+  --mh-shadow-float: 0 8px 20px 0 rgba(0, 0, 0, 0.15);  /* g-color-sfx-shadow → @floatingShadow: .ui.popup, .ui.dropdown .menu */
+  --mh-shadow-modal: 0 16px 40px 0 rgba(0, 0, 0, 0.15); /* g-color-sfx-shadow → .ui.modal (@modalBoxShadow) */
+
+  /* ---------- Размеры контролов ---------- */
+  --mh-control-m: 28px;  /* размер m — таблицы, фильтры, формы настроек */
+  --mh-control-l: 36px;  /* размер l — главные действия, модальные окна */
+
+  font-family: var(--mh-font-sans);
+  font-size: var(--mh-text-body);
+  line-height: var(--mh-lh-body);
+  color: var(--mh-color-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ================= Базовые элементы ================= */
+.module-messenger-hub *, .module-messenger-hub *::before, .module-messenger-hub *::after { box-sizing: border-box; }
+.module-messenger-hub a { color: var(--mh-color-link); text-decoration: none; }
+.module-messenger-hub a:hover { color: var(--mh-color-link-hover); text-decoration: underline; }
+.module-messenger-hub :focus-visible { outline: 2px solid var(--mh-color-focus); outline-offset: 1px; border-radius: 2px; }
+.module-messenger-hub code, .module-messenger-hub .mh-mono { font-family: var(--mh-font-mono); font-size: 12px; }
+.module-messenger-hub .mh-meta { color: var(--mh-color-text-meta); font-size: var(--mh-text-caption); line-height: var(--mh-lh-caption); }
+.module-messenger-hub .mh-muted { color: var(--mh-color-text-meta); }
+.module-messenger-hub .mh-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.module-messenger-hub .mh-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.module-messenger-hub svg.mh-i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ================= .ui.header ================= */
+.module-messenger-hub .ui.header { margin: 0; font-family: var(--mh-font-sans); font-weight: var(--mh-weight-accent); color: var(--mh-color-text); }
+.module-messenger-hub h2.ui.header { font-size: var(--mh-text-title); line-height: var(--mh-lh-title); }
+.module-messenger-hub h3.ui.header { font-size: var(--mh-text-sub-l); line-height: var(--mh-lh-sub-l); }
+.module-messenger-hub h4.ui.header { font-size: var(--mh-text-sub); line-height: var(--mh-lh-sub); }
+.module-messenger-hub .ui.header .sub.header { font-weight: 400; font-size: var(--mh-text-body); line-height: var(--mh-lh-body); color: var(--mh-color-text-meta); margin-top: 4px; }
+
+/* ================= .ui.menu (вкладки) ================= */
+.module-messenger-hub .ui.secondary.pointing.menu { display: flex; flex-wrap: wrap; gap: 0 4px; border-bottom: 1px solid var(--mh-color-line); margin: 0; }
+.module-messenger-hub .ui.secondary.pointing.menu .item { display: inline-flex; align-items: center; gap: 8px; padding: 10px 12px 9px; margin-bottom: -1px; border-bottom: 2px solid transparent; color: var(--mh-color-text-meta); font-size: var(--mh-text-body); font-weight: 400; white-space: nowrap; background: none; border-top: 0; border-left: 0; border-right: 0; font-family: inherit; cursor: pointer; }
+.module-messenger-hub .ui.secondary.pointing.menu .item:hover { color: var(--mh-color-text); text-decoration: none; }
+.module-messenger-hub .ui.secondary.pointing.menu .active.item { color: var(--mh-color-text); font-weight: var(--mh-weight-accent); border-bottom-color: var(--mh-color-brand-line); }
+.module-messenger-hub .ui.menu .item .ui.label { margin: 0; }
+
+/* ================= .ui.segment ================= */
+.module-messenger-hub .ui.segment { background: var(--mh-color-bg); border: 1px solid var(--mh-color-line); border-radius: var(--mh-radius-l); padding: var(--mh-space-5); box-shadow: none; margin: 0; }
+.module-messenger-hub .ui.segment.mh-flush { padding: 0; overflow: hidden; }
+.module-messenger-hub .ui.secondary.segment { background: var(--mh-color-bg-subtle); border-color: transparent; }
+.module-messenger-hub .ui.segment.mh-section-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 0; border-bottom: 1px solid var(--mh-color-line); border-radius: 0; background: var(--mh-color-bg); }
+
+/* ================= .ui.button ================= */
+.module-messenger-hub .ui.button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: var(--mh-control-m); padding: 0 12px; border-radius: var(--mh-radius-m); border: 1px solid transparent; background: var(--mh-color-bg-subtle); color: var(--mh-color-text); font-family: inherit; font-size: var(--mh-text-body); font-weight: 400; line-height: 1; white-space: nowrap; cursor: pointer; margin: 0; text-decoration: none; }
+.module-messenger-hub .ui.button:hover { background: var(--mh-color-bg-active); text-decoration: none; color: var(--mh-color-text); }
+.module-messenger-hub .ui.basic.button { background: transparent; border-color: var(--mh-color-line); }
+.module-messenger-hub .ui.basic.button:hover { border-color: var(--mh-color-line-hover); background: var(--mh-color-bg-hover); }
+.module-messenger-hub .ui.primary.button { background: var(--mh-color-brand); color: var(--mh-color-on-brand); font-weight: var(--mh-weight-accent); font-size: var(--mh-text-body-l); }
+.module-messenger-hub .ui.primary.button:hover { background: var(--mh-color-brand-hover); color: var(--mh-color-on-brand); }
+.module-messenger-hub .ui.blue.basic.button { border-color: var(--mh-info-line); color: var(--mh-color-link); background: transparent; }
+.module-messenger-hub .ui.red.basic.button { border-color: var(--mh-danger-line); color: var(--mh-danger-text); background: transparent; }
+.module-messenger-hub .ui.text.button { background: transparent; color: var(--mh-color-link); padding: 0 6px; }
+.module-messenger-hub .ui.text.button:hover { background: var(--mh-color-bg-hover); color: var(--mh-color-link-hover); }
+.module-messenger-hub .ui.large.button { height: var(--mh-control-l); padding: 0 16px; }
+.module-messenger-hub .ui.icon.button { width: var(--mh-control-m); padding: 0; }
+.module-messenger-hub .ui.disabled.button, .module-messenger-hub .ui.button[disabled] { opacity: 1; background: var(--mh-color-bg-subtle); color: var(--mh-color-text-hint); cursor: default; border-color: transparent; }
+.module-messenger-hub .ui.loading.button { color: transparent; position: relative; }
+.module-messenger-hub .ui.loading.button::after { content: ""; position: absolute; width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; animation: mh-spin .8s linear infinite; }
+
+/* ================= .ui.label — статусы, важность, доставка ================= */
+.module-messenger-hub .ui.label { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: var(--mh-radius-s); font-size: var(--mh-text-caption); line-height: var(--mh-lh-caption); font-weight: 400; white-space: nowrap; background: var(--mh-neutral-bg); color: var(--mh-color-text-meta); border: 1px solid transparent; margin: 0; max-width: 100%; }
+.module-messenger-hub .ui.label svg.mh-i { width: 14px; height: 14px; }
+.module-messenger-hub .ui.green.label  { background: var(--mh-positive-bg); color: var(--mh-positive-text); }
+.module-messenger-hub .ui.yellow.label { background: var(--mh-warning-bg);  color: var(--mh-warning-text); }
+.module-messenger-hub .ui.red.label    { background: var(--mh-danger-bg);   color: var(--mh-danger-text); }
+.module-messenger-hub .ui.blue.label   { background: var(--mh-info-bg);     color: var(--mh-info-text); }
+.module-messenger-hub .ui.grey.label   { background: var(--mh-misc-bg);     color: var(--mh-misc-text); }
+.module-messenger-hub .ui.basic.label  { background: transparent; border-color: var(--mh-color-line-hover); color: var(--mh-color-text-meta); border-style: dashed; }
+.module-messenger-hub .ui.circular.label { min-width: 20px; justify-content: center; padding: 0 6px; border-radius: 10px; }
+.module-messenger-hub .ui.orange.circular.label { background: var(--mh-color-brand); color: #fff; font-weight: 600; }
+.module-messenger-hub .ui.red.circular.label { background: var(--mh-danger-solid); color: #fff; font-weight: 600; }
+
+/* ================= .ui.toggle.checkbox / .ui.checkbox ================= */
+.module-messenger-hub .ui.checkbox { position: relative; display: inline-flex; align-items: center; gap: 8px; min-height: 20px; cursor: pointer; font-size: var(--mh-text-body); }
+.module-messenger-hub .ui.checkbox input.hidden { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.module-messenger-hub .ui.toggle.checkbox .mh-track { position: relative; width: 36px; height: 20px; border-radius: 10px; background: var(--mh-color-bg-active); flex: none; transition: background .15s; }
+.module-messenger-hub .ui.toggle.checkbox .mh-track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: left .15s; }
+.module-messenger-hub .ui.toggle.checkbox.checked .mh-track { background: var(--mh-color-brand); }
+.module-messenger-hub .ui.toggle.checkbox.checked .mh-track::after { left: 18px; }
+.module-messenger-hub .ui.toggle.checkbox.disabled { cursor: default; }
+.module-messenger-hub .ui.toggle.checkbox.disabled .mh-track { opacity: .45; }
+.module-messenger-hub .ui.checkbox .mh-box { width: 16px; height: 16px; border-radius: var(--mh-radius-xs); border: 1px solid var(--mh-color-line-hover); background: #fff; flex: none; display: inline-flex; align-items: center; justify-content: center; }
+.module-messenger-hub .ui.checkbox.checked .mh-box { background: var(--mh-color-brand); border-color: var(--mh-color-brand); }
+.module-messenger-hub .ui.checkbox.checked .mh-box::after { content: ""; width: 9px; height: 5px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(-45deg) translate(1px,-1px); }
+.module-messenger-hub .ui.radio.checkbox .mh-box { border-radius: 50%; }
+.module-messenger-hub .ui.radio.checkbox.checked .mh-box { background: #fff; border: 5px solid var(--mh-color-brand); }
+.module-messenger-hub .ui.radio.checkbox.checked .mh-box::after { display: none; }
+
+/* ================= .ui.table ================= */
+.module-messenger-hub .ui.table { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--mh-color-bg); border: 1px solid var(--mh-color-line); border-radius: var(--mh-radius-l); overflow: hidden; margin: 0; table-layout: fixed; }
+.module-messenger-hub .ui.table th { text-align: left; font-weight: 400; font-size: var(--mh-text-caption); line-height: var(--mh-lh-caption); color: var(--mh-color-text-meta); background: var(--mh-color-bg-subtle); padding: 8px 12px; border-bottom: 1px solid var(--mh-color-line); white-space: nowrap; }
+.module-messenger-hub .ui.table td { padding: 10px 12px; border-bottom: 1px solid var(--mh-color-line); vertical-align: middle; }
+.module-messenger-hub .ui.table tr:last-child td { border-bottom: 0; }
+.module-messenger-hub .ui.selectable.table tbody tr:hover td { background: var(--mh-color-bg-hover); }
+.module-messenger-hub .ui.table tr.active td { background: var(--mh-color-selection); }
+.module-messenger-hub .ui.table tr.mh-detail td { background: #fff; padding: 0 12px 16px 48px; }
+.module-messenger-hub .ui.table.mh-wrap { overflow-x: auto; display: block; }
+
+/* ================= .ui.form ================= */
+.module-messenger-hub .ui.form .field { display: flex; flex-direction: column; gap: 6px; margin: 0; }
+.module-messenger-hub .ui.form .field > label { font-weight: var(--mh-weight-accent); font-size: var(--mh-text-body); color: var(--mh-color-text); }
+.module-messenger-hub .ui.form .field .mh-help { font-size: var(--mh-text-caption); line-height: var(--mh-lh-caption); color: var(--mh-color-text-meta); }
+.module-messenger-hub .ui.form input[type=text], .module-messenger-hub .ui.form input[type=number], .module-messenger-hub .ui.form input[type=search], .module-messenger-hub .ui.form textarea, .module-messenger-hub .ui.input input { height: var(--mh-control-m); padding: 0 8px; border: 1px solid var(--mh-color-line); border-radius: var(--mh-radius-m); font-family: inherit; font-size: var(--mh-text-body); color: var(--mh-color-text); background: #fff; width: 100%; min-width: 0; }
+.module-messenger-hub .ui.form input::placeholder { color: var(--mh-color-text-secondary); }
+.module-messenger-hub .ui.form .field.error input { border-color: var(--mh-danger-line); background: #fff; }
+.module-messenger-hub .ui.form .field.error .mh-help { color: var(--mh-danger-text); }
+.module-messenger-hub .ui.selection.dropdown { display: flex; align-items: center; gap: 6px; height: var(--mh-control-m); min-height: var(--mh-control-m); padding: 0 28px 0 8px; border: 1px solid var(--mh-color-line); border-radius: var(--mh-radius-m); background: #fff; position: relative; font-size: var(--mh-text-body); color: var(--mh-color-text); min-width: 0; cursor: pointer; }
+.module-messenger-hub .ui.selection.dropdown::after { content: ""; position: absolute; right: 11px; top: 50%; width: 6px; height: 6px; border-right: 1.5px solid var(--mh-color-text-meta); border-bottom: 1.5px solid var(--mh-color-text-meta); transform: translateY(-70%) rotate(45deg); }
+.module-messenger-hub .ui.selection.dropdown .text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.module-messenger-hub .ui.selection.dropdown .default.text { color: var(--mh-color-text-secondary); }
+.module-messenger-hub .ui.multiple.dropdown { height: auto; padding-top: 3px; padding-bottom: 3px; flex-wrap: wrap; gap: 4px; }
+.module-messenger-hub .ui.multiple.dropdown .ui.label { background: var(--mh-color-bg-subtle); color: var(--mh-color-text); }
+.module-messenger-hub .ui.dropdown .menu { background: var(--mh-color-float); border-radius: var(--mh-radius-l); box-shadow: var(--mh-shadow-float); padding: 4px; }
+.module-messenger-hub .ui.dropdown .menu .item { padding: 6px 8px; border-radius: var(--mh-radius-s); }
+.module-messenger-hub .ui.dropdown .menu .item.selected { background: var(--mh-color-selection); }
+.module-messenger-hub .ui.dropdown .menu .header { font-size: var(--mh-text-caption); color: var(--mh-color-text-meta); padding: 6px 8px 2px; }
+
+/* ================= .ui.message ================= */
+.module-messenger-hub .ui.message { display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; border-radius: var(--mh-radius-l); background: var(--mh-neutral-bg); color: var(--mh-color-text); box-shadow: none; margin: 0; font-size: var(--mh-text-body); line-height: var(--mh-lh-body); }
+.module-messenger-hub .ui.message .header { font-weight: var(--mh-weight-accent); margin-bottom: 2px; }
+.module-messenger-hub .ui.message > svg.mh-i { margin-top: 1px; }
+.module-messenger-hub .ui.info.message     { background: var(--mh-info-bg); }
+.module-messenger-hub .ui.info.message > svg.mh-i { color: var(--mh-info-text); }
+.module-messenger-hub .ui.warning.message  { background: var(--mh-warning-bg); }
+.module-messenger-hub .ui.warning.message > svg.mh-i { color: var(--mh-warning-text); }
+.module-messenger-hub .ui.negative.message { background: var(--mh-danger-bg); }
+.module-messenger-hub .ui.negative.message > svg.mh-i { color: var(--mh-danger-text); }
+.module-messenger-hub .ui.positive.message { background: var(--mh-positive-bg); }
+.module-messenger-hub .ui.positive.message > svg.mh-i { color: var(--mh-positive-text); }
+
+/* ================= .ui.popup ================= */
+.module-messenger-hub .ui.popup { position: absolute; z-index: 5; background: var(--mh-color-float); border-radius: var(--mh-radius-l); box-shadow: var(--mh-shadow-float); padding: 12px 14px; font-size: var(--mh-text-body); line-height: var(--mh-lh-body); color: var(--mh-color-text); max-width: 320px; border: 0; }
+
+/* ================= .ui.modal ================= */
+.module-messenger-hub .ui.modal { background: var(--mh-color-modal); border-radius: var(--mh-radius-xl); box-shadow: var(--mh-shadow-modal); display: flex; flex-direction: column; overflow: hidden; }
+.module-messenger-hub .ui.modal > .header { padding: 20px 24px 8px; font-size: var(--mh-text-title); line-height: var(--mh-lh-title); font-weight: 600; border: 0; }
+.module-messenger-hub .ui.modal > .content { padding: 12px 24px 20px; }
+.module-messenger-hub .ui.modal > .actions { padding: 16px 24px; border-top: 1px solid var(--mh-color-line); display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; background: var(--mh-color-bg); }
+.module-messenger-hub .ui.dimmer { background: var(--mh-color-veil); }
+
+/* ================= .ui.progress ================= */
+.module-messenger-hub .ui.progress { height: 6px; border-radius: 3px; background: var(--mh-color-bg-subtle); overflow: hidden; margin: 0; }
+.module-messenger-hub .ui.progress .bar { height: 100%; border-radius: 3px; background: var(--mh-color-brand); min-width: 0; }
+.module-messenger-hub .ui.grey.progress .bar { background: var(--mh-misc-text); }
+
+/* ================= .ui.statistic ================= */
+.module-messenger-hub .ui.statistic { display: flex; flex-direction: column; gap: 2px; margin: 0; }
+.module-messenger-hub .ui.statistic > .value { font-size: var(--mh-text-display); line-height: var(--mh-lh-display); font-weight: 600; color: var(--mh-color-text); }
+.module-messenger-hub .ui.statistic > .label { font-size: var(--mh-text-body); color: var(--mh-color-text-meta); text-transform: none; font-weight: 400; }
+
+/* ================= .ui.accordion ================= */
+.module-messenger-hub .ui.accordion .title { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 0; font-weight: 600; }
+.module-messenger-hub .ui.accordion .content { padding: 0 0 8px 24px; }
+
+/* ================= Загрузка: .ui.placeholder (скелетон) и .ui.loader ================= */
+.module-messenger-hub .ui.placeholder .line, .module-messenger-hub .mh-skel { display: block; height: 10px; border-radius: 4px; background: linear-gradient(90deg, rgba(0,0,0,.05) 0%, rgba(0,0,0,.09) 50%, rgba(0,0,0,.05) 100%); background-size: 200% 100%; animation: mh-shimmer 1.4s ease-in-out infinite; }
+.module-messenger-hub .ui.loader { width: 24px; height: 24px; border-radius: 50%; border: 2.5px solid var(--mh-color-bg-active); border-top-color: var(--mh-color-brand); animation: mh-spin .8s linear infinite; display: inline-block; }
+.module-messenger-hub .ui.mini.loader { width: 14px; height: 14px; border-width: 2px; }
+@keyframes mh-spin { to { transform: rotate(360deg); } }
+@keyframes mh-shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+
+/* ================= Модульные компоненты ================= */
+/* Строка источника */
+.module-messenger-hub .mh-source-row { display: grid; grid-template-columns: 52px minmax(0, 1fr) minmax(150px, 220px) minmax(120px, 200px) minmax(110px, 170px); align-items: center; column-gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--mh-color-line); }
+.module-messenger-hub .mh-source-row:last-child { border-bottom: 0; }
+.module-messenger-hub .mh-source-row.is-off .mh-source-name { color: var(--mh-color-text-meta); }
+/* Плитка мессенджера (место под официальный логотип) */
+.module-messenger-hub .mh-messenger { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: var(--mh-radius-l); font-size: 10px; font-weight: 600; letter-spacing: .02em; flex: none; }
+.module-messenger-hub .mh-messenger.tg  { background: rgba(54, 151, 241, 0.15); color: rgb(48, 114, 179); }
+.module-messenger-hub .mh-messenger.max { background: rgba(143, 82, 204, 0.15); color: rgb(110, 60, 160); }
+.module-messenger-hub .mh-messenger.s { width: 20px; height: 20px; font-size: 8px; border-radius: 5px; }
+/* Карточка бота */
+.module-messenger-hub .mh-bot-card { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid var(--mh-color-line); border-radius: var(--mh-radius-l); background: #fff; min-width: 0; }
+.module-messenger-hub .mh-bot-card.is-selected { border-color: var(--mh-color-brand-line); box-shadow: inset 0 0 0 1px var(--mh-color-brand-line); }
+/* Строка чата */
+.module-messenger-hub .mh-chat-row { display: grid; grid-template-columns: 28px minmax(0, 1.4fr) 96px minmax(160px, 1fr) minmax(140px, 180px) 52px; align-items: center; column-gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--mh-color-line); }
+.module-messenger-hub .mh-chat-row:last-child { border-bottom: 0; }
+/* Канва-подписи для макетов (не часть модуля) */
+.mh-board-note { font-family: "Inter", -apple-system, "Segoe UI", sans-serif; font-size: 11px; line-height: 16px; color: rgba(0,0,0,.7); }
+.mh-state-tag { display: inline-block; font-family: "Inter", -apple-system, "Segoe UI", sans-serif; font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: rgba(0,0,0,.7); }
+
+/* ================= Спокойный режим (v2): меньше рамок, заливок и меток ================= */
+.module-messenger-hub .ui.segment { border: 0; padding: 0; background: transparent; }
+.module-messenger-hub .ui.segment.mh-card { border: 1px solid var(--mh-color-line); padding: var(--mh-space-5); background: var(--mh-color-bg); }
+.module-messenger-hub .ui.segment.mh-section-head { padding: 0 0 8px; border: 0; background: transparent; gap: 8px; }
+.module-messenger-hub .ui.segment.mh-section-head h3.ui.header { font-size: var(--mh-text-sub); line-height: var(--mh-lh-sub); }
+.module-messenger-hub .ui.table { border: 0; border-radius: 0; }
+.module-messenger-hub .ui.table th { background: transparent; padding: 8px 12px; }
+.module-messenger-hub .ui.table td { padding: 12px; }
+.module-messenger-hub .mh-list { border-top: 1px solid var(--mh-color-line); }
+.module-messenger-hub .mh-source-row { grid-template-columns: 52px minmax(0, 1fr) minmax(170px, 240px) minmax(110px, 160px); padding: 14px 0; }
+.module-messenger-hub .mh-chat-row { padding: 12px 0; }
+/* Тихий статус: точка + текст — для «нормальных» состояний */
+.module-messenger-hub .mh-dot { display: inline-flex; align-items: center; gap: 8px; color: var(--mh-color-text-meta); font-size: var(--mh-text-body); white-space: nowrap; }
+.module-messenger-hub .mh-dot::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--mh-color-text-hint); flex: none; }
+.module-messenger-hub .mh-dot.is-ok::before { background: rgb(48, 170, 110); }
+.module-messenger-hub .mh-dot.is-dashed::before { background: transparent; border: 1.5px dashed var(--mh-color-text-secondary); width: 9px; height: 9px; }
+.module-messenger-hub .mh-ok-icon { color: rgb(48, 170, 110); display: inline-flex; }
+.module-messenger-hub .mh-hint { color: var(--mh-color-text-secondary); display: inline-flex; cursor: help; }
+
+/* ================= v3: единый список уведомлений, сценарии ================= */
+/* Оглавление секции — полупрозрачное, появляется только когда секций больше одной */
+.module-messenger-hub .mh-group-title { display: block; margin: 0; padding: 28px 0 8px; font-size: var(--mh-text-caption); line-height: var(--mh-lh-caption); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--mh-color-text-secondary); border-bottom: 1px solid var(--mh-color-line); }
+.module-messenger-hub .mh-group-title:first-child { padding-top: 0; }
+/* Строка уведомления */
+.module-messenger-hub .mh-notif-row { display: grid; grid-template-columns: 52px minmax(0, 1fr) minmax(120px, auto) 28px; align-items: center; column-gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--mh-color-line); }
+.module-messenger-hub .mh-notif-row .mh-notif-title { font-weight: 600; color: var(--mh-color-text); }
+.module-messenger-hub .mh-notif-row.is-off .mh-notif-title { color: var(--mh-color-text-meta); font-weight: 400; }
+/* Карточка сценария */
+.module-messenger-hub .mh-scenario { display: flex; gap: 12px; align-items: flex-start; padding: 16px; border: 1px solid var(--mh-color-line); border-radius: var(--mh-radius-l); background: var(--mh-color-bg); color: inherit; text-decoration: none; text-align: left; font: inherit; cursor: pointer; min-width: 0; }
+.module-messenger-hub .mh-scenario:hover { border-color: var(--mh-color-brand-line); text-decoration: none; color: inherit; }
+.module-messenger-hub .mh-scenario.is-selected { border-color: var(--mh-color-brand-line); box-shadow: inset 0 0 0 1px var(--mh-color-brand-line); }
+.module-messenger-hub .mh-scenario.is-disabled { cursor: default; background: var(--mh-color-bg-subtle); border-color: transparent; }
+.module-messenger-hub .mh-scenario .mh-scenario-icon { width: 32px; height: 32px; border-radius: var(--mh-radius-l); background: var(--mh-color-bg-subtle); display: inline-flex; align-items: center; justify-content: center; flex: none; color: var(--mh-color-text-meta); }
+/* Фильтр-«фраза»: dropdown в тексте */
+.module-messenger-hub .mh-chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 14px; border: 1px solid var(--mh-color-line); background: var(--mh-color-bg); font: inherit; color: var(--mh-color-text); cursor: pointer; white-space: nowrap; }
+.module-messenger-hub .mh-chip .mh-chip-key { color: var(--mh-color-text-meta); }
+.module-messenger-hub .mh-chip.is-set { border-color: transparent; background: var(--mh-color-selection); }
+.module-messenger-hub .mh-chip.is-add { border-style: dashed; color: var(--mh-color-link); }
+/* Шаги мастера */
+.module-messenger-hub .mh-steps { display: flex; gap: 24px; flex-wrap: wrap; font-size: var(--mh-text-body); color: var(--mh-color-text-secondary); }
+.module-messenger-hub .mh-steps .is-current { color: var(--mh-color-text); font-weight: 600; }
+.module-messenger-hub .mh-steps .is-done { color: var(--mh-color-text-meta); }
+
+/* ================= v4: посадка в админку MikoPBX ================= */
+/* Админка MikoPBX — Fomantic с базой 14px. Модуль выравнивается по ней, а не по 13px Gravity. */
+.module-messenger-hub {
+  --mh-text-body: 14px;   --mh-lh-body: 20px;
+  --mh-text-caption: 12px; --mh-lh-caption: 16px;
+  --mh-control-m: 32px;   /* как .ui.button и input в админке */
+  letter-spacing: 0;
+}
+.module-messenger-hub * { letter-spacing: inherit; }
+.module-messenger-hub .ui.button { height: var(--mh-control-m); padding: 0 14px; }
+.module-messenger-hub .ui.primary.button { font-size: 14px; }
+/* Одна ширина для форм — поля не растягиваются на всю карточку */
+.module-messenger-hub .mh-form-col { max-width: 560px; width: 100%; }
+/* Панель действий мастера */
+.module-messenger-hub .mh-actions { display: flex; align-items: center; gap: 8px; padding-top: 20px; border-top: 1px solid var(--mh-color-line); }
+.module-messenger-hub .mh-actions .mh-spacer { flex: 1; }
+/* Сетка сценариев: заполняет строку, без пустых «дыр» */
+.module-messenger-hub .mh-scenario-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; padding-top: 12px; }
+/* Пробное событие — маленькая метка в строке, не отдельной строкой */
+.module-messenger-hub .mh-probe { display: inline-flex; align-items: center; height: 18px; padding: 0 6px; margin-left: 8px; border-radius: 4px; background: var(--mh-misc-bg); color: var(--mh-misc-text); font-size: 11px; line-height: 16px; vertical-align: 1px; }
+/* Сегментированный выбор (направление звонка) */
+.module-messenger-hub .mh-seg { display: inline-flex; gap: 2px; padding: 2px; background: var(--mh-color-bg-subtle); border-radius: var(--mh-radius-m); flex-wrap: wrap; }
+.module-messenger-hub .mh-seg button { height: 28px; padding: 0 12px; border: 0; border-radius: 5px; background: transparent; font: inherit; color: var(--mh-color-text-meta); cursor: pointer; }
+.module-messenger-hub .mh-seg button[aria-pressed="true"] { background: #fff; color: var(--mh-color-text); box-shadow: 0 1px 2px rgba(0,0,0,.12); font-weight: 600; }
+/* Первый запуск: два шага */
+.module-messenger-hub .mh-onboard { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.module-messenger-hub .mh-onboard-step { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; padding: 24px; border: 1px solid var(--mh-color-line); border-radius: var(--mh-radius-l); }
+.module-messenger-hub .mh-onboard-step.is-locked { background: var(--mh-color-bg-subtle); border-color: transparent; }
+.module-messenger-hub .mh-step-num { width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; background: var(--mh-color-brand); color: #fff; }
+.module-messenger-hub .is-locked .mh-step-num { background: var(--mh-color-bg-active); color: var(--mh-color-text-meta); }
+
+/* Оболочка MikoPBX для макетов (не часть модуля) */
+.mh-host { font-family: "Inter", -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: rgba(0,0,0,.87); background: #fff; }
+.mh-host-head { display: flex; gap: 16px; align-items: center; }
+.mh-host-head h1 { margin: 0; font-size: 28px; line-height: 34px; font-weight: 700; }
+.mh-host-head p { margin: 2px 0 0; font-size: 16px; color: rgba(0,0,0,.6); }
+.mh-host-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border: 1px solid rgba(34,36,38,.15); border-radius: 4px; box-shadow: 0 1px 2px rgba(34,36,38,.15); }
+.mh-host-toggle { display: inline-flex; align-items: center; gap: 12px; font-size: 15px; }
+.mh-host-toggle .t { width: 50px; height: 24px; border-radius: 12px; background: #2185d0; position: relative; }
+.mh-host-toggle .t::after { content: ""; position: absolute; right: 2px; top: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+.mh-host-gear { width: 38px; height: 38px; border: 1px solid rgba(34,36,38,.15); border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; color: rgba(0,0,0,.6); }
+.mh-host-card { border: 1px solid rgba(34,36,38,.15); border-radius: 8px; padding: 32px 40px 40px; }
+
+body{margin:0;background:#f4f4f5;font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:rgba(0,0,0,.85)}
+.export-head{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid rgba(0,0,0,.1);padding:12px 32px;display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px}
+.export-head a{color:#1673b5;text-decoration:none}
+.row{padding:40px 32px 8px}.row-title{font-size:28px;line-height:36px;margin:0 0 24px}
+.boards{display:flex;flex-direction:column;gap:40px}.board-title{font-size:13px;font-weight:600;color:rgba(0,0,0,.7);margin:0 0 8px}
+.frame{max-width:100%;overflow:auto;background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+</style></head><body>
+<nav class="export-head"><b>ModuleMessengerHub v3</b><a href="#HFirstRun">Первый запуск — два шага</a> <a href="#HList">Список уведомлений</a> <a href="#HScenario">Шаг 1 — сценарий</a> <a href="#HConditions">Шаг 2 — условия</a> <a href="#HDelivery">Шаг 3 — куда отправить</a> <a href="#HJournal">Журнал</a> <a href="#HSettings">Настройки — нет ботов</a> <a href="#HFixes">Чек-лист правок по скриншотам</a></nav>
+<section class="row"><h2 class="row-title">В MikoPBX · первый запуск и список</h2><div class="boards"><article class="board" id="HFirstRun"><h3 class="board-title">Первый запуск — два шага</h3><div class="frame" style="width:1280px">
+<div style="width: 100%; background: #fff">
+<div class="mh-host" style="width: 100%; box-sizing: border-box; padding: 40px 48px 56px; display: flex; flex-direction: column; gap: 24px"><div class="mh-host-head"><svg viewBox="0 0 16 16" aria-hidden="true" style="width: 40px; height: 40px; fill: rgba(0,0,0,.87)"><path d="M8 1.5a4.5 4.5 0 0 0-4.5 4.5v3L2 11.5h12L12.5 9V6A4.5 4.5 0 0 0 8 1.5zM6.25 13a1.75 1.75 0 0 0 3.5 0z"/></svg><div><h1>Уведомления в мессенджеры</h1><p>Уведомления о звонках, событиях АТС и модулей в Telegram и MAX</p></div></div><div class="mh-host-bar"><span class="mh-host-toggle"><span class="t"></span>Модуль включен</span><span class="mh-host-gear"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true" style="width: 18px; height: 18px"><circle cx="8" cy="8" r="2.25"/><path d="M8 1.75v1.5M8 12.75v1.5M1.75 8h1.5M12.75 8h1.5M3.6 3.6l1.05 1.05M11.35 11.35l1.05 1.05M3.6 12.4l1.05-1.05M11.35 4.65l1.05-1.05"/></svg></span></div><div class="mh-host-card module-messenger-hub" style="display: flex; flex-direction: column; gap: 24px">
+<nav class="ui secondary pointing menu" aria-label="Разделы модуля">
+<a class="active item" href="#" aria-current="page">Уведомления</a>
+<a class="item" href="#">Журнал</a>
+<a class="item" href="#">Настройки</a>
+</nav>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 48px 0">
+<h3 class="ui header" style="font-size: 20px; line-height: 28px">Подключите мессенджер</h3>
+<div style="display: grid; grid-template-columns: repeat(2, 220px); gap: 12px">
+<a class="mh-scenario" href="#" style="align-items: center; justify-content: center; padding: 20px"><span class="mh-messenger tg" role="img" aria-label="Telegram">TG</span><b>Telegram</b></a>
+<a class="mh-scenario" href="#" style="align-items: center; justify-content: center; padding: 20px"><span class="mh-messenger max" role="img" aria-label="MAX">MAX</span><b>MAX</b></a>
+</div>
+</div>
+</div></div>
+<div class="module-messenger-hub" style="padding: 0 48px 48px; display: flex; flex-direction: column; gap: 12px">
+<span class="mh-state-tag">Мессенджер подключён, уведомлений нет</span>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 40px 0; border: 1px solid rgba(0,0,0,0.1); border-radius: 8px">
+<h3 class="ui header" style="font-size: 20px; line-height: 28px">Уведомлений нет</h3>
+<button class="ui primary button" type="button"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>Новое уведомление</button>
+</div>
+</div>
+</div>
+</div></article><article class="board" id="HList"><h3 class="board-title">Список уведомлений</h3><div class="frame" style="width:1280px">
+<div style="width: 100%; background: #fff">
+<div class="mh-host" style="width: 100%; box-sizing: border-box; padding: 40px 48px 56px; display: flex; flex-direction: column; gap: 24px"><div class="mh-host-head"><svg viewBox="0 0 16 16" aria-hidden="true" style="width: 40px; height: 40px; fill: rgba(0,0,0,.87)"><path d="M8 1.5a4.5 4.5 0 0 0-4.5 4.5v3L2 11.5h12L12.5 9V6A4.5 4.5 0 0 0 8 1.5zM6.25 13a1.75 1.75 0 0 0 3.5 0z"/></svg><div><h1>Уведомления в мессенджеры</h1><p>Уведомления о звонках, событиях АТС и модулей в Telegram и MAX</p></div></div><div class="mh-host-bar"><span class="mh-host-toggle"><span class="t"></span>Модуль включен</span><span class="mh-host-gear"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true" style="width: 18px; height: 18px"><circle cx="8" cy="8" r="2.25"/><path d="M8 1.75v1.5M8 12.75v1.5M1.75 8h1.5M12.75 8h1.5M3.6 3.6l1.05 1.05M11.35 11.35l1.05 1.05M3.6 12.4l1.05-1.05M11.35 4.65l1.05-1.05"/></svg></span></div><div class="mh-host-card module-messenger-hub" style="display: flex; flex-direction: column; gap: 24px">
+<div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; border-bottom: 1px solid rgba(0,0,0,0.1)">
+<nav class="ui secondary pointing menu" aria-label="Разделы модуля" style="border-bottom: 0"><a class="active item" href="#" aria-current="page">Уведомления</a><a class="item" href="#">Журнал<span class="ui red circular label">14</span></a><a class="item" href="#">Настройки</a></nav>
+<button class="ui primary button" type="button" style="margin-bottom: 8px"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>Новое уведомление</button>
+</div>
+<div role="list" aria-label="Уведомления">
+<h3 class="mh-group-title" style="padding-top: 0">Звонки</h3>
+<div class="mh-notif-row" role="listitem"><div><label class="ui toggle checkbox checked"><input type="checkbox" class="hidden" aria-label="Пропущенные звонки" checked readonly><span class="mh-track"></span></label></div><span style="display: inline-flex; gap: 10px; align-items: center; min-width: 0"><span class="mh-messenger tg s" role="img" aria-label="Telegram">TG</span><a href="#" class="mh-notif-title mh-truncate">Пропущенные звонки</a></span><span class="mh-muted">18:34</span><button class="ui text button" type="button" aria-label="Ещё" style="padding: 0"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8h.01M8 8h.01M12.5 8h.01" stroke-width="2.4"/></svg></button></div>
+<div class="mh-notif-row is-off" role="listitem"><div><label class="ui toggle checkbox"><input type="checkbox" class="hidden" aria-label="Голосовая почта" readonly><span class="mh-track"></span></label></div><span style="display: inline-flex; gap: 10px; align-items: center; min-width: 0"><span class="mh-messenger max s" role="img" aria-label="MAX">MAX</span><a href="#" class="mh-notif-title mh-truncate">Голосовая почта</a></span><span></span><button class="ui text button" type="button" aria-label="Ещё" style="padding: 0"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8h.01M8 8h.01M12.5 8h.01" stroke-width="2.4"/></svg></button></div>
+<h3 class="mh-group-title">ИИ Супервайзер</h3>
+<div class="mh-notif-row" role="listitem"><div><label class="ui toggle checkbox checked"><input type="checkbox" class="hidden" aria-label="Звонок требует внимания" checked readonly><span class="mh-track"></span></label></div><span style="display: inline-flex; gap: 10px; align-items: center; min-width: 0"><span class="mh-messenger tg s" role="img" aria-label="Telegram">TG</span><a href="#" class="mh-notif-title mh-truncate">Звонок требует внимания</a></span><span class="ui red label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg>Бот удалён</span><button class="ui text button" type="button" aria-label="Ещё" style="padding: 0"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8h.01M8 8h.01M12.5 8h.01" stroke-width="2.4"/></svg></button></div>
+<h3 class="mh-group-title">Связь и АТС</h3>
+<div class="mh-notif-row" role="listitem"><div><label class="ui toggle checkbox checked"><input type="checkbox" class="hidden" aria-label="Провайдер недоступен" checked readonly><span class="mh-track"></span></label></div><span style="display: inline-flex; gap: 10px; align-items: center; min-width: 0"><span class="mh-messenger tg s" role="img" aria-label="Telegram">TG</span><a href="#" class="mh-notif-title mh-truncate">Провайдер недоступен</a></span><span class="mh-muted">14:11</span><button class="ui text button" type="button" aria-label="Ещё" style="padding: 0"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8h.01M8 8h.01M12.5 8h.01" stroke-width="2.4"/></svg></button></div>
+</div>
+</div></div>
+</div>
+</div></article></div></section><section class="row"><h2 class="row-title">В MikoPBX · новое уведомление</h2><div class="boards"><article class="board" id="HScenario"><h3 class="board-title">Шаг 1 — сценарий</h3><div class="frame" style="width:1280px">
+<div style="width: 100%; background: #fff">
+<div class="mh-host" style="width: 100%; box-sizing: border-box; padding: 40px 48px 56px; display: flex; flex-direction: column; gap: 24px"><div class="mh-host-head"><svg viewBox="0 0 16 16" aria-hidden="true" style="width: 40px; height: 40px; fill: rgba(0,0,0,.87)"><path d="M8 1.5a4.5 4.5 0 0 0-4.5 4.5v3L2 11.5h12L12.5 9V6A4.5 4.5 0 0 0 8 1.5zM6.25 13a1.75 1.75 0 0 0 3.5 0z"/></svg><div><h1>Уведомления в мессенджеры</h1><p>Уведомления о звонках, событиях АТС и модулей в Telegram и MAX</p></div></div><div class="mh-host-bar"><span class="mh-host-toggle"><span class="t"></span>Модуль включен</span><span class="mh-host-gear"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true" style="width: 18px; height: 18px"><circle cx="8" cy="8" r="2.25"/><path d="M8 1.75v1.5M8 12.75v1.5M1.75 8h1.5M12.75 8h1.5M3.6 3.6l1.05 1.05M11.35 11.35l1.05 1.05M3.6 12.4l1.05-1.05M11.35 4.65l1.05-1.05"/></svg></span></div><div class="mh-host-card module-messenger-hub" style="display: flex; flex-direction: column; gap: 24px">
+<div style="display: flex; flex-direction: column; gap: 8px"><a href="#" class="mh-muted" style="display: inline-flex; gap: 4px; align-items: center"><span style="display: inline-flex; transform: scaleX(-1)"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg></span>Уведомления</a><h3 class="ui header" style="font-size: 20px; line-height: 28px">Новое уведомление</h3></div>
+<div>
+<h3 class="mh-group-title" style="padding-top: 0">Звонки</h3><div class="mh-scenario-grid">
+<a class="mh-scenario is-selected" href="#" style="align-items: center"><span class="mh-scenario-icon" style="background: rgba(242,117,25,0.12); color: #b04e06"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 2.5l1.5 3-1.5 1.25a7 7 0 0 0 3.25 3.25L10 8.5l3 1.5v2.25A1.25 1.25 0 0 1 11.75 13.5 10.25 10.25 0 0 1 2.5 4.25 1.25 1.25 0 0 1 3.75 3z"/></svg></span><b>Пропущенные звонки</b></a>
+<a class="mh-scenario" href="#" style="align-items: center"><span class="mh-scenario-icon"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><rect x="6" y="2" width="4" height="7.5" rx="2"/><path d="M3.75 7.75a4.25 4.25 0 0 0 8.5 0M8 12v2"/></svg></span><b>Голосовая почта</b></a>
+</div>
+<h3 class="mh-group-title">ИИ Супервайзер</h3><div class="mh-scenario-grid">
+<a class="mh-scenario" href="#" style="align-items: center"><span class="mh-scenario-icon"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v3M8 11v3M2 8h3M11 8h3M4 4l1.75 1.75M10.25 10.25L12 12M12 4l-1.75 1.75M5.75 10.25L4 12"/></svg></span><b>Звонок требует внимания</b></a>
+<a class="mh-scenario" href="#" style="align-items: center"><span class="mh-scenario-icon"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="5" width="10" height="8" rx="2"/><path d="M8 2.5V5M6 9h.01M10 9h.01" /><path d="M6 9h.01M10 9h.01" stroke-width="2"/></svg></span><b>Сбой воркеров</b></a>
+</div>
+<h3 class="mh-group-title">Голосовой агент</h3><div class="mh-scenario-grid">
+<a class="mh-scenario" href="#" style="align-items: center"><span class="mh-scenario-icon"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 2.5l1.5 3-1.5 1.25a7 7 0 0 0 3.25 3.25L10 8.5l3 1.5v2.25A1.25 1.25 0 0 1 11.75 13.5 10.25 10.25 0 0 1 2.5 4.25 1.25 1.25 0 0 1 3.75 3z"/></svg></span><b>Заявка на перезвон</b></a>
+<a class="mh-scenario" href="#" style="align-items: center"><span class="mh-scenario-icon"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="5" width="10" height="8" rx="2"/><path d="M8 2.5V5M6 9h.01M10 9h.01" /><path d="M6 9h.01M10 9h.01" stroke-width="2"/></svg></span><b>Агент не отвечает</b></a>
+</div>
+<h3 class="mh-group-title">Связь и АТС</h3><div class="mh-scenario-grid">
+<a class="mh-scenario" href="#" style="align-items: center"><span class="mh-scenario-icon"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="4.5" rx="1"/><rect x="2.5" y="9" width="11" height="4.5" rx="1"/><path d="M5 4.75h.01M5 11.25h.01" stroke-width="2"/></svg></span><b>Провайдер недоступен</b></a>
+<a class="mh-scenario" href="#" style="align-items: center"><span class="mh-scenario-icon"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M9 1.75L3.5 9H8l-1 5.25L12.5 7H8z"/></svg></span><b>Запуск АТС</b></a>
+<a class="mh-scenario" href="#" style="align-items: center"><span class="mh-scenario-icon"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5l6 10.5H2z"/><path d="M8 6.5v3M8 11.2v.1"/></svg></span><b>Системные предупреждения</b></a>
+</div>
+</div>
+<div class="mh-actions"><a class="ui basic button" href="#">Отмена</a><span class="mh-spacer"></span><button class="ui primary button" type="button">Далее</button></div>
+</div></div>
+</div>
+</div></article><article class="board" id="HConditions"><h3 class="board-title">Шаг 2 — условия</h3><div class="frame" style="width:1280px">
+<div style="width: 100%; background: #fff">
+<div class="mh-host" style="width: 100%; box-sizing: border-box; padding: 40px 48px 56px; display: flex; flex-direction: column; gap: 24px"><div class="mh-host-head"><svg viewBox="0 0 16 16" aria-hidden="true" style="width: 40px; height: 40px; fill: rgba(0,0,0,.87)"><path d="M8 1.5a4.5 4.5 0 0 0-4.5 4.5v3L2 11.5h12L12.5 9V6A4.5 4.5 0 0 0 8 1.5zM6.25 13a1.75 1.75 0 0 0 3.5 0z"/></svg><div><h1>Уведомления в мессенджеры</h1><p>Уведомления о звонках, событиях АТС и модулей в Telegram и MAX</p></div></div><div class="mh-host-bar"><span class="mh-host-toggle"><span class="t"></span>Модуль включен</span><span class="mh-host-gear"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true" style="width: 18px; height: 18px"><circle cx="8" cy="8" r="2.25"/><path d="M8 1.75v1.5M8 12.75v1.5M1.75 8h1.5M12.75 8h1.5M3.6 3.6l1.05 1.05M11.35 11.35l1.05 1.05M3.6 12.4l1.05-1.05M11.35 4.65l1.05-1.05"/></svg></span></div><div class="mh-host-card module-messenger-hub" style="display: flex; flex-direction: column; gap: 24px">
+<div style="display: flex; flex-direction: column; gap: 8px"><a href="#" class="mh-muted" style="display: inline-flex; gap: 4px; align-items: center"><span style="display: inline-flex; transform: scaleX(-1)"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg></span>Уведомления</a><h3 class="ui header" style="font-size: 20px; line-height: 28px">Пропущенные звонки</h3></div>
+<div style="display: flex; flex-wrap: wrap; gap: 48px; align-items: flex-start">
+<form class="ui form mh-form-col" style="flex: 999 1 480px; display: flex; flex-direction: column; gap: 24px" aria-label="Условия">
+<div class="field"><label>Сотрудники</label><div class="ui selection dropdown" tabindex="0" role="combobox"><span class="default text">Все</span></div></div>
+<div class="field"><label>Направление</label><div class="mh-seg" role="group" aria-label="Направление"><button type="button" aria-pressed="true">Входящие</button><button type="button" aria-pressed="false">Исходящие</button><button type="button" aria-pressed="false">Внутренние</button></div></div>
+<div style="display: flex; gap: 12px; align-items: center"><label class="ui toggle checkbox"><input type="checkbox" class="hidden" aria-label="Удалять после перезвона" readonly><span class="mh-track"></span></label><span>Удалять после перезвона</span></div>
+</form>
+<aside style="flex: 1 1 320px; max-width: 400px; min-width: 0" aria-label="Предпросмотр"><div style="display: flex; flex-direction: column; gap: 6px; padding: 16px; background: #dfe7ee; border-radius: 8px"><div style="align-self: flex-start; max-width: 420px; width: 100%; background: #ffffff; border-radius: 12px 12px 12px 4px; padding: 10px 12px 6px; box-shadow: 0 1px 1px rgba(0,0,0,0.08); font-family: -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, Arial, sans-serif; font-size: 14px; line-height: 20px; color: #1b1b1b">📞 <b>Пропущенный звонок</b><br><b>+7 968 968-94-44</b> → Иванов И. (233)<br><i>Очередь «Продажи», ждал 38 с</i><div style="text-align: right; font-size: 11px; line-height: 14px; color: rgba(0,0,0,0.45); margin-top: 2px">15:41</div></div><div style="max-width: 420px; width: 100%; display: flex; gap: 4px"><a href="#" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; height: 36px; font-size: 14px; font-weight: 600; text-decoration: none; background: rgba(255,255,255,0.7); color: #1b1b1b; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, &quot">Открыть звонок ↗</a></div></div></aside>
+</div>
+<div class="mh-actions"><a class="ui basic button" href="#">Назад</a><span class="mh-spacer"></span><button class="ui primary button" type="button">Далее</button></div>
+</div></div>
+</div>
+</div></article><article class="board" id="HDelivery"><h3 class="board-title">Шаг 3 — куда отправить</h3><div class="frame" style="width:1280px">
+<div style="width: 100%; background: #fff">
+<div class="mh-host" style="width: 100%; box-sizing: border-box; padding: 40px 48px 56px; display: flex; flex-direction: column; gap: 24px"><div class="mh-host-head"><svg viewBox="0 0 16 16" aria-hidden="true" style="width: 40px; height: 40px; fill: rgba(0,0,0,.87)"><path d="M8 1.5a4.5 4.5 0 0 0-4.5 4.5v3L2 11.5h12L12.5 9V6A4.5 4.5 0 0 0 8 1.5zM6.25 13a1.75 1.75 0 0 0 3.5 0z"/></svg><div><h1>Уведомления в мессенджеры</h1><p>Уведомления о звонках, событиях АТС и модулей в Telegram и MAX</p></div></div><div class="mh-host-bar"><span class="mh-host-toggle"><span class="t"></span>Модуль включен</span><span class="mh-host-gear"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true" style="width: 18px; height: 18px"><circle cx="8" cy="8" r="2.25"/><path d="M8 1.75v1.5M8 12.75v1.5M1.75 8h1.5M12.75 8h1.5M3.6 3.6l1.05 1.05M11.35 11.35l1.05 1.05M3.6 12.4l1.05-1.05M11.35 4.65l1.05-1.05"/></svg></span></div><div class="mh-host-card module-messenger-hub" style="display: flex; flex-direction: column; gap: 24px">
+<div style="display: flex; flex-direction: column; gap: 8px"><a href="#" class="mh-muted" style="display: inline-flex; gap: 4px; align-items: center"><span style="display: inline-flex; transform: scaleX(-1)"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg></span>Уведомления</a><h3 class="ui header" style="font-size: 20px; line-height: 28px">Пропущенные звонки</h3></div>
+<form class="ui form mh-form-col" style="display: flex; flex-direction: column; gap: 24px" aria-label="Куда отправить">
+<div class="field"><label>Бот</label>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+<label class="mh-scenario is-selected" style="align-items: center"><input type="radio" name="bot" checked readonly style="position: absolute; opacity: 0"><span class="mh-messenger tg" role="img" aria-label="Telegram">TG</span><b class="mh-truncate">Оповещения MIKO</b></label>
+<label class="mh-scenario" style="align-items: center"><input type="radio" name="bot" readonly style="position: absolute; opacity: 0"><span class="mh-messenger max" role="img" aria-label="MAX">MAX</span><b class="mh-truncate">МИКО Контроль</b></label>
+</div></div>
+<fieldset class="field" style="border: 0; padding: 0; gap: 10px"><label>Кому</label>
+<label class="ui radio checkbox"><input type="radio" class="hidden" readonly><span class="mh-box"></span><span>Сотруднику</span></label>
+<label class="ui radio checkbox"><input type="radio" class="hidden" readonly><span class="mh-box"></span><span>В чаты</span></label>
+<label class="ui radio checkbox checked"><input type="radio" class="hidden" checked readonly><span class="mh-box"></span><span>Сотруднику, иначе в чаты</span></label>
+<div class="ui multiple selection dropdown" tabindex="0" role="combobox" aria-label="Чаты" style="margin-left: 24px"><span class="ui label">Отдел продаж</span></div>
+</fieldset>
+<div style="display: flex; gap: 12px; align-items: center"><label class="ui toggle checkbox checked"><input type="checkbox" class="hidden" aria-label="Скрывать номер" checked readonly><span class="mh-track"></span></label><span>Скрывать номер</span></div>
+</form>
+<div class="mh-actions"><a class="ui basic button" href="#">Назад</a><span class="mh-spacer"></span><button class="ui primary button" type="button">Создать</button></div>
+</div></div>
+</div>
+</div></article></div></section><section class="row"><h2 class="row-title">В MikoPBX · журнал и настройки</h2><div class="boards"><article class="board" id="HJournal"><h3 class="board-title">Журнал</h3><div class="frame" style="width:1280px">
+<div style="width: 100%; background: #fff">
+<div class="mh-host" style="width: 100%; box-sizing: border-box; padding: 40px 48px 56px; display: flex; flex-direction: column; gap: 24px"><div class="mh-host-head"><svg viewBox="0 0 16 16" aria-hidden="true" style="width: 40px; height: 40px; fill: rgba(0,0,0,.87)"><path d="M8 1.5a4.5 4.5 0 0 0-4.5 4.5v3L2 11.5h12L12.5 9V6A4.5 4.5 0 0 0 8 1.5zM6.25 13a1.75 1.75 0 0 0 3.5 0z"/></svg><div><h1>Уведомления в мессенджеры</h1><p>Уведомления о звонках, событиях АТС и модулей в Telegram и MAX</p></div></div><div class="mh-host-bar"><span class="mh-host-toggle"><span class="t"></span>Модуль включен</span><span class="mh-host-gear"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true" style="width: 18px; height: 18px"><circle cx="8" cy="8" r="2.25"/><path d="M8 1.75v1.5M8 12.75v1.5M1.75 8h1.5M12.75 8h1.5M3.6 3.6l1.05 1.05M11.35 11.35l1.05 1.05M3.6 12.4l1.05-1.05M11.35 4.65l1.05-1.05"/></svg></span></div><div class="mh-host-card module-messenger-hub" style="display: flex; flex-direction: column; gap: 24px">
+<nav class="ui secondary pointing menu" aria-label="Разделы модуля">
+<a class="item" href="#">Уведомления</a>
+<a class="active item" href="#" aria-current="page">Журнал<span class="ui red circular label" aria-label="требуют внимания: 14">14</span></a>
+<a class="item" href="#">Настройки</a>
+</nav>
+<div class="ui negative message" role="alert" style="align-items: center"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg><div style="flex: 1; min-width: 0">Бот @miko_alerts_bot удалён — сообщения не доставляются</div><button class="ui basic button" type="button" style="background: #fff">Подключить</button></div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
+<div class="ui selection dropdown" tabindex="0" role="combobox" aria-label="Период" style="width: 160px"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg><span class="text">Сегодня</span></div>
+<div class="ui selection dropdown" tabindex="0" role="combobox" aria-label="Событие" style="width: 180px"><span class="default text">Все события</span></div>
+</div>
+<table class="ui selectable table" style="min-width: 760px">
+<colgroup><col style="width: 32px"><col style="width: 64px"><col style="width: 260px"><col><col style="width: 150px"></colgroup>
+<thead><tr><th></th><th>Время</th><th>Событие</th><th></th><th>Отправка</th></tr></thead>
+<tbody>
+<tr class="active"><td><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6L8 10.5 12.5 6"/></svg></td><td>18:34</td><td>Пропущенный звонок</td><td class="mh-truncate mh-muted">+7 968 968-94-44 → Портнов А. (204)</td><td><span class="ui red label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg>Не доставлено</span></td></tr>
+<tr class="mh-detail"><td colspan="5" style="padding: 8px 12px 20px 108px">
+<dl style="display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 8px 12px; margin: 0">
+<dt class="mh-muted">Сотрудник</dt><dd style="margin: 0">Портнов Алексей (204)</dd>
+<dt class="mh-muted">Клиент</dt><dd style="margin: 0">+7 968 968-94-44</dd>
+<dt class="mh-muted">Перезвонили</dt><dd style="margin: 0">18:44</dd>
+<dt class="mh-muted">Отдел продаж</dt><dd style="margin: 0; color: rgb(189,9,53)">Не доставлено</dd>
+</dl>
+</td></tr>
+<tr><td style="color: rgba(0,0,0,0.5)"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg></td><td>18:23</td><td>Пропущенный звонок</td><td class="mh-truncate mh-muted">+7 968 968-94-44 → Спиридонова Т. (205)</td><td><span class="ui red label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg>Не доставлено</span></td></tr>
+<tr><td style="color: rgba(0,0,0,0.5)"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg></td><td>14:11</td><td>Провайдер недоступен</td><td class="mh-truncate mh-muted">SIP «Мегафон»</td><td><span class="ui red label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg>Не доставлено</span></td></tr>
+<tr><td style="color: rgba(0,0,0,0.5)"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg></td><td>14:10</td><td>Звонок требует внимания</td><td class="mh-truncate mh-muted">Оценка 48</td><td><span class="ui red label"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg>Не доставлено</span></td></tr>
+<tr><td style="color: rgba(0,0,0,0.5)"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg></td><td>12:02</td><td>Пропущенный звонок</td><td class="mh-truncate mh-muted">+7 968 968-94-44 → Иванов И. (233)</td><td><span class="mh-dot is-ok">Доставлено</span></td></tr>
+</tbody>
+</table>
+</div></div>
+</div>
+</div></article><article class="board" id="HSettings"><h3 class="board-title">Настройки — нет ботов</h3><div class="frame" style="width:1280px">
+<div style="width: 100%; background: #fff">
+<div class="mh-host" style="width: 100%; box-sizing: border-box; padding: 40px 48px 56px; display: flex; flex-direction: column; gap: 24px"><div class="mh-host-head"><svg viewBox="0 0 16 16" aria-hidden="true" style="width: 40px; height: 40px; fill: rgba(0,0,0,.87)"><path d="M8 1.5a4.5 4.5 0 0 0-4.5 4.5v3L2 11.5h12L12.5 9V6A4.5 4.5 0 0 0 8 1.5zM6.25 13a1.75 1.75 0 0 0 3.5 0z"/></svg><div><h1>Уведомления в мессенджеры</h1><p>Уведомления о звонках, событиях АТС и модулей в Telegram и MAX</p></div></div><div class="mh-host-bar"><span class="mh-host-toggle"><span class="t"></span>Модуль включен</span><span class="mh-host-gear"><svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true" style="width: 18px; height: 18px"><circle cx="8" cy="8" r="2.25"/><path d="M8 1.75v1.5M8 12.75v1.5M1.75 8h1.5M12.75 8h1.5M3.6 3.6l1.05 1.05M11.35 11.35l1.05 1.05M3.6 12.4l1.05-1.05M11.35 4.65l1.05-1.05"/></svg></span></div><div class="mh-host-card module-messenger-hub" style="display: flex; flex-direction: column; gap: 24px">
+<nav class="ui secondary pointing menu" aria-label="Разделы модуля">
+<a class="item" href="#">Уведомления</a>
+<a class="item" href="#">Журнал</a>
+<a class="active item" href="#" aria-current="page">Настройки</a>
+</nav>
+<section style="display: flex; flex-direction: column; gap: 12px">
+<h3 class="mh-group-title" style="padding-top: 0">Мессенджеры</h3>
+<div style="display: grid; grid-template-columns: repeat(2, 220px); gap: 12px">
+<a class="mh-scenario" href="#" style="align-items: center; justify-content: center; padding: 20px"><span class="mh-messenger tg" role="img" aria-label="Telegram">TG</span><b>Telegram</b></a>
+<a class="mh-scenario" href="#" style="align-items: center; justify-content: center; padding: 20px"><span class="mh-messenger max" role="img" aria-label="MAX">MAX</span><b>MAX</b></a>
+</div>
+</section>
+<section class="mh-form-col" style="display: flex; flex-direction: column; gap: 20px">
+<h3 class="mh-group-title">Общие</h3>
+<form class="ui form" style="display: flex; flex-direction: column; gap: 20px" aria-label="Общие">
+<div class="field"><label for="u">Адрес АТС</label><input id="u" type="text" value="https://sip.miko.ru"></div>
+<div style="display: flex; gap: 12px; align-items: center"><label class="ui toggle checkbox"><input type="checkbox" class="hidden" aria-label="Скрывать номера" readonly><span class="mh-track"></span></label><span>Скрывать номера</span></div>
+<div class="field"><label for="d">Хранить журнал, дней</label><input id="d" type="number" value="30" style="width: 80px"></div>
+<div class="field"><label>Прокси</label><div class="ui selection dropdown" tabindex="0" role="combobox" style="max-width: 240px"><span class="text">Нет</span></div></div>
+</form>
+<span class="mh-meta">Данные передаются в Telegram и MAX.</span>
+</section>
+</div></div>
+</div>
+</div></article></div></section><section class="row"><h2 class="row-title">Правки для разработчика</h2><div class="boards"><article class="board" id="HFixes"><h3 class="board-title">Чек-лист правок по скриншотам</h3><div class="frame" style="width:1280px">
+<div class="module-messenger-hub" style="width: 1280px; box-sizing: border-box; padding: 32px; display: flex; flex-direction: column; gap: 20px; background: #ffffff">
+<div style="display: flex; flex-direction: column; gap: 6px; max-width: 900px"><h2 class="ui header">Правки по скриншотам 20 ноября</h2><p class="mh-muted" style="margin: 0">Что видно в работающем модуле и как поправить. CSS — в <code>mh-theme.css</code>, слой «v4: посадка в админку MikoPBX».</p></div>
+<table class="ui table"><colgroup><col style="width: 36px"><col style="width: 150px"><col style="width: 330px"><col><col style="width: 240px"></colgroup><thead><tr><th>№</th><th>Экран</th><th>Сейчас</th><th>Правка</th><th>CSS / класс</th></tr></thead><tbody>
+<tr><td style="vertical-align: top">1</td><td style="vertical-align: top"><b>Везде</b></td><td class="mh-muted" style="vertical-align: top">Текст 15–16 px с разрядкой, мельче 11 px — выбивается из админки (база Fomantic 14 px)</td><td style="vertical-align: top">Основной текст 14/20, подписи 12/16, letter-spacing: 0. Заголовок вкладки внутри модуля — 20 px, не больше заголовка страницы (28 px)</td><td style="vertical-align: top; overflow-wrap: anywhere"><code style="font-size: 12px">--mh-text-body: 14px; --mh-text-caption: 12px; letter-spacing: 0</code></td></tr>
+<tr><td style="vertical-align: top">2</td><td style="vertical-align: top"><b>Везде</b></td><td class="mh-muted" style="vertical-align: top">Кнопки разной высоты: «Отмена» 36, «Далее» 38, «Назад» 36</td><td style="vertical-align: top">Все кнопки — 32 px, как в админке. Порядок: слева «Назад», справа «Отмена» (текстом) и главная кнопка</td><td style="vertical-align: top; overflow-wrap: anywhere"><code style="font-size: 12px">--mh-control-m: 32px; .mh-actions</code></td></tr>
+<tr><td style="vertical-align: top">3</td><td style="vertical-align: top"><b>Везде</b></td><td class="mh-muted" style="vertical-align: top">Переключатель «Модуль включен» синий, наши — оранжевые: на одном экране два вида тумблеров</td><td style="vertical-align: top">Оставить оранжевый для главной кнопки и активной вкладки; тумблеры модуля — как у админки (синий). Либо переопределить и шапку — решает бренд MIKO</td><td style="vertical-align: top; overflow-wrap: anywhere"><code style="font-size: 12px">.module-messenger-hub .ui.toggle.checkbox.checked .mh-track { background: #2185d0 }</code></td></tr>
+<tr><td style="vertical-align: top">4</td><td style="vertical-align: top"><b>Уведомления · пусто</b></td><td class="mh-muted" style="vertical-align: top">Пустой список с «Новое уведомление», хотя бота ещё нет — мастер упрётся в шаг 3</td><td style="vertical-align: top">Первый запуск — два шага: «Подключите мессенджер» (выбор Telegram / MAX) → «Создайте уведомление» (заблокирован до шага 1)</td><td style="vertical-align: top; overflow-wrap: anywhere"><code style="font-size: 12px">.mh-onboard</code></td></tr>
+<tr><td style="vertical-align: top">5</td><td style="vertical-align: top"><b>Уведомления · список</b></td><td class="mh-muted" style="vertical-align: top">Кнопка «Новое уведомление» только в пустом состоянии</td><td style="vertical-align: top">В непустом списке — справа на одной линии с вкладками</td><td style="vertical-align: top; overflow-wrap: anywhere"><code style="font-size: 12px">—</code></td></tr>
+<tr><td style="vertical-align: top">6</td><td style="vertical-align: top"><b>Шаг 1</b></td><td class="mh-muted" style="vertical-align: top">Два заголовка подряд: «Новое уведомление» и «О чём сообщать?»</td><td style="vertical-align: top">Один заголовок «О чём сообщать?», под ним шаги</td><td style="vertical-align: top; overflow-wrap: anywhere"><code style="font-size: 12px">—</code></td></tr>
+<tr><td style="vertical-align: top">7</td><td style="vertical-align: top"><b>Шаг 1</b></td><td class="mh-muted" style="vertical-align: top">Сетка на 3 колонки с пустыми местами; «Далее» активна без выбора</td><td style="vertical-align: top">grid auto-fill minmax(260px, 1fr); карточка выделяется рамкой; «Далее» неактивна, пока ничего не выбрано</td><td style="vertical-align: top; overflow-wrap: anywhere"><code style="font-size: 12px">.mh-scenario-grid, .mh-scenario.is-selected</code></td></tr>
+<tr><td style="vertical-align: top">8</td><td style="vertical-align: top"><b>Шаг 2</b></td><td class="mh-muted" style="vertical-align: top">«Сотрудники: Нет доступных вариантов» — пустой справочник выглядит как готовое значение</td><td style="vertical-align: top">Плейсхолдер «Все сотрудники». Не загрузились — красная подсказка с «Повторить», поле не блокируем</td><td style="vertical-align: top; overflow-wrap: anywhere"><code style="font-size: 12px">.field.error .mh-help</code></td></tr>
+<tr><td style="vertical-align: top">9</td><td style="vertical-align: top"><b>Шаг 2</b></td><td class="mh-muted" style="vertical-align: top">Направление — чекбоксы в рамке на всю ширину; подсказка «Если ничего не выбрано…» внизу формы</td><td style="vertical-align: top">Сегментированный выбор в одну строку; подсказка «Пустое поле — подходят все» — над полями</td><td style="vertical-align: top; overflow-wrap: anywhere"><code style="font-size: 12px">.mh-seg</code></td></tr>
+<tr><td style="vertical-align: top">10</td><td style="vertical-align: top"><b>Шаг 2</b></td><td class="mh-muted" style="vertical-align: top">Заголовок «Удалять сообщение…» повторяет подпись тумблера</td><td style="vertical-align: top">Только подпись тумблера и одна строка пояснения</td><td style="vertical-align: top; overflow-wrap: anywhere"><code style="font-size: 12px">—</code></td></tr>
+<tr><td style="vertical-align: top">11</td><td style="vertical-align: top"><b>Шаг 2–3</b></td><td class="mh-muted" style="vertical-align: top">Поля растянуты на 930 px</td><td style="vertical-align: top">Колонка формы максимум 560 px, справа — предпросмотр или итог</td><td style="vertical-align: top; overflow-wrap: anywhere"><code style="font-size: 12px">.mh-form-col { max-width: 560px }</code></td></tr>
+<tr><td style="vertical-align: top">12</td><td style="vertical-align: top"><b>Шаг 3</b></td><td class="mh-muted" style="vertical-align: top">Нет сводки перед созданием</td><td style="vertical-align: top">Блок «Итог» одной фразой + «Отправить пример себе»; главная кнопка — «Создать уведомление», а не «Далее»</td><td style="vertical-align: top; overflow-wrap: anywhere"><code style="font-size: 12px">—</code></td></tr>
+<tr><td style="vertical-align: top">13</td><td style="vertical-align: top"><b>Журнал</b></td><td class="mh-muted" style="vertical-align: top">«Бот удалён» текстом в каждой строке — проблема не видна</td><td style="vertical-align: top">Красный баннер над таблицей с причиной и кнопкой «Подключить бота»; в строке — красная метка «Не доставлено»</td><td style="vertical-align: top; overflow-wrap: anywhere"><code style="font-size: 12px">.ui.negative.message</code></td></tr>
+<tr><td style="vertical-align: top">14</td><td style="vertical-align: top"><b>Журнал</b></td><td class="mh-muted" style="vertical-align: top">Метка «проба» отдельной строкой — каждая строка 86 px</td><td style="vertical-align: top">Пробные скрыты по умолчанию (чекбокс «Показывать пробные»); если видны — метка в той же строке. Строка ≈ 48 px</td><td style="vertical-align: top; overflow-wrap: anywhere"><code style="font-size: 12px">.mh-probe</code></td></tr>
+<tr><td style="vertical-align: top">15</td><td style="vertical-align: top"><b>Журнал</b></td><td class="mh-muted" style="vertical-align: top">«Клиенту перезвонили» — отдельные события-шум</td><td style="vertical-align: top">Поле «Перезвонили в 18:44» в карточке пропуска; отдельной строкой не показывать</td><td style="vertical-align: top; overflow-wrap: anywhere"><code style="font-size: 12px">—</code></td></tr>
+<tr><td style="vertical-align: top">16</td><td style="vertical-align: top"><b>Журнал</b></td><td class="mh-muted" style="vertical-align: top">Пропущенный звонок — «Предупреждение»: жёлтые метки на половине экрана</td><td style="vertical-align: top">Пропуск — «Инфо» (без метки). Жёлтое — только то, что требует действия</td><td style="vertical-align: top; overflow-wrap: anywhere"><code style="font-size: 12px">—</code></td></tr>
+<tr><td style="vertical-align: top">17</td><td style="vertical-align: top"><b>Журнал</b></td><td class="mh-muted" style="vertical-align: top">В карточке технические поля (core.missed_call, ID) и «Бот удалён» дважды на получателя</td><td style="vertical-align: top">Технические детали свернуть; на получателя одна строка: кто — статус — причина. «Повторить» — только если повтор возможен</td><td style="vertical-align: top; overflow-wrap: anywhere"><code style="font-size: 12px">—</code></td></tr>
+<tr><td style="vertical-align: top">18</td><td style="vertical-align: top"><b>Журнал</b></td><td class="mh-muted" style="vertical-align: top">Четыре фильтра, из них «источник» и «важность» почти не нужны</td><td style="vertical-align: top">Период · Событие · Отправка (доставлено / не доставлено)</td><td style="vertical-align: top; overflow-wrap: anywhere"><code style="font-size: 12px">—</code></td></tr>
+<tr><td style="vertical-align: top">19</td><td style="vertical-align: top"><b>Настройки</b></td><td class="mh-muted" style="vertical-align: top">«Добавить бота →» — текстовая ссылка; MAX — заглушка «скоро», хотя он уже работает</td><td style="vertical-align: top">Две равные карточки Telegram и MAX с кнопками «Подключить Telegram» / «Подключить MAX»; заглушку убрать</td><td style="vertical-align: top; overflow-wrap: anywhere"><code style="font-size: 12px">—</code></td></tr>
+<tr><td style="vertical-align: top">20</td><td style="vertical-align: top"><b>Настройки</b></td><td class="mh-muted" style="vertical-align: top">Оранжевый блок предупреждения о данных — самый заметный элемент экрана</td><td style="vertical-align: top">Нейтральная плашка в одну строку внизу раздела «Общие»; адрес АТС — первым полем</td><td style="vertical-align: top; overflow-wrap: anywhere"><code style="font-size: 12px">—</code></td></tr>
+</tbody></table></div>
+</div></article></div></section>
+</body></html>

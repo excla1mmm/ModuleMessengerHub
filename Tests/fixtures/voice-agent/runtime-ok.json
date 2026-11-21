@@ -1,0 +1,14 @@
+{
+    "health": {
+        "state": "ok",
+        "checked_at": 1791072960,
+        "latency_ms": 42,
+        "error": "",
+        "runtime_version": "1.9.0",
+        "active_calls": 1,
+        "max_calls": 10,
+        "stages": []
+    },
+    "agents": [],
+    "sync_requested": false
+}

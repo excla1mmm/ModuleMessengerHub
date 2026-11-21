@@ -1,0 +1,25 @@
+{
+    "advice": {
+        "error": [
+            {
+                "messageTpl": "adv_SipPasswordWeak",
+                "messageParams": {
+                    "record": "203"
+                },
+                "severity": "critical",
+                "category": "security"
+            }
+        ],
+        "info": [
+            {
+                "messageTpl": "adv_LicenseKeyNotInstalled",
+                "messageParams": [],
+                "severity": "info",
+                "category": "licensing"
+            }
+        ],
+        "needUpdate": [
+            "WebAdminPassword"
+        ]
+    }
+}

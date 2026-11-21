@@ -35,6 +35,26 @@ SQLite-тесты — на временной базе (`:memory:` или фай
 Боевые проверки каналов — на тестовых ботах Telegram и MAX (MAX-бот требует верифицированного профиля
 организации MIKO; оформить заранее, модерация до 48 ч).
 
+## TLS MAX: доверие корню НУЦ Минцифры
+
+`platform-api2.max.ru` подписан цепочкой `*.max.ru (MAX LLC)` ← `Russian Trusted Sub CA` ←
+`Russian Trusted Root CA`. В модуле поставляется **только корень**; промежуточный сертификат приходит
+от сервера. Проверено 21.11.2026 (через IP + SNI, локальный DNS отказывал в имени): все адреса MAX
+отдают два сертификата в handshake, а `openssl s_client` с одним лишь корнем даёт
+`Verify return code: 0`.
+
+Команда для повторной проверки (ждём два сертификата и код 0; третий аргумент — поставляемый PEM):
+
+```bash
+openssl s_client -connect platform-api2.max.ru:443 -servername platform-api2.max.ru -showcerts </dev/null \
+  | grep -c "BEGIN CERTIFICATE"          # 2 = leaf + Sub CA
+openssl s_client -connect platform-api2.max.ru:443 -servername platform-api2.max.ru \
+  -CAfile Lib/Channels/Max/certs/russian_trusted_ca.pem </dev/null 2>&1 | grep "Verify return code"  # 0 (ok)
+```
+
+Если сервер перестанет присылать Sub CA, проверка упадёт в `max.tls.untrusted_ca` (fail-closed, без
+повторов) — тогда вернуть Sub CA в поставляемый файл и в `PINNED_SHA256`, не отключая проверку TLS.
+
 ## Ручной сценарий приёмки этапа 1
 
 1. Подключить бота Telegram и бота MAX.

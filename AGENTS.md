@@ -14,6 +14,9 @@ touch. `Plan/09-roadmap.md` says which stage is current; do not build later-stag
 
 1. **Never modify MikoPBX Core** (https://github.com/mikopbx/Core or the PBX filesystem). Use only what Core
    already offers modules: `ConfigClass` hooks, AMI, Core REST API v3, module workers and cron.
+   Core models (`MikoPBX\Common\Models\*`, e.g. `Extensions`, `Users`) may be **read** by the hub (thin glue in
+   `Lib/Support/`, never written); Core itself must never be changed. This read access does not extend to other
+   modules' tables or classes (rule 2).
 2. **Pull model.** Source modules (ModuleAISupervisor, ModuleLocalSpeechToText, ModuleVoiceAgent, …) must not be
    changed for the hub and must not call it. The hub reads their **public REST API v3** only — never their
    SQLite tables, never their PHP classes.
@@ -35,7 +38,14 @@ touch. `Plan/09-roadmap.md` says which stage is current; do not build later-stag
 module.json, composer.json            metadata (moduleUniqueID = ModuleMessengerHub)
 Setup/PbxExtensionSetup.php           installer (schema from model annotations; keep install fast)
 Lib/MessengerHubConf.php              Core hooks
-Lib/{Sources,Events,Routing,Channels,Delivery,Security,RestAPI}/   see Plan/01-architecture.md
+Lib/Events/                           HubEvent, EventStore (INSERT OR IGNORE on dedupe_key)
+Lib/Sources/                          SourceInterface, AmiEventSource, Collector, SourceRegistry (register adapters in default()),
+                                      SourceRecorder (push sources), SourceStateRepository, availability
+Lib/Api/                              RestReader, LocalRestClient (127.0.0.1 + hub key), HubApiKey (own read-only Core key)
+Lib/Settings/HubSettings.php          key/value settings, SECRET_KEYS
+Lib/Storage/                          HubDatabase port: PhalconHubDatabase (prod), PdoHubDatabase (Tests/support)
+Lib/Support/HubLogger.php             syslog lines, secrets masked (NOTICE is not visible on the station; errors use LOG_ERR)
+Lib/{Routing,Channels,Delivery,RestAPI}/   later stages, see Plan/01-architecture.md
 Models/                               m_MessengerHub* tables, see Plan/04-data-model.md
 bin/                                  workers (Collector, Ami, Delivery)
 App/                                  admin UI: Volt + jQuery + Fomantic UI (no React)
@@ -68,6 +78,8 @@ docs/                                 how-to guides for agents
 
 ```bash
 php Tests/run-all.php                                   # contract checks (must pass before any commit)
+# Unit checks load module classes through Tests/support/bootstrap.php; keep logic Core-free so it is testable,
+# and keep Core glue (models, Core probes, workers, HubApiKey) thin.
 find . -name '*.php' -not -path './vendor/*' -exec php -l {} \; | grep -v 'No syntax errors'   # must print nothing
 ./scripts/package-module.sh /tmp/module-build           # installable zip
 ```

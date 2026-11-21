@@ -50,16 +50,20 @@ Lib/
     HubEvent.php                  — нормализованное событие (value object)
     EventStore.php                — запись с дедупликацией
   Routing/
-    RuleMatcher.php, RecipientResolver.php, TemplateRenderer.php
+    RuleMatcher, RecipientResolver, TemplateRenderer  — правила, получатели, шаблоны
+    Rule.php, RuleRepository.php, ChatResolver.php, Router.php
+    RenderedMessage.php, RenderContext.php, TemplateInterface.php, LinkBuilder.php, PhoneMasker.php
+    Templates/                    — по классу на тип события (Plan/05)
   Channels/
     ChannelInterface.php          — контракт адаптера канала
-    Telegram/TelegramChannel.php, TelegramApiClient.php
-    Max/MaxChannel.php, MaxApiClient.php
-    HttpTransport.php             — curl, прокси, TLS, таймауты, без логирования URL с токеном
+    HttpClient.php, HttpTransport.php, HttpResponse.php, SendResult.php, ChannelLimits.php, ChannelRegistry.php
+    Telegram/TelegramChannel.php, TelegramApi.php, TelegramHtml.php
+    Max/MaxChannel.php, MaxApiClient.php — этап 3
   Delivery/
-    Outbox.php, DeliveryService.php, RetryPolicy.php, RateLimiter.php
-  Security/
-    SecretStore.php, PhoneMasker.php
+    OutboxRepository.php, DeliveryService.php, RetryPolicy.php, RateLimiter.php, DeliveryWaker.php,
+    BeanstalkDeliveryWaker.php (Core glue), DeliveryTube.php,
+    RetractionPlanner.php, RetractionService.php (этап 2d: отмена/удаление после перезвона)
+  Security/                       — отдельного SecretStore нет: секреты живут в БД модуля, маска номеров — Routing/PhoneMasker
   RestAPI/                        — ресурсы REST API v3 (06-rest-api-and-ui.md)
 bin/
   WorkerMessengerHubCollector.php — опрос источников по расписанию
@@ -73,12 +77,20 @@ App/                              — интерфейс администрат�
 
 | Воркер | Тип в `getModuleWorkers()` | Что делает |
 |---|---|---|
-| `WorkerMessengerHubAmi` | `CHECK_BY_AMI` | Слушает `UserEvent` `CdrConnector` (`action=hangup_update_cdr`) и `voicemail_end`; передаёт в Collector соответствующего источника |
-| `WorkerMessengerHubCollector` | `CHECK_BY_BEANSTALK` или `CHECK_BY_PID_NOT_ALERT` | Цикл опроса pull-источников по их интервалам; курсоры в `m_MessengerHubSourceState`; после записи событий будит Router |
-| `WorkerMessengerHubDelivery` | `CHECK_BY_BEANSTALK` | Router + отправка Outbox; лизинг строк, повторы, лимиты каналов |
+| `WorkerMessengerHubAmi` | `CHECK_BY_AMI` | Слушает `UserEvent` `CdrConnector` (`action=hangup_update_cdr`) и `voicemail_end`; передаёт в Collector соответствующего источника. Подключение как в эталонном ModuleExampleAmi: `Util::getAstManager()`, AMI-действие `Filter` на нужные UserEvent, `waitUserEvent(true)`, переподключение при пустом ответе (Q2) |
+| `WorkerMessengerHubCollector` | `CHECK_BY_PID_NOT_ALERT` | Цикл опроса pull-источников по их интервалам; курсоры в `m_MessengerHubSourceState`; синхронизация ключа раз в минуту и его самовосстановление по 401/403 (Q14); после записи событий «пинает» трубу доставки |
+| `WorkerMessengerHubDiscovery` | `CHECK_BY_PID_NOT_ALERT` | «Подключить чат»: опрос `getUpdates` только во время пятиминутного сеанса, найденные чаты пишутся в запись бота (выключенными). В простое — одно чтение SQLite раз в 2 с |
+| `WorkerMessengerHubDelivery` | `CHECK_BY_PID_NOT_ALERT` | Router (правила → получатели → шаблон → Outbox) и отправка Outbox: лизинг строк, повторы, лимиты каналов. Труба-«будильник» — своя (`DeliveryTube`, имя класса воркера); это только оптимизация задержки, поэтому ядро следит за процессом, а не за трубой |
 
-Router можно держать внутри Delivery-воркера (одна точка записи в Outbox). Будильник — beanstalk-труба
-модуля `WorkerMessengerHubDelivery::class` (только наша труба, чужие трубы ядра не читаем).
+Router и отправка живут в одном воркере (одна точка записи в Outbox). Будильник — beanstalk-труба
+модуля `WorkerMessengerHubDelivery` (только наша труба, чужие трубы ядра не читаем). Воркер всё равно
+просыпается раз в 5 секунд, поэтому потерянный «пинок» лишь откладывает доставку.
+
+### Аварийный выключатель `hub_enabled`
+
+`hub_enabled = 0` (по умолчанию) означает: **сбор событий идёт, отправка — нет**. Источники продолжают
+писать события в журнал (их видно в «Журнале»), Router помечает такие события обработанными и не создаёт
+строк Outbox. Поэтому включение хаба позже не рассылает накопившуюся историю (правило 5 в `AGENTS.md`).
 
 ## Хуки ядра, которые реализует хаб
 
@@ -87,7 +99,7 @@ Router можно держать внутри Delivery-воркера (одна 
 
 | Хук | Где вызывает ядро | Для чего |
 |---|---|---|
-| `getModuleWorkers()` | WorkerSafeScriptsCore | регистрация трёх воркеров |
+| `getModuleWorkers()` | WorkerSafeScriptsCore | регистрация четырёх воркеров |
 | `createCronTasks()` | CronConf | очистка истории, страховочный «пинок» воркеров |
 | `onProviderStatusChange(array $changeData)` | `PBXCoreREST/Lib/Providers/GetAllStatusesAction.php:344` | провайдер отключился/восстановился |
 | `onExtensionStatusChange(array $changeData)` | `PBXCoreREST/Lib/Extensions/GetAllStatusesAction.php:436` | сотрудник онлайн/офлайн (этап 4, шумно) |
@@ -101,10 +113,24 @@ Router можно держать внутри Delivery-воркера (одна 
 
 ## Доступ к REST API модулей-источников
 
-Хаб ходит в REST API v3 на `127.0.0.1` из своего воркера. Нужен ключ API с правами только на чтение
-нужных ресурсов. Способ получения ключа без изменений ядра — открытый вопрос
-([11-open-questions.md](11-open-questions.md), Q1). Альтернатива без HTTP — вызов процессора REST
-ресурса в процессе — запрещена: это зависимость от внутренностей чужого модуля.
+Хаб ходит в REST API v3 на `http://127.0.0.1/pbxcore/api/v3/...` из своего воркера с собственным
+ограниченным ключом API (решение Q1 в [11-open-questions.md](11-open-questions.md), проверено на станции):
+
+- `Lib/Api/HubApiKey.php` при включении хаба создаёт запись `MikoPBX\Common\Models\ApiKeys`
+  с `full_permissions='0'` и `allowed_paths` = только пути включённых источников со значением `read`
+  (без исключений; источники STT и облачного ИИ ждут доработки модулей, решение Q10/Q11), хранит открытый ключ в `m_MessengerHubSettings` как секрет,
+  вызывает `TokenValidationService::clearCache()`.
+- При изменении набора источников `allowed_paths` обновляется **на месте** (тот же id и тот же открытый ключ,
+  решение Q15 — пересоздание давало короткий `api_forbidden` после включения источника); пересоздание — только
+  если записи нет. `PATCH settings` применяет новый набор сразу, воркер-коллектор сверяет ключ раз в минуту.
+- **Выключение модуля не удаляет ключ, а снимает с него пути** (`HubApiKey::revoke`, `allowed_paths` → `{}` —
+  запись с `full_permissions='0'` и пустым набором путей не даёт доступа ни к чему): обновление пакета идёт
+  через disable → замена файлов → enable, и тот же id с тем же секретом возвращается синхронизацией на месте.
+  Настоящее удаление модуля оставляет неактивную запись без путей; её подчищает следующая установка
+  (`create()` удаляет осиротевшие записи по описанию) или администратор вручную.
+- Без ключа запросы с localhost проходят, но область видимости пустая (например, звонки ИИ Супервайзера — 0 записей).
+- Альтернатива без HTTP — вызов процессора REST ресурса в процессе — запрещена: это зависимость
+  от внутренностей чужого модуля.
 
 ## Интерфейс
 

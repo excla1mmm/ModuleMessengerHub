@@ -1,0 +1,12 @@
+{
+  "updates": [
+    {
+      "update_type": "bot_started",
+      "timestamp": 1790944902000,
+      "chat_id": 90000000000009,
+      "payload": null,
+      "user_locale": "ru"
+    }
+  ],
+  "marker": 98765440
+}

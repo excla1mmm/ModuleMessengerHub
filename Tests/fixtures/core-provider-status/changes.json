@@ -1,0 +1,28 @@
+{
+    "changes": [
+        {
+            "provider_id": "SIP-TRUNK-0001",
+            "type": "sip",
+            "old_state": "registered",
+            "new_state": "unregistered",
+            "state_color": "red",
+            "username": "trunkuser",
+            "host": "sip.example.net",
+            "timestamp": 1791068100,
+            "details": "Registration expired"
+        },
+        {
+            "provider_id": "SIP-TRUNK-0001",
+            "type": "sip",
+            "old_state": "unregistered",
+            "new_state": "registered",
+            "state_color": "green",
+            "username": "trunkuser",
+            "host": "sip.example.net",
+            "timestamp": 1791068500,
+            "details": ""
+        }
+    ],
+    "timestamp": 1791068500,
+    "source": "GetAllStatusesAction"
+}

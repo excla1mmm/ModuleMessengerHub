@@ -15,7 +15,7 @@ use MikoPBX\Modules\Models\ModulesModelsBase;
  */
 class MessengerHubSettings extends ModulesModelsBase
 {
-    public const string HUB_ENABLED = 'hub_enabled';
+    // Keys and defaults live in Lib/Settings/HubSettings.
 
     /**
      * @Primary

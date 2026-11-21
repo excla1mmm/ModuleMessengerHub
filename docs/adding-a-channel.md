@@ -6,10 +6,13 @@ Spec: `Plan/03-channels.md`. Contract: `ChannelInterface` (`checkToken`, `discov
 
 1. **Collect API facts from official docs** (base URL, auth, send, media upload, chat discovery, limits, error
    format) and add a section to `Plan/03-channels.md` with links and the date checked.
-2. **Classes**: `Lib/Channels/<Name>/<Name>Channel.php` (contract) and `<Name>ApiClient.php` (HTTP calls via
-   `HttpTransport` only). Register in the channel registry.
+2. **Classes**: `Lib/Channels/<Name>/<Name>Channel.php` (contract) and `<Name>Api[Client].php` (HTTP calls via
+   `HttpTransport` only). Add the adapter to `ChannelFactory` — the single place that builds the channel
+   registry for REST, delivery and discovery (and the only place a channel-specific transport option such as
+   a CA bundle belongs).
 3. **Secrets**: credentials only from `BotCredentials`; never put them into exceptions, logs or `SendResult`.
-   If the API takes the token in the URL, make sure `HttpTransport` is told not to log the URL.
+   If the API takes the token in the URL, make sure `HttpTransport` is told not to log the URL; if it takes a
+   header, pass it as an extra header — `HttpTransport` logs neither URLs nor headers.
 4. **Result mapping**: every API response maps to `sent | retry(after) | permanent | recipient_gone` with a
    normalised code `<channel>.<http>.<reason>`.
 5. **Rendering**: convert `RenderedMessage` into the channel markup; escape all data fields; respect text and
