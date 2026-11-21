@@ -135,6 +135,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => 'interna',
     'module_messenger_hub_MessageDirectionUnknown' => 'chiamata',
     'module_messenger_hub_MessageVoicemailHint' => 'La registrazione è disponibile nel registro delle chiamate.',
+    'module_messenger_hub_MessageAttachmentInAtc' => 'La registrazione è disponibile nel PBX.',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => 'punteggio {score}',
     'module_messenger_hub_MessageReasons' => 'Motivi: {reasons}',

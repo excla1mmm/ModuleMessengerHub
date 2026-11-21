@@ -135,6 +135,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => 'interní',
     'module_messenger_hub_MessageDirectionUnknown' => 'hovor',
     'module_messenger_hub_MessageVoicemailHint' => 'Nahrávka je k dispozici v deníku hovorů.',
+    'module_messenger_hub_MessageAttachmentInAtc' => 'Nahrávka je k dispozici v PBX.',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => 'hodnocení {score}',
     'module_messenger_hub_MessageReasons' => 'Důvody: {reasons}',

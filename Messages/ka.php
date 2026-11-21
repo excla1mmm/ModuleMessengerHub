@@ -135,6 +135,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => 'შიდა',
     'module_messenger_hub_MessageDirectionUnknown' => 'ზარი',
     'module_messenger_hub_MessageVoicemailHint' => 'ჩანაწერი ხელმისაწვდომია ზარების ჟურნალში.',
+    'module_messenger_hub_MessageAttachmentInAtc' => 'ჩანაწერი ხელმისაწვდომია PBX-ში.',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => 'შეფასება {score}',
     'module_messenger_hub_MessageReasons' => 'მიზეზები: {reasons}',

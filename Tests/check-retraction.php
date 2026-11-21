@@ -144,6 +144,11 @@ final class RetractChannel implements ChannelInterface
         return SendResult::sent(['1']);
     }
 
+    public function sendAttachment(BotCredentials $bot, Recipient $to, \Modules\ModuleMessengerHub\Lib\Channels\AttachmentPart $part): \Modules\ModuleMessengerHub\Lib\Channels\AttachmentResult
+    {
+        return \Modules\ModuleMessengerHub\Lib\Channels\AttachmentResult::of(SendResult::sent(['a1']));
+    }
+
     public function delete(BotCredentials $bot, Recipient $to, string $externalMessageId): SendResult
     {
         $this->deleteCalls++;
@@ -344,10 +349,15 @@ check($row['resolved_by'] === 'Иванов И. (233)', 'planner: employee store
 $channel = new RetractChannel();
 $service = new RetractionService(new OutboxRepository($db), new ChannelRegistry([$channel]), new RateLimiter(), 'test');
 $stats = $service->runOnce(T + 602);
+check($stats['retried'] === 1, 'retraction: one delete per rate window, the row is postponed');
+check($channel->deleted === ['10'], 'retraction: the first id is deleted');
+$row = $db->fetchOne('SELECT * FROM ' . OutboxRepository::TABLE . ' WHERE event_id = 1');
+check((int)$row['retract_next_attempt_at'] === T + 603, 'retraction: the next delete waits for the channel rate window');
+$stats = $service->runOnce(T + 603);
 check($stats['retracted'] === 1, 'retraction: row retracted');
 check($channel->deleted === ['10', '11'], 'retraction: text and attachment ids are both deleted');
 $row = $db->fetchOne('SELECT * FROM ' . OutboxRepository::TABLE . ' WHERE event_id = 1');
-check($row['status'] === 'retracted' && (int)$row['retracted_at'] === T + 602, 'retraction: status retracted');
+check($row['status'] === 'retracted' && (int)$row['retracted_at'] === T + 603, 'retraction: status retracted');
 
 // 2. callback 25 minutes later with a 20-minute window -> message stays
 $db = hubTestDatabase();

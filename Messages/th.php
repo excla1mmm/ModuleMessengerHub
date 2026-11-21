@@ -135,6 +135,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => 'ภายใน',
     'module_messenger_hub_MessageDirectionUnknown' => 'สาย',
     'module_messenger_hub_MessageVoicemailHint' => 'ไฟล์บันทึกมีอยู่ในบันทึกการโทร',
+    'module_messenger_hub_MessageAttachmentInAtc' => 'บันทึกเสียงพร้อมใช้งานใน PBX',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => 'คะแนน {score}',
     'module_messenger_hub_MessageReasons' => 'สาเหตุ: {reasons}',

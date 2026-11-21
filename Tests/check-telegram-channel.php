@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/support/bootstrap.php';
 
+use Modules\ModuleMessengerHub\Lib\Channels\AttachmentPart;
 use Modules\ModuleMessengerHub\Lib\Channels\BotCredentials;
 use Modules\ModuleMessengerHub\Lib\Channels\ChannelLimits;
 use Modules\ModuleMessengerHub\Lib\Channels\DiscoveryCursor;
@@ -241,6 +242,19 @@ $result = $channel->send($bot, $to, new RenderedMessage(title: 'Заголово
 check($result->outcome === SendResult::SENT, 'channel sends the rendered text');
 check($channel->limits()->maxTextLength === 4096, 'Telegram limits exposed');
 check($channel->id() === 'telegram', 'channel id');
+
+// ---------- audio attachment (stage 3a) ----------
+
+$http = new ScriptedHttp();
+$http->queue('send_ok');
+$channel = new TelegramChannel(new TelegramApi($http, 'https://tg.local'));
+$result = $channel->sendAttachment($bot, $to, new AttachmentPart('/module/tmp/a.mp3', 'A < B & C'));
+check($result->result->outcome === SendResult::SENT && $result->result->ids === ['42'], 'attachment: sendAudio result mapped');
+check($http->calls[0]['method'] === 'multipart', 'attachment: audio goes as multipart');
+check(str_ends_with($http->calls[0]['url'], '/sendAudio'), 'attachment: sendAudio method');
+check($http->calls[0]['payload']['caption'] === 'A &lt; B &amp; C', 'attachment: the caption is escaped');
+check($http->calls[0]['payload']['parse_mode'] === 'HTML', 'attachment: caption uses HTML mode');
+check(!str_contains((string)$result->result->code, '/module/tmp'), 'attachment: no file path in the code');
 
 // ---------- secrets never leak ----------
 

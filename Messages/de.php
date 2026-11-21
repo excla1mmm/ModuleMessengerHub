@@ -135,6 +135,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => 'intern',
     'module_messenger_hub_MessageDirectionUnknown' => 'Anruf',
     'module_messenger_hub_MessageVoicemailHint' => 'Die Aufzeichnung ist im Anrufprotokoll verfügbar.',
+    'module_messenger_hub_MessageAttachmentInAtc' => 'Die Aufnahme ist in der TK-Anlage verfügbar.',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => 'Bewertung {score}',
     'module_messenger_hub_MessageReasons' => 'Gründe: {reasons}',

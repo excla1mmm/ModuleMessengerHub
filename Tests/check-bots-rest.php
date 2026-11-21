@@ -71,6 +71,11 @@ final class FakeTelegram implements ChannelInterface
         return SendResult::sent(['1']);
     }
 
+    public function sendAttachment(BotCredentials $bot, Recipient $to, \Modules\ModuleMessengerHub\Lib\Channels\AttachmentPart $part): \Modules\ModuleMessengerHub\Lib\Channels\AttachmentResult
+    {
+        return \Modules\ModuleMessengerHub\Lib\Channels\AttachmentResult::of(SendResult::sent(['a1']));
+    }
+
     public function delete(BotCredentials $bot, Recipient $to, string $externalMessageId): SendResult
     {
         return SendResult::sent();

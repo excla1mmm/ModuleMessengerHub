@@ -135,6 +135,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => 'interne',
     'module_messenger_hub_MessageDirectionUnknown' => 'appel',
     'module_messenger_hub_MessageVoicemailHint' => 'L’enregistrement est disponible dans le journal des appels.',
+    'module_messenger_hub_MessageAttachmentInAtc' => 'L\'enregistrement est disponible dans le PBX.',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => 'note {score}',
     'module_messenger_hub_MessageReasons' => 'Motifs : {reasons}',

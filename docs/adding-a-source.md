@@ -25,3 +25,14 @@ event format: `Plan/05-events-rules-templates.md`.
 9. **Tests** (`Tests/check-source-<name>.php`): fixture responses → expected events; repeated poll → no new
    events; baseline; unavailable module.
 10. **Docs**: update `Plan/02-sources.md` (stage, how it is read) and README event list.
+
+## Attachments
+
+A source may add facts to `payload.attachments` (Plan/05) — never the audio itself:
+
+- `{"kind":"recording","path":"…"}` only for a local file the hub is allowed to read (a Core recording root);
+- `{"kind":"recording","source":"cdr","linkedid":"…","cdr_id":123}` when the recording is resolved through
+  the public Core REST v3 (the hub downloads it later).
+
+A `probe=true` event may only point at the module's own `<module>/tmp/probe`. Never put a playback token, a
+copy of the audio or a path from another module's internal storage into the event.

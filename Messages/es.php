@@ -135,6 +135,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => 'interna',
     'module_messenger_hub_MessageDirectionUnknown' => 'llamada',
     'module_messenger_hub_MessageVoicemailHint' => 'La grabación está disponible en el registro de llamadas.',
+    'module_messenger_hub_MessageAttachmentInAtc' => 'La grabación está disponible en la centralita.',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => 'puntuación {score}',
     'module_messenger_hub_MessageReasons' => 'Motivos: {reasons}',

@@ -164,6 +164,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => 'intern',
     'module_messenger_hub_MessageDirectionUnknown' => 'gesprek',
     'module_messenger_hub_MessageVoicemailHint' => 'De opname staat in het gesprekslogboek.',
+    'module_messenger_hub_MessageAttachmentInAtc' => 'De opname is beschikbaar in de PBX.',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => 'score {score}',
     'module_messenger_hub_MessageReasons' => 'Redenen: {reasons}',

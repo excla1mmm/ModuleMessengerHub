@@ -100,6 +100,7 @@ check(
 
 const ALL_POLL_PATHS = [
     '/api/v3/advice',
+    '/api/v3/cdr',
     '/api/v3/module-ai-supervisor/calls',
     '/api/v3/module-ai-supervisor/workers',
     '/api/v3/module-voice-agent/callbacks',
@@ -120,6 +121,7 @@ $processor = new SettingsProcessor(
 $result = $processor->process(['action' => 'patch', 'data' => ['sources' => ['core.advice' => false]]]);
 check($result->success, 'patch disables core.advice');
 check($spy->calls === [[
+    '/api/v3/cdr',
     '/api/v3/module-ai-supervisor/calls',
     '/api/v3/module-ai-supervisor/workers',
     '/api/v3/module-voice-agent/callbacks',
@@ -155,6 +157,7 @@ $paths = ApiKeyPaths::compute(
 );
 check($paths === [
     '/api/v3/advice',
+    '/api/v3/cdr',
     '/api/v3/module-ai-supervisor/calls',
     '/api/v3/module-ai-supervisor/workers',
 ], 'PATCH-time compute matches the collector compute (module off -> paths out)');

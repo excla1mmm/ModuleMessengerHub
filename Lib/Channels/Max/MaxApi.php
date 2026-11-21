@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\ModuleMessengerHub\Lib\Channels\Max;
 
+use Modules\ModuleMessengerHub\Lib\Channels\AttachmentResult;
 use Modules\ModuleMessengerHub\Lib\Channels\BotCredentials;
 use Modules\ModuleMessengerHub\Lib\Channels\BotIdentity;
 use Modules\ModuleMessengerHub\Lib\Channels\DiscoveredChat;
@@ -235,7 +236,8 @@ final class MaxApi
         $json = $response->json();
         $url = is_string($json['url'] ?? null) ? $json['url'] : '';
         $token = is_string($json['token'] ?? null) ? $json['token'] : '';
-        if (preg_match('~^https://~i', $url) !== 1 || $token === '') {
+        if (preg_match('~^https://~i', $url) !== 1 || $token === '' || !$this->isMaxHost($url)) {
+            // fail closed: a hostile/hijacked /uploads answer must never receive the recording
             return null;
         }
 
@@ -245,17 +247,26 @@ final class MaxApi
     /**
      * Stage 3a hook: voice message as MP3/M4A (mirrors Telegram sendAudio). Two steps — POST /uploads,
      * then the file, then POST /messages with the attachment token. MAX may answer
-     * max.attachment.not_ready while the file is still being processed; that is a retry.
+     * max.attachment.not_ready while the file is still being processed: the SAME upload token is
+     * returned to the caller so the queue retries after a growing pause (decision 3a-1).
      */
-    public function sendAudio(BotCredentials $bot, Recipient $to, string $filePath, string $caption = ''): SendResult
-    {
-        return $this->sendFile($bot, $to, 'audio', $filePath, $caption, 'audio/mpeg');
+    public function sendAudio(
+        BotCredentials $bot,
+        Recipient $to,
+        string $filePath,
+        string $htmlCaption = '',
+        string $pendingToken = '',
+    ): AttachmentResult {
+        return $this->sendFile($bot, $to, 'audio', $filePath, $htmlCaption, 'audio/mpeg', $pendingToken);
     }
 
-    /** Stage 3a hook: any document (a recording kept in its original format). */
-    public function sendDocument(BotCredentials $bot, Recipient $to, string $filePath, string $caption = ''): SendResult
+    /**
+     * Stage 3a hook: any document (a recording kept in its original format).
+     * `$htmlCaption` must already be escaped channel markup (see MaxChannel).
+     */
+    public function sendDocument(BotCredentials $bot, Recipient $to, string $filePath, string $htmlCaption = ''): SendResult
     {
-        return $this->sendFile($bot, $to, 'file', $filePath, $caption, '');
+        return $this->sendFile($bot, $to, 'file', $filePath, $htmlCaption, '')->result;
     }
 
     private function sendFile(
@@ -263,39 +274,49 @@ final class MaxApi
         Recipient $to,
         string $type,
         string $filePath,
-        string $caption,
+        string $htmlCaption,
         string $mimeType,
-    ): SendResult {
-        $upload = $this->requestUpload($bot, $type);
-        if ($upload === null) {
-            // stage 3a picks the pause schedule; for now the shared retry policy drives it
-            return SendResult::retry(30, self::PREFIX . '.upload.failed');
-        }
-        $response = $this->http->postMultipart(
-            $upload['url'],
-            [],
-            'data',
-            $filePath,
-            basename($filePath),
-            $mimeType,
-            // the upload host comes from the API answer: never hand the bot token to a foreign host
-            $this->isMaxHost($upload['url']) ? [self::authorization($bot)] : []
-        );
-        if ($response->failed()) {
-            return self::transportResult($response);
-        }
-        if ($response->status >= 400) {
-            // a 401/429/5xx of the upload endpoint is classified like any other API answer
-            return self::classify($response, $response->json());
+        string $pendingToken = '',
+    ): AttachmentResult {
+        $token = $pendingToken;
+        if ($token === '') {
+            $upload = $this->requestUpload($bot, $type);
+            if ($upload === null) {
+                // stage 3a picks the pause schedule; for now the shared retry policy drives it
+                return AttachmentResult::of(SendResult::retry(30, self::PREFIX . '.upload.failed'));
+            }
+            $response = $this->http->postMultipart(
+                $upload['url'],
+                [],
+                'data',
+                $filePath,
+                basename($filePath),
+                $mimeType,
+                // the upload host comes from the API answer: never hand the bot token to a foreign host
+                $this->isMaxHost($upload['url']) ? [self::authorization($bot)] : []
+            );
+            if ($response->failed()) {
+                return AttachmentResult::of(self::transportResult($response));
+            }
+            if ($response->status >= 400) {
+                // a 401/429/5xx of the upload endpoint is classified like any other API answer
+                return AttachmentResult::of(self::classify($response, $response->json()));
+            }
+            $token = $upload['token'];
         }
         $query = $to->kind === 'private' ? ['user_id' => $to->chatId] : ['chat_id' => $to->chatId];
-        $payload = ['format' => 'html', 'attachments' => [['type' => $type, 'payload' => ['token' => $upload['token']]]]];
-        if ($caption !== '') {
-            // the caption is event data: escape it exactly like MaxMarkup escapes the message body
-            $payload['text'] = MaxMarkup::escape($caption);
+        $payload = ['format' => 'html', 'attachments' => [['type' => $type, 'payload' => ['token' => $token]]]];
+        if ($htmlCaption !== '') {
+            $payload['text'] = $htmlCaption;
         }
 
-        return self::result($this->call($bot, 'POST', '/messages', $query, $payload));
+        $result = self::result($this->call($bot, 'POST', '/messages', $query, $payload));
+        if ($result->code === self::PREFIX . '.attachment.not_ready') {
+            // still being processed: retry with the same token, never re-upload
+            return AttachmentResult::of($result, true, $token);
+        }
+
+        return AttachmentResult::of($result);
     }
 
     /** @param array<string, mixed> $payload */

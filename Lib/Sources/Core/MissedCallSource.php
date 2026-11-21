@@ -420,12 +420,8 @@ final class MissedCallSource implements SourceInterface, AmiEventSource
         $startedAt = self::strToTs((string)($legs[0]['start'] ?? '')) ?: $occurredAt;
         $duration = 0;
         $employees = [];
-        $recording = '';
         foreach ($legs as $leg) {
             $duration = max($duration, min(self::MAX_DURATION_SEC, (int)($leg['duration'] ?? 0)));
-            if ($recording === '' && ($leg['recordingfile'] ?? '') !== '') {
-                $recording = (string)$leg['recordingfile'];
-            }
             $dstNum = (string)($leg['dst_num'] ?? '');
             $employee = $internalMap[$dstNum] ?? null;
             if ($direction !== 'outgoing' && $employee !== null && $employee['user_id'] !== null) {
@@ -462,7 +458,7 @@ final class MissedCallSource implements SourceInterface, AmiEventSource
                 ],
                 'facts' => ['reasons' => [], 'summary' => null, 'quotes' => [], 'scores' => []],
                 'links' => [],
-                'attachments' => $recording === '' ? [] : [['kind' => 'recording', 'path' => $recording]],
+                'attachments' => [],
             ],
         );
     }

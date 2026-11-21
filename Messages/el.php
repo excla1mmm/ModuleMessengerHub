@@ -135,6 +135,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => 'εσωτερική',
     'module_messenger_hub_MessageDirectionUnknown' => 'κλήση',
     'module_messenger_hub_MessageVoicemailHint' => 'Η ηχογράφηση είναι διαθέσιμη στο αρχείο κλήσεων.',
+    'module_messenger_hub_MessageAttachmentInAtc' => 'Η ηχογράφηση είναι διαθέσιμη στο PBX.',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => 'βαθμολογία {score}',
     'module_messenger_hub_MessageReasons' => 'Αιτίες: {reasons}',

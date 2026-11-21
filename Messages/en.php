@@ -164,6 +164,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => 'internal',
     'module_messenger_hub_MessageDirectionUnknown' => 'call',
     'module_messenger_hub_MessageVoicemailHint' => 'The recording is available in the call log.',
+    'module_messenger_hub_MessageAttachmentInAtc' => 'The recording is available in the PBX.',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => 'score {score}',
     'module_messenger_hub_MessageReasons' => 'Reasons: {reasons}',

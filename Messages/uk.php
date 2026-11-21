@@ -135,6 +135,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => 'внутрішній',
     'module_messenger_hub_MessageDirectionUnknown' => 'дзвінок',
     'module_messenger_hub_MessageVoicemailHint' => 'Запис доступний у журналі дзвінків.',
+    'module_messenger_hub_MessageAttachmentInAtc' => 'Запис доступний в АТС.',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => 'оцінка {score}',
     'module_messenger_hub_MessageReasons' => 'Причини: {reasons}',

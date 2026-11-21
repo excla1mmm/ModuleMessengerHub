@@ -8,6 +8,18 @@ require_once 'Globals.php';
 
 use MikoPBX\Core\System\BeanstalkClient;
 use MikoPBX\Core\Workers\WorkerBase;
+use Modules\ModuleMessengerHub\Lib\Api\LocalRestClient;
+use Modules\ModuleMessengerHub\Lib\Attachments\AttachmentPipeline;
+use Modules\ModuleMessengerHub\Lib\Attachments\AttachmentService;
+use Modules\ModuleMessengerHub\Lib\Attachments\Converter;
+use Modules\ModuleMessengerHub\Lib\Attachments\CoreRecordingRoots;
+use Modules\ModuleMessengerHub\Lib\Attachments\LocalRestFileDownloader;
+use Modules\ModuleMessengerHub\Lib\Attachments\PathGuard;
+use Modules\ModuleMessengerHub\Lib\Attachments\PreparedRecordingsRepository;
+use Modules\ModuleMessengerHub\Lib\Attachments\RealProcessRunner;
+use Modules\ModuleMessengerHub\Lib\Attachments\RecordingLocator;
+use Modules\ModuleMessengerHub\Lib\Attachments\TempDir;
+use Modules\ModuleMessengerHub\Lib\Attachments\ToolFinder;
 use Modules\ModuleMessengerHub\Lib\Channels\ChannelFactory;
 use Modules\ModuleMessengerHub\Lib\Channels\ChannelRegistry;
 use Modules\ModuleMessengerHub\Lib\Delivery\DeliveryService;
@@ -21,6 +33,7 @@ use Modules\ModuleMessengerHub\Lib\Routing\Router;
 use Modules\ModuleMessengerHub\Lib\Routing\RuleRepository;
 use Modules\ModuleMessengerHub\Lib\Routing\Templates\TemplateRegistry;
 use Modules\ModuleMessengerHub\Lib\Settings\HubSettings;
+use Modules\ModuleMessengerHub\Lib\Storage\HubDatabase;
 use Modules\ModuleMessengerHub\Lib\Storage\PhalconHubDatabase;
 use Modules\ModuleMessengerHub\Lib\Support\ArrayTexts;
 use Modules\ModuleMessengerHub\Lib\Support\CoreTexts;
@@ -59,7 +72,10 @@ class WorkerMessengerHubDelivery extends WorkerBase
         $service = null;
         $retractions = null;
         $router = null;
+        $pipeline = null;
         $nextRebuild = 0;
+        $nextJanitor = 0;
+        $moduleRoot = dirname(__DIR__);
         // one limiter for the whole worker lifetime: a rebuild must not reset the send windows
         $limiter = new RateLimiter();
 
@@ -71,7 +87,8 @@ class WorkerMessengerHubDelivery extends WorkerBase
                     $settings = new HubSettings($db);
                     $outbox = new OutboxRepository($db);
                     $channels = self::channels($settings);
-                    $service = new DeliveryService($outbox, $channels, $limiter, $owner);
+                    $pipeline = self::attachments($db, $moduleRoot, (string)$settings->get(HubSettings::HUB_API_KEY));
+                    $service = new DeliveryService($outbox, $channels, $limiter, $owner, 120, 20, $pipeline);
                     $retractions = new RetractionService($outbox, $channels, $limiter, $owner);
                     $router = new Router(
                         $db,
@@ -111,6 +128,13 @@ class WorkerMessengerHubDelivery extends WorkerBase
                         'failed' => $retractStats['failed'],
                     ]);
                 }
+                if ($pipeline instanceof AttachmentPipeline && $now >= $nextJanitor) {
+                    $cleaned = $pipeline->janitor($now);
+                    if ($cleaned['stale'] + $cleaned['expired'] + $cleaned['files'] > 0) {
+                        HubLogger::event('attachments', 'janitor', $cleaned);
+                    }
+                    $nextJanitor = $now + 3600;
+                }
             } catch (Throwable $exception) {
                 HubLogger::event('delivery', 'pass_failed', ['error' => $exception::class], LOG_ERR);
             }
@@ -126,6 +150,25 @@ class WorkerMessengerHubDelivery extends WorkerBase
     private static function channels(HubSettings $settings): ChannelRegistry
     {
         return ChannelFactory::create($settings);
+    }
+
+    private static function attachments(HubDatabase $db, string $moduleRoot, string $apiKey): AttachmentPipeline
+    {
+        $temp = new TempDir($moduleRoot);
+        $paths = new PathGuard(new CoreRecordingRoots($temp->probeDir()));
+
+        return new AttachmentService(
+            new Converter(new RealProcessRunner(), ToolFinder::system()),
+            new RecordingLocator(
+                new LocalRestClient($apiKey),
+                new LocalRestFileDownloader($apiKey),
+                $paths
+            ),
+            $paths,
+            new PreparedRecordingsRepository($db),
+            $temp,
+            $db
+        );
     }
 
     private static function texts(): Texts

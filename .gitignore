@@ -4,6 +4,7 @@
 /vendor/
 /db/
 /builds/
+/tmp/
 .worktrees/
 .superpowers/
 .claude/settings.local.json

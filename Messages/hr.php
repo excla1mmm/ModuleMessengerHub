@@ -135,6 +135,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => 'interni',
     'module_messenger_hub_MessageDirectionUnknown' => 'poziv',
     'module_messenger_hub_MessageVoicemailHint' => 'Snimka je dostupna u dnevniku poziva.',
+    'module_messenger_hub_MessageAttachmentInAtc' => 'Snimka je dostupna u PBX-u.',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => 'ocjena {score}',
     'module_messenger_hub_MessageReasons' => 'Razlozi: {reasons}',

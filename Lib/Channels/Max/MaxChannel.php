@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Modules\ModuleMessengerHub\Lib\Channels\Max;
 
+use Modules\ModuleMessengerHub\Lib\Channels\AttachmentPart;
+use Modules\ModuleMessengerHub\Lib\Channels\AttachmentResult;
 use Modules\ModuleMessengerHub\Lib\Channels\BotCredentials;
 use Modules\ModuleMessengerHub\Lib\Channels\BotIdentity;
 use Modules\ModuleMessengerHub\Lib\Channels\ChannelInterface;
@@ -52,6 +54,15 @@ final class MaxChannel implements ChannelInterface
         $rendered = $this->markup->render($message);
 
         return $this->api->sendMessage($bot, $to, $rendered['text'], $rendered['buttons']);
+    }
+
+    public function sendAttachment(BotCredentials $bot, Recipient $to, AttachmentPart $part): AttachmentResult
+    {
+        // the caption arrives as plain text and goes into `format: html`: escape exactly once here
+        $limit = max(1, min(180, $this->limits()->maxCaptionLength));
+        $caption = MaxMarkup::escape(mb_substr($part->caption, 0, $limit));
+
+        return $this->api->sendAudio($bot, $to, $part->filePath, $caption, $part->pendingToken);
     }
 
     public function delete(BotCredentials $bot, Recipient $to, string $externalMessageId): SendResult

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\ModuleMessengerHub\Lib\Routing;
 
+use Modules\ModuleMessengerHub\Lib\Attachments\AttachmentPlanner;
 use Modules\ModuleMessengerHub\Lib\Delivery\RetractionPlanner;
 use Modules\ModuleMessengerHub\Lib\Events\EventStore;
 use Modules\ModuleMessengerHub\Lib\Events\HubEvent;
@@ -61,6 +62,7 @@ final class Router
 
         $enabled = $this->rules->enabled();
         $links = new LinkBuilder($this->settings->pbxPublicUrl());
+        $planner = new AttachmentPlanner($this->texts, $links);
         $maskDefault = $this->settings->maskPhoneDefault();
         $deliveries = 0;
         $processed = [];
@@ -110,6 +112,13 @@ final class Router
                     $message->toArray(),
                     JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
                 );
+                $plan = $planner->plan($event, $rule, $message);
+                $attachmentJson = $plan === null
+                    ? null
+                    : json_encode(
+                        $plan->toArray(),
+                        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+                    );
                 foreach ($chats as $chat) {
                     $deliveries += $this->insertDelivery(
                         (int)$row['id'],
@@ -117,6 +126,7 @@ final class Router
                         $chat['bot_id'],
                         $rule->id,
                         $rendered,
+                        $attachmentJson,
                         $now
                     );
                 }
@@ -135,15 +145,16 @@ final class Router
         int $botId,
         int $ruleId,
         string $rendered,
+        ?string $attachmentJson,
         int $now
     ): int {
         return $this->db->execute(
             'INSERT OR IGNORE INTO ' . self::OUTBOX_TABLE
             . ' (event_id, chat_id, bot_id, rule_id, status, attempts, uncertain_attempts, next_attempt_at,'
-            . ' lease_owner, lease_until, rendered_json, external_message_ids, last_error_code, last_error_at,'
+            . ' lease_owner, lease_until, rendered_json, attachment_json, external_message_ids, last_error_code, last_error_at,'
             . ' created_at, updated_at, sent_at)'
             . " VALUES (:event_id, :chat_id, :bot_id, :rule_id, 'pending', 0, 0, :now,"
-            . " '', NULL, :rendered, '[]', '', NULL, :created_at, :updated_at, NULL)",
+            . " '', NULL, :rendered, :attachment_json, '[]', '', NULL, :created_at, :updated_at, NULL)",
             [
                 'event_id' => $eventId,
                 'chat_id' => $chatId,
@@ -151,6 +162,7 @@ final class Router
                 'rule_id' => $ruleId,
                 'now' => $now,
                 'rendered' => $rendered,
+                'attachment_json' => $attachmentJson,
                 'created_at' => $now,
                 'updated_at' => $now,
             ]

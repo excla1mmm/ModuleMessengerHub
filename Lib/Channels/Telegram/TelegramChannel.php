@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Modules\ModuleMessengerHub\Lib\Channels\Telegram;
 
+use Modules\ModuleMessengerHub\Lib\Channels\AttachmentPart;
+use Modules\ModuleMessengerHub\Lib\Channels\AttachmentResult;
 use Modules\ModuleMessengerHub\Lib\Channels\BotCredentials;
 use Modules\ModuleMessengerHub\Lib\Channels\BotIdentity;
 use Modules\ModuleMessengerHub\Lib\Channels\ChannelInterface;
@@ -52,6 +54,15 @@ final class TelegramChannel implements ChannelInterface
         $rendered = $this->html->render($message);
 
         return $this->api->sendMessage($bot, $to->chatId, $rendered['text'], $rendered['buttons']);
+    }
+
+    public function sendAttachment(BotCredentials $bot, Recipient $to, AttachmentPart $part): AttachmentResult
+    {
+        // the caption arrives as plain text: shorten before escaping so an entity is never split
+        $limit = max(1, min(180, $this->limits()->maxCaptionLength));
+        $caption = TelegramHtml::escape(mb_substr($part->caption, 0, $limit));
+
+        return AttachmentResult::of($this->api->sendAudio($bot, $to->chatId, $part->filePath, $caption));
     }
 
     public function delete(BotCredentials $bot, Recipient $to, string $externalMessageId): SendResult

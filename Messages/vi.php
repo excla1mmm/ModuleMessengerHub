@@ -135,6 +135,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => 'nội bộ',
     'module_messenger_hub_MessageDirectionUnknown' => 'cuộc gọi',
     'module_messenger_hub_MessageVoicemailHint' => 'Bản ghi có trong nhật ký cuộc gọi.',
+    'module_messenger_hub_MessageAttachmentInAtc' => 'Bản ghi có sẵn trong tổng đài.',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => 'điểm {score}',
     'module_messenger_hub_MessageReasons' => 'Lý do: {reasons}',

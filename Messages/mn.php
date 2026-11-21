@@ -135,6 +135,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => 'дотоод',
     'module_messenger_hub_MessageDirectionUnknown' => 'дуудлага',
     'module_messenger_hub_MessageVoicemailHint' => 'Бичлэг нь дуудлагын бүртгэлд байна.',
+    'module_messenger_hub_MessageAttachmentInAtc' => 'Бичлэг нь PBX-д боломжтой.',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => 'үнэлгээ {score}',
     'module_messenger_hub_MessageReasons' => 'Шалтгаан: {reasons}',

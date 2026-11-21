@@ -164,6 +164,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => 'wewnętrzne',
     'module_messenger_hub_MessageDirectionUnknown' => 'połączenie',
     'module_messenger_hub_MessageVoicemailHint' => 'Nagranie jest dostępne w dzienniku połączeń.',
+    'module_messenger_hub_MessageAttachmentInAtc' => 'Nagranie jest dostępne w PBX.',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => 'ocena {score}',
     'module_messenger_hub_MessageReasons' => 'Przyczyny: {reasons}',

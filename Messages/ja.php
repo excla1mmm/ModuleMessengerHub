@@ -135,6 +135,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => '内線',
     'module_messenger_hub_MessageDirectionUnknown' => '通話',
     'module_messenger_hub_MessageVoicemailHint' => '録音は通話履歴で確認できます。',
+    'module_messenger_hub_MessageAttachmentInAtc' => '録音はPBXで利用できます。',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => 'スコア {score}',
     'module_messenger_hub_MessageReasons' => '理由: {reasons}',

@@ -135,6 +135,7 @@ foreach ($moduleIds as $mid) {
 }
 check($registry->apiReadPaths(array_merge(['core.advice'], $moduleIds)) === [
     '/api/v3/advice',
+    '/api/v3/cdr',
     '/api/v3/module-ai-supervisor/calls',
     '/api/v3/module-ai-supervisor/workers',
     '/api/v3/module-voice-agent/callbacks',
@@ -150,7 +151,10 @@ $rest = new FixtureRestReader(attentionRoutes($listFixture));
 $attention = new AiAttentionCallSource(static fn (): array => MAP);
 check($attention->id() === 'ai_supervisor.attention_call', 'attention: id');
 check($attention->requiredModule() === 'ModuleAISupervisor', 'attention: module');
-check($attention->apiReadPaths() === [AiAttentionCallSource::API_READ_PATH], 'attention: single read path');
+check(
+    $attention->apiReadPaths() === [AiAttentionCallSource::API_READ_PATH, AiAttentionCallSource::CDR_READ_PATH],
+    'attention: read paths are the calls list and the CDR (recording by linkedid)'
+);
 
 // baseline: no events, no detail fetches
 $now = 1791073000;
@@ -198,6 +202,10 @@ if (count($stored) === 1) {
     check(count($quotes) === 3, 'attention: up to 3 evidence quotes');
     check(($quotes[0]['start_ms'] ?? -1) === 42000 && ($quotes[0]['end_ms'] ?? -1) === 47500, 'attention: quotes carry timecodes');
     check(($payload['facts']['scores']['quality_v2'][0]['score'] ?? -1) === 41, 'attention: quality v2 score');
+    check(($payload['attachments'][0]['kind'] ?? '') === 'recording', 'attention: recording fact is attached');
+    check(($payload['attachments'][0]['source'] ?? '') === 'cdr', 'attention: recording comes from Core CDR by linkedid');
+    check(($payload['attachments'][0]['linkedid'] ?? '') === 'mikopbx-1790900000.050', 'attention: attachment linkedid');
+    check(($payload['attachments'][0]['cdr_id'] ?? 0) === 501, 'attention: recording_access.cdr_id is kept');
 }
 
 // re-analysis of the same call: dedupe by ref id

@@ -133,6 +133,7 @@ final class HttpTransport implements HttpClient
             CURLOPT_TIMEOUT => max(1, $this->timeoutSec),
             CURLOPT_CONNECTTIMEOUT => max(1, $this->connectTimeoutSec),
             CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_HTTPHEADER => ['Accept: application/json'],

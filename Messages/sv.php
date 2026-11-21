@@ -135,6 +135,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => 'internt',
     'module_messenger_hub_MessageDirectionUnknown' => 'samtal',
     'module_messenger_hub_MessageVoicemailHint' => 'Inspelningen finns i samtalsloggen.',
+    'module_messenger_hub_MessageAttachmentInAtc' => 'Inspelningen finns tillgänglig i PBX:en.',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => 'betyg {score}',
     'module_messenger_hub_MessageReasons' => 'Orsaker: {reasons}',

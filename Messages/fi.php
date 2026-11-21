@@ -135,6 +135,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => 'sisäinen',
     'module_messenger_hub_MessageDirectionUnknown' => 'puhelu',
     'module_messenger_hub_MessageVoicemailHint' => 'Tallenne on puhelulokissa.',
+    'module_messenger_hub_MessageAttachmentInAtc' => 'Tallenne on saatavilla PBX:ssä.',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => 'pisteet {score}',
     'module_messenger_hub_MessageReasons' => 'Syyt: {reasons}',

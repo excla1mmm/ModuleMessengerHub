@@ -52,6 +52,9 @@ SQLite модуля (`db/module.db`), модели — наследники `Mik
 | `lease_owner`, `lease_until` | лизинг строки воркером |
 | `rendered_json` | нейтральное сообщение (`RenderedMessage`) на момент рендера — номер уже замаскирован, если этого требуют правило/настройки |
 | `external_message_ids` | JSON-список всех id доставки в мессенджере (текст + вложения, этап 3a) |
+| `attachment_json` | этап 3a: зафиксированный план вложения (режим, источник, фрагменты, строка-примечание); NULL — вложения нет |
+| `delivery_parts_json` | этап 3a: прогресс частей (текст, аудио N, примечание): `pending/sending/sent/skipped`, id, код, MAX upload-токен |
+| `retract_progress_json` | этап 3a: какие id уже удалены (`done`) и какие остались при `retract_failed` (`failed`) |
 | `last_error_code`, `last_error_at` | нормализованный код, без токенов и персональных данных |
 | `created_at`, `updated_at`, `sent_at` | |
 | `retract_requested_at`, `retract_attempts`, `retract_next_attempt_at`, `retract_last_error_code` | этап 2d: запрос удаления отправленного сообщения и его повторы (Plan/12) |
@@ -63,6 +66,13 @@ SQLite модуля (`db/module.db`), модели — наследники `Mik
 `source_id` (UNIQUE), `enabled`, `cursor_json`, `availability`, `last_poll_at`, `last_ok_at`,
 `last_error_code`, `baseline_set_at` (момент, с которого источник шлёт события — история не рассылается).
 
+### `m_MessengerHubPreparedRecordings` — кэш подготовки аудио (этап 3a)
+`id`, `event_id`, `cache_key` (UNIQUE: событие + режим + источник + фрагменты), `status`
+(`preparing|ready|failed`), `files_json` (пути к MP3 в `<module>/tmp/attachments`, размер, длительность,
+диапазон), `lease_owner`, `lease_until` (не даёт двум воркерам конвертировать одно событие), `error_code`,
+`created_at`, `updated_at`. Файлы не копируются в БД; после доставки/окончательного отказа удаляются,
+остатки сносит уборщик.
+
 ### `m_MessengerHubDiscoverySessions` — сеансы «Подключить чат»
 `id`, `bot_id`, `started_at`, `expires_at`, `updates_offset`, `found_json`, `status`.
 
@@ -72,6 +82,7 @@ SQLite модуля (`db/module.db`), модели — наследники `Mik
 - `Outbox(status, next_attempt_at)` — выборка к отправке.
 - `Outbox(event_id)`, `Outbox(chat_id, status)`.
 - `BotChats(bot_id, chat_id)` UNIQUE, `BotChats(linked_user_id)` — чат сотрудника.
+- `PreparedRecordings(event_id)`, `PreparedRecordings(cache_key)` UNIQUE — кэш аудио.
 
 ## Хранение и очистка
 

@@ -27,6 +27,12 @@ interface ChannelInterface
     public function send(BotCredentials $bot, Recipient $to, RenderedMessage $message): SendResult;
 
     /**
+     * One audio part of a delivery (stage 3a). The adapter escapes the caption once and maps the API
+     * answer to the same four outcomes; MAX may answer `notReady` with a token to reuse.
+     */
+    public function sendAttachment(BotCredentials $bot, Recipient $to, AttachmentPart $part): AttachmentResult;
+
+    /**
      * Deletes one previously sent message (stage 2d: retract a missed-call notification).
      * A missing message counts as deleted (sent with no ids).
      */

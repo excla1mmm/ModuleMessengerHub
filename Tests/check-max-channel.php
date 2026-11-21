@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/support/bootstrap.php';
 
+use Modules\ModuleMessengerHub\Lib\Channels\AttachmentPart;
 use Modules\ModuleMessengerHub\Lib\Channels\BotCredentials;
 use Modules\ModuleMessengerHub\Lib\Channels\ChannelFactory;
 use Modules\ModuleMessengerHub\Lib\Channels\ChannelLimits;
@@ -369,8 +370,44 @@ check($result->outcome === SendResult::SENT && $http->calls === [], 'nothing to 
 $http = new ScriptedMaxHttp();
 $http->queue('uploads_ok');
 $upload = $api($http)->requestUpload($bot, 'audio');
-check($upload === ['url' => 'https://uploads.example.max/api/upload/anonymised', 'token' => 'attachment.token.anonymised'], 'POST /uploads returns url and token');
+check($upload === ['url' => 'https://uploads.max.ru/api/upload/anonymised', 'token' => 'attachment.token.anonymised'], 'POST /uploads returns url and token');
 check(str_contains($http->calls[0]['url'], 'type=audio'), 'upload type is passed');
+
+$http = new ScriptedMaxHttp();
+$http->queue('uploads_foreign');
+check($api($http)->requestUpload($bot, 'audio') === null, 'a foreign upload host is rejected (fail closed)');
+
+// ---------- audio attachment (stage 3a) ----------
+
+$http = new ScriptedMaxHttp();
+$http->queue('uploads_ok')->queue('uploads_ok')->queue('send_ok');
+$result = $api($http)->sendAudio($bot, $group, '/module/tmp/a.mp3', 'A &lt; B');
+check($result->result->outcome === SendResult::SENT, 'attachment: MAX audio sent');
+check($result->pendingToken === '' && !$result->notReady, 'attachment: a normal send has no pending token');
+check(count($http->calls) === 3 && $http->calls[0]['method'] === 'post' && $http->calls[1]['method'] === 'multipart', 'attachment: upload request, file, message');
+check($http->calls[2]['payload']['attachments'][0]['payload']['token'] === 'attachment.token.anonymised', 'attachment: the message carries the upload token');
+check($http->calls[2]['payload']['text'] === 'A &lt; B', 'attachment: the caption is already channel markup');
+
+$http = new ScriptedMaxHttp();
+$http->queue('send_ok');
+$result = $api($http)->sendAudio($bot, $group, '/module/tmp/a.mp3', '', 'tok-reuse');
+check($result->result->outcome === SendResult::SENT, 'attachment: a token retry sends the message');
+check(count($http->calls) === 1 && $http->calls[0]['method'] === 'post', 'attachment: a token retry never re-uploads');
+check($http->calls[0]['payload']['attachments'][0]['payload']['token'] === 'tok-reuse', 'attachment: the same token is reused');
+
+$http = new ScriptedMaxHttp();
+$http->queue('uploads_ok')->queue('uploads_ok')->queue('error_200_attachment_not_ready');
+$result = $api($http)->sendAudio($bot, $group, '/module/tmp/a.mp3', '');
+check($result->notReady && $result->pendingToken === 'attachment.token.anonymised', 'attachment.not.ready returns the upload token');
+check($result->result->outcome === SendResult::RETRY && $result->result->code === 'max.attachment.not_ready', 'attachment.not.ready is a retry');
+
+$http = new ScriptedMaxHttp();
+$http->queue('uploads_ok')->queue('uploads_ok')->queue('send_ok');
+$channel = new MaxChannel($api($http));
+$result = $channel->sendAttachment($bot, $group, new AttachmentPart('/module/tmp/a.mp3', 'A < B & C'));
+check($result->result->outcome === SendResult::SENT, 'max channel: attachment sent');
+check($http->calls[2]['payload']['text'] === 'A &lt; B &amp; C', 'max channel: the caption is escaped once');
+check($channel->limits()->maxFileDurationSec === 3600, 'max channel: the 60-minute limit is declared');
 
 // ---------- HTML rendering ----------
 

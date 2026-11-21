@@ -106,13 +106,21 @@ function hubTestDatabase(): PdoHubDatabase
         'CREATE TABLE m_MessengerHubOutbox (id INTEGER PRIMARY KEY AUTOINCREMENT, event_id INTEGER NOT NULL,'
         . " chat_id INTEGER NOT NULL, bot_id INTEGER NOT NULL, rule_id INTEGER, status TEXT NOT NULL,"
         . " attempts INTEGER NOT NULL, uncertain_attempts INTEGER NOT NULL, next_attempt_at INTEGER NOT NULL,"
-        . " lease_owner TEXT, lease_until INTEGER, rendered_json TEXT, external_message_ids TEXT NOT NULL,"
+        . " lease_owner TEXT, lease_until INTEGER, rendered_json TEXT, attachment_json TEXT,"
+        . " delivery_parts_json TEXT, external_message_ids TEXT NOT NULL,"
         . " last_error_code TEXT NOT NULL, last_error_at INTEGER, created_at INTEGER NOT NULL,"
         . " updated_at INTEGER NOT NULL, sent_at INTEGER, retract_requested_at INTEGER, retract_attempts INTEGER,"
         . " retract_next_attempt_at INTEGER, retract_last_error_code TEXT, retracted_at INTEGER,"
-        . " retract_reason TEXT, resolved_at INTEGER, resolved_by TEXT)"
+        . " retract_progress_json TEXT, retract_reason TEXT, resolved_at INTEGER, resolved_by TEXT)"
     );
     $pdo->exec('CREATE UNIQUE INDEX event_chat ON m_MessengerHubOutbox (event_id, chat_id)');
+    $pdo->exec(
+        'CREATE TABLE m_MessengerHubPreparedRecordings (id INTEGER PRIMARY KEY AUTOINCREMENT,'
+        . " event_id INTEGER NOT NULL, cache_key TEXT NOT NULL, status TEXT NOT NULL, files_json TEXT NOT NULL,"
+        . " lease_owner TEXT, lease_until INTEGER, error_code TEXT NOT NULL, created_at INTEGER NOT NULL,"
+        . " updated_at INTEGER NOT NULL)"
+    );
+    $pdo->exec('CREATE UNIQUE INDEX cache_key ON m_MessengerHubPreparedRecordings (cache_key)');
     $pdo->exec(
         'CREATE TABLE m_MessengerHubDiscoverySessions (id INTEGER PRIMARY KEY AUTOINCREMENT, bot_id INTEGER NOT NULL,'
         . " started_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, updates_offset INTEGER NOT NULL,"

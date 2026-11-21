@@ -137,7 +137,7 @@ final class TelegramApi
         return self::classify($response, $json);
     }
 
-    /** Stage 3a hook: voice message as MP3/M4A. */
+    /** Stage 3a hook: voice message as MP3/M4A. `$caption` must already be escaped HTML (see TelegramChannel). */
     public function sendAudio(BotCredentials $bot, string $chatId, string $filePath, string $caption = ''): SendResult
     {
         $fields = ['chat_id' => $chatId];

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\ModuleMessengerHub\Lib\Routing;
 
+use Modules\ModuleMessengerHub\Lib\Attachments\AttachmentMode;
 use Modules\ModuleMessengerHub\Lib\Events\HubEvent;
 
 /**
@@ -94,6 +95,14 @@ final class Rule
         $value = $this->options['mask_phone'] ?? null;
 
         return is_bool($value) ? $value : $globalDefault;
+    }
+
+    /**
+     * Audio attachment mode (Plan/05): `none` by default, a legacy boolean is not a mode.
+     */
+    public function attachmentsMode(): string
+    {
+        return AttachmentMode::fromOptions($this->options);
     }
 
     /** @return list<int> */

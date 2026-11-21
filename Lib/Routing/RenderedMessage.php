@@ -52,6 +52,24 @@ final class RenderedMessage
         );
     }
 
+    /** Appends a plain line (used for the "recording is available in the PBX" fallback). */
+    public function withLine(string $line): self
+    {
+        if ($line === '' || in_array($line, $this->lines, true)) {
+            return $this;
+        }
+
+        return new self(
+            title: $this->title,
+            lines: [...$this->lines, $line],
+            notes: $this->notes,
+            quotes: $this->quotes,
+            footer: $this->footer,
+            buttons: $this->buttons,
+            attachments: $this->attachments,
+        );
+    }
+
     /** @return array<string, mixed> */
     public function toArray(): array
     {

@@ -135,6 +135,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => '内线',
     'module_messenger_hub_MessageDirectionUnknown' => '通话',
     'module_messenger_hub_MessageVoicemailHint' => '录音可在通话记录中查看。',
+    'module_messenger_hub_MessageAttachmentInAtc' => '录音可在 PBX 中获取。',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => '评分 {score}',
     'module_messenger_hub_MessageReasons' => '原因：{reasons}',

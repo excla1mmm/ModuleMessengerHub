@@ -135,6 +135,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => 'intern',
     'module_messenger_hub_MessageDirectionUnknown' => 'apel',
     'module_messenger_hub_MessageVoicemailHint' => 'Înregistrarea este disponibilă în jurnalul de apeluri.',
+    'module_messenger_hub_MessageAttachmentInAtc' => 'Înregistrarea este disponibilă în PBX.',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => 'scor {score}',
     'module_messenger_hub_MessageReasons' => 'Motive: {reasons}',

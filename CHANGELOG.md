@@ -3,6 +3,30 @@
 ## Unreleased
 
 ### Added
+- Stage 3a-1 — attachments backend (decisions and code, no UI/station; Plan/03, Plan/05):
+  - decisions: voicemail carries its file; `ai_supervisor.attention_call` carries fragments around its
+    (up to 3) quotes by default and the whole conversation only by an explicit rule option;
+    `core.missed_call` never carries audio (its `recordingfile` is IVR/greeting, not the customer);
+  - `ai_supervisor.attention_call` recording comes from the public Core REST v3 by `linkedid`
+    (`recording_access.cdr_id` when AI Supervisor reports it) — the hub key gains read-only
+    `/api/v3/cdr`; AI Supervisor tables/files are never read;
+  - `PathGuard`: `realpath()` inside `AST_MONITOR_DIR`/`voicemailarchive` (Core constants), symlink/
+    traversal/missing/empty rejected with `attachment.path_*`; a `probe=true` event may only use the
+    module probe directory;
+  - `Converter`: ffmpeg -> sox -> sox+lame, mono 32 kbps MP3, fragments cut in one pass, `proc_open`
+    argument arrays (no shell), `nice`, hard timeout with SIGTERM/SIGKILL, output only in the module
+    temp dir (0700); missing tools degrade to text (`attachment.converter_missing`);
+  - rule option `options.attachments` = `none|fragments|recording`, default `none` for new and existing
+    rules (legacy `true` reads as `none`); the plan is frozen in `attachment_json` at routing time;
+  - delivery is text first (never delayed by audio), then audio parts, then an optional short fallback
+    note; per-part progress in `delivery_parts_json` means a retry never re-sends the text or a sent
+    part; a long conversion extends the row lease and the per-event cache (`cache_key`) is shared by all
+    chats; MAX `attachment.not.ready` reuses the same upload token (5/10/20 s), Telegram 413 / MAX size
+    errors skip only that part and the row is still `sent`;
+  - retraction deletes every stored id (text + parts + note), one rate reservation per delete, with
+    `retract_progress_json` (done/left) and `retract_failed` without endless retries;
+  - new `m_MessengerHubPreparedRecordings`, tests `Tests/check-attachments.php`, extended delivery,
+    retraction, Telegram and MAX checks; 29 locales.
 - Stage 3d — MAX accepted on the test station (21.11.2026, packages 6.0/6.1, live bot and real chats):
   - the shipped Минцифры root CA reaches MAX (`GET /me` ok); a broken `max_ca_bundle_path` falls back
     with `ca_override_rejected`; a wrong CA bundle fails closed with `max.tls.untrusted_ca`, the bot

@@ -135,6 +135,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => '내선',
     'module_messenger_hub_MessageDirectionUnknown' => '통화',
     'module_messenger_hub_MessageVoicemailHint' => '녹음은 통화 기록에서 확인할 수 있습니다.',
+    'module_messenger_hub_MessageAttachmentInAtc' => '녹음은 PBX에서 사용할 수 있습니다.',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => '점수 {score}',
     'module_messenger_hub_MessageReasons' => '사유: {reasons}',

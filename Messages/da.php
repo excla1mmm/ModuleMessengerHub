@@ -135,6 +135,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => 'internt',
     'module_messenger_hub_MessageDirectionUnknown' => 'opkald',
     'module_messenger_hub_MessageVoicemailHint' => 'Optagelsen findes i opkaldsloggen.',
+    'module_messenger_hub_MessageAttachmentInAtc' => 'Optagelsen er tilgængelig i PBX\'en.',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => 'score {score}',
     'module_messenger_hub_MessageReasons' => 'Årsager: {reasons}',

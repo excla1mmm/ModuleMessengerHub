@@ -164,6 +164,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => 'interna',
     'module_messenger_hub_MessageDirectionUnknown' => 'chamada',
     'module_messenger_hub_MessageVoicemailHint' => 'A gravação está disponível no registo de chamadas.',
+    'module_messenger_hub_MessageAttachmentInAtc' => 'A gravação está disponível na central telefónica.',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => 'pontuação {score}',
     'module_messenger_hub_MessageReasons' => 'Motivos: {reasons}',

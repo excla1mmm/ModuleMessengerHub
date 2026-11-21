@@ -135,6 +135,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => 'dahili',
     'module_messenger_hub_MessageDirectionUnknown' => 'arama',
     'module_messenger_hub_MessageVoicemailHint' => 'Kayıt, arama günlüğünde mevcut.',
+    'module_messenger_hub_MessageAttachmentInAtc' => 'Kayıt PBX\'te mevcut.',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => 'puan {score}',
     'module_messenger_hub_MessageReasons' => 'Nedenler: {reasons}',

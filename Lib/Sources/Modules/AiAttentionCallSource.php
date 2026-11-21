@@ -33,6 +33,12 @@ final class AiAttentionCallSource implements SourceInterface
     public const string EVENT_TYPE = 'ai_supervisor.attention_call';
     public const string API_READ_PATH = '/api/v3/module-ai-supervisor/calls';
     public const string PATH = '/pbxcore' . self::API_READ_PATH;
+    /**
+     * The attention-call recording is delivered through the public Core REST v3 (CDR by linkedid,
+     * `recording_access.cdr_id` when present). List/detail need `read`; playback/download are public
+     * by their one-time token (Plan/03, decision 3a-1). Core is never modified.
+     */
+    public const string CDR_READ_PATH = '/api/v3/cdr';
 
     private const int WINDOW_DAYS = 7;
     private const int PAGE_LIMIT = 100;
@@ -74,7 +80,7 @@ final class AiAttentionCallSource implements SourceInterface
 
     public function apiReadPaths(): array
     {
-        return [self::API_READ_PATH];
+        return [self::API_READ_PATH, self::CDR_READ_PATH];
     }
 
     public function mode(): string
@@ -192,6 +198,11 @@ final class AiAttentionCallSource implements SourceInterface
             'outgoing' => (string)($item['dst_num'] ?? ''),
             default => (string)($item['src_num'] ?? ''),
         };
+        $recording = ['kind' => 'recording', 'source' => 'cdr', 'linkedid' => $linkedid];
+        $cdrId = (int)($detail['recording_access']['cdr_id'] ?? 0);
+        if ($cdrId > 0) {
+            $recording['cdr_id'] = $cdrId;
+        }
 
         return new HubEvent(
             sourceId: self::ID,
@@ -232,7 +243,7 @@ final class AiAttentionCallSource implements SourceInterface
                     ],
                 ],
                 'links' => [],
-                'attachments' => [],
+                'attachments' => [$recording],
             ],
         );
     }

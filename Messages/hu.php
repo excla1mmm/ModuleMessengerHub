@@ -135,6 +135,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => 'belső',
     'module_messenger_hub_MessageDirectionUnknown' => 'hívás',
     'module_messenger_hub_MessageVoicemailHint' => 'A felvétel elérhető a hívásnaplóban.',
+    'module_messenger_hub_MessageAttachmentInAtc' => 'A felvétel elérhető a PBX-ben.',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => 'pontszám: {score}',
     'module_messenger_hub_MessageReasons' => 'Okok: {reasons}',

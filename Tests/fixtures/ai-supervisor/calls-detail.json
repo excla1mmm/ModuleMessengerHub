@@ -4,6 +4,7 @@
     "stt_job_id": 6201,
     "call_id": "mikopbx-1791068005.100",
     "call_timestamp": 1791068005,
+    "recording_access": {"cdr_id": 501},
     "duration": 187,
     "src_num": "79000000001",
     "dst_num": "204",

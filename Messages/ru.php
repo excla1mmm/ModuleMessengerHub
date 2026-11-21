@@ -164,6 +164,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => 'внутренний',
     'module_messenger_hub_MessageDirectionUnknown' => 'звонок',
     'module_messenger_hub_MessageVoicemailHint' => 'Запись доступна в журнале звонков.',
+    'module_messenger_hub_MessageAttachmentInAtc' => 'Запись доступна в АТС.',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => 'оценка {score}',
     'module_messenger_hub_MessageReasons' => 'Причины: {reasons}',

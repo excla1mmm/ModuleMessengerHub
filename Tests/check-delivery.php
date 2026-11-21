@@ -8,6 +8,8 @@ declare(strict_types=1);
 
 require __DIR__ . '/support/bootstrap.php';
 
+use Modules\ModuleMessengerHub\Lib\Channels\AttachmentPart;
+use Modules\ModuleMessengerHub\Lib\Channels\AttachmentResult;
 use Modules\ModuleMessengerHub\Lib\Channels\BotCredentials;
 use Modules\ModuleMessengerHub\Lib\Channels\BotIdentity;
 use Modules\ModuleMessengerHub\Lib\Channels\ChannelInterface;
@@ -30,6 +32,12 @@ final class FakeChannel implements ChannelInterface
     public array $results = [];
 
     public int $sends = 0;
+
+    /** @var list<AttachmentResult> */
+    public array $attachmentResults = [];
+
+    /** @var list<array{path: string, caption: string, token: string}> */
+    public array $attachments = [];
 
     public function __construct(private readonly string $channelId = 'telegram')
     {
@@ -55,6 +63,13 @@ final class FakeChannel implements ChannelInterface
         $this->sends++;
 
         return array_shift($this->results) ?? SendResult::sent(['1']);
+    }
+
+    public function sendAttachment(BotCredentials $bot, Recipient $to, AttachmentPart $part): AttachmentResult
+    {
+        $this->attachments[] = ['path' => $part->filePath, 'caption' => $part->caption, 'token' => $part->pendingToken];
+
+        return array_shift($this->attachmentResults) ?? AttachmentResult::of(SendResult::sent(['a1']));
     }
 
     public function delete(BotCredentials $bot, Recipient $to, string $externalMessageId): SendResult
@@ -264,7 +279,7 @@ serviceFor($db, $channel)->runOnce(1790945000);
 check($row($db, $outboxId)['status'] === 'failed', 'the seventh attempt gives up');
 check((int)$row($db, $outboxId)['attempts'] === 7, 'attempts counted');
 
-// ---------- unknown outcome retried once ----------
+// ---------- unknown outcome: the text is at-most-once (stage 3a, Plan/08) ----------
 
 $db = hubTestDatabase();
 [, , , $outboxId] = seedDelivery($db, ['attempts' => 1]);
@@ -272,15 +287,14 @@ $channel = new FakeChannel();
 $channel->results = [SendResult::retry(10, 'http.timeout', true)];
 serviceFor($db, $channel)->runOnce(1790945000);
 $uncertainRow = $row($db, $outboxId);
-check($uncertainRow['status'] === 'pending', 'first unknown outcome is retried');
-check((int)$uncertainRow['uncertain_attempts'] === 1, 'uncertain attempt counted');
+check($uncertainRow['status'] === 'sent', 'an unknown text outcome is not retried (no duplicate)');
+$parts = json_decode((string)$uncertainRow['delivery_parts_json'], true);
+check(($parts['text']['state'] ?? '') === 'sent', 'the text part is marked sent');
+check(($parts['text']['code'] ?? '') === 'delivery.uncertain', 'the unknown outcome is visible as a code');
 
-$db = hubTestDatabase();
-[, , , $outboxId] = seedDelivery($db, ['attempts' => 2, 'uncertain_attempts' => 1]);
-$channel = new FakeChannel();
-$channel->results = [SendResult::retry(10, 'http.timeout', true)];
-serviceFor($db, $channel)->runOnce(1790945000);
-check($row($db, $outboxId)['status'] === 'failed', 'second unknown outcome fails without more retries');
+$channel->results = [SendResult::sent(['99'])];
+serviceFor($db, $channel)->runOnce(1790945100);
+check($channel->sends === 1, 'a later pass never sends the same text again');
 
 // ---------- recipient gone drops the whole chat ----------
 

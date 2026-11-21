@@ -21,6 +21,10 @@ final class ChannelLimits
          * (MAX: 30 rps per platform-api2.max.ru), not a per-bot allowance.
          */
         public readonly bool $perBotSharedHost = false,
+        /**
+         * Maximum audio duration in seconds (MAX: 60 min). 0 = the channel does not document a limit.
+         */
+        public readonly int $maxFileDurationSec = 0,
     ) {
     }
 
@@ -55,6 +59,7 @@ final class ChannelLimits
             perBotPerSec: 30,
             maxFileBytes: 256 * 1024 * 1024,
             perBotSharedHost: true,
+            maxFileDurationSec: 3600,
         );
     }
 }

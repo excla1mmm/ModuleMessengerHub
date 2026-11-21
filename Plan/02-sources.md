@@ -97,7 +97,7 @@ interface SourceInterface
 
 | Модуль | Тип события | Откуда | Доступ | Курсор / дедуп | Этап |
 |---|---|---|---|---|---|
-| ModuleAISupervisor | `ai_supervisor.attention_call` | `GET /pbxcore/api/v3/module-ai-supervisor/calls?attention=1&period=…&limit=…` (фильтр `attention` — `Lib/RestAPI/Calls/DataStructure.php:193`) | ✅ `read`, звонки видны | скользящее окно по дате + `ref_id`; `ai_attention:{ref_id}` | 1 ✅ (1.3) |
+| ModuleAISupervisor | `ai_supervisor.attention_call` | `GET /pbxcore/api/v3/module-ai-supervisor/calls?attention=1&period=…&limit=…` (фильтр `attention` — `Lib/RestAPI/Calls/DataStructure.php:193`); запись — публичный `GET /pbxcore/api/v3/cdr/{id}` / `?linkedid=…` (read) | ✅ `read`, звонки и CDR видны | скользящее окно по дате + `ref_id`; `ai_attention:{ref_id}` | 1 ✅ (1.3); вложение — 3a |
 | ModuleAISupervisor | `ai_supervisor.worker_offline` (+ `…_online`) | `GET …/module-ai-supervisor/workers`, diff статусов | ✅ `read` | `ai_worker:{uid}:{state}:{since}` | 1 ✅ (1.3) |
 | ModuleAISupervisor | `ai_supervisor.call_assigned` | `GET …/calls` с полями workflow — проверить фильтр по изменению | ✅ `read` (тот же ресурс) | `ai_assign:{ref_id}:{assignee}:{ts}` | 4 |
 | ModuleCloudAISupervisor | `cloud_ai.paused` / `cloud_ai.resumed` | REST состояния очереди/биллинга — уточнить ресурс | ⏳ Cloud AI откроет `read` (решение Q10/Q11) | `cloud_ai_pause:{reason}:{since}` | после доработки Cloud AI |
@@ -106,6 +106,11 @@ interface SourceInterface
 | ModuleCloudSpeechToText | `cloud_stt.incident`, `cloud_stt.paused` | `incidents`, `health`, `processing-controls` | ⏳ сейчас 403 (только JWT администратора); Cloud STT откроет `read` (решение Q10/Q11) | `cloud_stt_incident:{incident_id}:{state}`, `cloud_stt_pause:{reason}:{since}` | после доработки Cloud STT |
 | ModuleVoiceAgent | `voice_agent.callback_request` | `GET /pbxcore/api/v3/module-voice-agent/callbacks` — новые заявки на перезвон | ✅ `read` | `va_callback:{id}` | 1 ✅ (1.3) |
 | ModuleVoiceAgent | `voice_agent.runtime_down/up` | `GET …/module-voice-agent/runtime` (`health`, `agents`) | ✅ `read` | `va_runtime:{state}:{since}` | 1 ✅ (1.3) |
+
+Запись `attention_call` не копируется в событие: в `payload.attachments` лежит только факт
+`{kind: recording, source: cdr, linkedid, cdr_id?}`; путь/токен скачивания появляются только внутри
+`RecordingLocator` (этап 3a). `core.voicemail` кладёт путь из AMI (`vm-recordingfile`); `core.missed_call`
+вложений не несёт.
 
 Ядро: `GET /pbxcore/api/v3/advice` с ключом хаба — ✅ 200.
 

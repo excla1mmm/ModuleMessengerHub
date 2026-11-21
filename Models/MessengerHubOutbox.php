@@ -94,6 +94,24 @@ class MessengerHubOutbox extends ModulesModelsBase
      */
     public ?string $external_message_ids = '[]';
 
+    /** Stage 3a: frozen attachment plan (mode, source, fragments, fallback line). */
+    /**
+     * @Column(type="string", nullable=true)
+     */
+    public ?string $attachment_json = null;
+
+    /** Stage 3a: per-part progress (text, audio N, note) with external ids and MAX upload tokens. */
+    /**
+     * @Column(type="string", nullable=true)
+     */
+    public ?string $delivery_parts_json = null;
+
+    /** Stage 3a: which retraction ids are already deleted / left after a partial failure. */
+    /**
+     * @Column(type="string", nullable=true)
+     */
+    public ?string $retract_progress_json = null;
+
     /**
      * @Column(type="string", nullable=false)
      */

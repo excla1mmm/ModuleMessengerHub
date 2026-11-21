@@ -135,6 +135,7 @@ return [
     'module_messenger_hub_MessageDirectionInternal' => 'daxili',
     'module_messenger_hub_MessageDirectionUnknown' => 'zəng',
     'module_messenger_hub_MessageVoicemailHint' => 'Yazı zənglər jurnalında mövcuddur.',
+    'module_messenger_hub_MessageAttachmentInAtc' => 'Yazı PBX-də mövcuddur.',
     'module_messenger_hub_MessageProviderTransition' => '{from} → {to}',
     'module_messenger_hub_MessageQualityScore' => 'qiymət {score}',
     'module_messenger_hub_MessageReasons' => 'Səbəblər: {reasons}',
