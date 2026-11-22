@@ -36,3 +36,37 @@ A source may add facts to `payload.attachments` (Plan/05) — never the audio it
 
 A `probe=true` event may only point at the module's own `<module>/tmp/probe`. Never put a playback token, a
 copy of the audio or a path from another module's internal storage into the event.
+
+## A module with `/status` is one config entry
+
+A module that serves the uniform monitoring resource `GET …/<module-slug>/status` (Plan/02, GitHub
+issue #1) needs no adapter class: add one entry to `ModuleStatusSource::PROFILES` in
+`Lib/Sources/Modules/ModuleStatusSource.php`:
+
+```php
+'my_stt.status' => [
+    'module' => 'ModuleMyStt',                 // moduleUniqueID for availability
+    'slug' => 'module-my-stt',                 // REST path segment
+    'min_version' => '1.20',                   // shown as "update the module to N" on 404
+    'rules' => [
+        ['code' => 'worker_offline', 'event' => 'my_stt.worker_offline',
+         'recovery' => 'my_stt.worker_online', 'severity' => 'warning', 'debounce' => 120],
+    ],
+],
+```
+
+The generic adapter already gives you: baseline on enable and after an unavailable module, diff by
+(`code`, `ref`), debounce, dedupe `<source>:<code>:<ref>:<issue.since>`, recovery events, counters in
+the payload, `api_incompatible` on a 404, and a `read`-only grant on `/status`. What you still add:
+
+1. event type names in `SourceCatalog` (group, source name, event type keys) and `Messages/*.php`
+   (Russian first, all locales);
+2. a template entry in `TemplateRegistry` (reuse `ModuleStatusTemplate` when the code fits its maps,
+   otherwise extend it — a code/ref must never reach the message as raw text);
+3. fixtures with the real (anonymised) `/status` answers in `Tests/fixtures/modules-status/` and checks
+   in `Tests/check-status-sources.php`.
+
+A module whose `/status` is not released yet may set `fallback_slug` to read the module's `/workers`
+resource until `/status` answers; the fallback path then stays in the hub key only while it is in use.
+Keep the ref and `since` computation identical in both readers so a switch never re-alerts. Remove the
+fallback (and its key path) once the release exists.

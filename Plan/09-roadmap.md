@@ -279,6 +279,16 @@ at-most-once для текста и кэшем на событие, удален
 - [ ] Ключ хаба во всех путях только `read`.
 - [ ] Модули-источники ничего не отправляют и не знают о хабе.
 
+**3b-1 (адаптер, события, ключ; без UI) — 22.11.2026, без станции.** Один
+`Lib/Sources/Modules/ModuleStatusSource`, профиль на модуль в `ModuleStatusSource::PROFILES`
+(`local_stt.status`, `cloud_stt.status`, `cloud_ai.status`, `ai_supervisor.workers`); baseline,
+diff по (`code`, `ref`), debounce (120 с для `worker_offline`, 0 для остальных), dedupe
+`<source>:<code>:<ref>:<issue.since>`, recovery-события, `not_configured` без событий; 404 →
+`api_incompatible` + `update_to`; ИИ Супервайзер предпочитает `/status` и падает на `/workers` с
+кэшем возможности в настройках (TODO(#1)); ключ хаба — только `read`, `/workers` только пока
+запасной путь в ходу. Шаблоны и переводы (29 локалей), `Tests/check-status-sources.php`.
+Подробности — `Plan/02`, «Реализация 3b-1». Приёмка на станции — 3b-3.
+
 ## Этап 4 — удобство
 
 Тихие часы, сводные сообщения при лавине, дайджесты за день, фильтры по провайдерам/направлениям,

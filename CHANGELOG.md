@@ -10,6 +10,15 @@
   scratch files only when they exist (no `SHUTDOWN-ERROR` with a temp path when a worker is stopped).
 
 ### Added
+- Stage 3b-1 — module status sources (no UI, no station yet): one generic `ModuleStatusSource` reads the
+  uniform `GET …/<module>/status` of Local STT (1.154+), Cloud STT (1.120+) and Cloud AI Supervisor (1.46+),
+  diffs issues by (`code`, `ref`), keeps a silent baseline, debounces flapping (`worker_offline` 120 s,
+  billing immediate), de-duplicates by `<source>:<code>:<ref>:<issue.since>` and emits recovery events;
+  Cloud AI `not_configured` is silent, a confirmed Cloud STT incident does not re-alert. AI Supervisor
+  prefers `/status` and falls back to `/workers` until its release ships it (same event type, same dedupe
+  key, `/workers` stays in the hub key only while the fallback is detected; TODO(#1)). A `/status` 404 is
+  `api_incompatible` with the minimal version (`update_to`) instead of a log error. Templates and 38 keys
+  in all 29 locales; `Tests/check-status-sources.php`.
 - Stage 3a-3 — audio attachments accepted on the station (Plan/09): voicemail file and attention-call
   fragments to Telegram (group, private) and MAX (group); `none`, oversize (Telegram 50 MB, MAX 60 min)
   fallbacks; retry sends only the missing part; multi-id retraction; hub key gains/loses `/api/v3/cdr`
