@@ -17,6 +17,7 @@ use Modules\ModuleMessengerHub\Lib\Settings\HubSettings;
 use Modules\ModuleMessengerHub\Lib\Sources\ApiKeyPaths;
 use Modules\ModuleMessengerHub\Lib\Sources\Collector;
 use Modules\ModuleMessengerHub\Lib\Sources\CoreModuleStatusProbe;
+use Modules\ModuleMessengerHub\Lib\Sources\Modules\SettingsStatusCapabilityStore;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceContext;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceInterface;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceRecorder;
@@ -42,7 +43,8 @@ class WorkerMessengerHubCollector extends WorkerBase
         HubLogger::event('collector', 'started', ['pid' => getmypid()]);
         $db = new PhalconHubDatabase();
         $settings = new HubSettings($db);
-        $registry = SourceRegistry::default();
+        // the /status capability cache decides whether the AI Supervisor /workers path stays in the key
+        $registry = SourceRegistry::default(new SettingsStatusCapabilityStore($settings));
         $states = new SourceStateRepository($db);
         $events = new EventStore($db);
         $apiKey = new HubApiKey($settings);

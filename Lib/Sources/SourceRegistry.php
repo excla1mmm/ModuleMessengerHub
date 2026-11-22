@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\ModuleMessengerHub\Lib\Sources;
 
 use InvalidArgumentException;
+use Modules\ModuleMessengerHub\Lib\Sources\Modules\StatusCapabilityStore;
 
 /**
  * The list of all event sources the hub knows about (Plan/02-sources.md).
@@ -32,10 +33,14 @@ final class SourceRegistry
      * Production registry. Stage 1.2/1.3 adapters are added here.
      * The employee-map provider is the only Core glue (Lib/Support/InternalNumbersLoader, Plan/11 Q12);
      * it runs lazily at poll time inside the collector worker.
+     *
+     * Stage 3b-1: one ModuleStatusSource per module with a `/status` resource. The capability store
+     * tells whether the fallback to `/workers` is still needed (AI Supervisor, TODO(#1)); without a
+     * store the answer is "not checked yet", which keeps both paths in the key until the first poll.
      */
-    public static function default(): self
+    public static function default(?StatusCapabilityStore $statusCapabilities = null): self
     {
-        return new self([
+        $sources = [
             new Core\MissedCallSource(),
             new Core\VoicemailSource(),
             new Core\ProviderStatusSource(),
@@ -44,10 +49,14 @@ final class SourceRegistry
             new Modules\AiAttentionCallSource(
                 static fn (): array => \Modules\ModuleMessengerHub\Lib\Support\InternalNumbersLoader::load()
             ),
-            new Modules\AiWorkerStateSource(),
             new Modules\VaCallbackSource(),
             new Modules\VaRuntimeSource(),
-        ]);
+        ];
+        foreach (Modules\ModuleStatusSource::profiles() as $profile) {
+            $sources[] = new Modules\ModuleStatusSource($profile, $statusCapabilities);
+        }
+
+        return new self($sources);
     }
 
     /** @return list<SourceInterface> */

@@ -1,0 +1,16 @@
+{
+  "state": "degraded",
+  "since": 1791070800,
+  "issues": [
+    {
+      "code": "worker_offline",
+      "ref": "87355afe8690",
+      "severity": "warning",
+      "since": 1791070800
+    }
+  ],
+  "counters": {
+    "workers_online": 1,
+    "workers_total": 2
+  }
+}

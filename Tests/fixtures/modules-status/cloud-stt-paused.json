@@ -1,0 +1,15 @@
+{
+  "state": "paused",
+  "since": 1793100000,
+  "issues": [
+    {
+      "code": "processing_paused",
+      "ref": "user",
+      "severity": "warning",
+      "since": 1793100000
+    }
+  ],
+  "counters": {
+    "incidents_open": 0
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "state": "paused",
+  "since": 1793300000,
+  "issues": [
+    {
+      "code": "processing_paused",
+      "ref": "insufficient_funds",
+      "severity": "critical",
+      "since": 1793300000
+    }
+  ],
+  "counters": {
+    "jobs_waiting": 12
+  }
+}

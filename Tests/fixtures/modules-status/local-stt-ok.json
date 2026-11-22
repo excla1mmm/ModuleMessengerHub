@@ -1,0 +1,10 @@
+{
+  "state": "ok",
+  "since": 0,
+  "issues": [],
+  "counters": {
+    "workers_online": 2,
+    "workers_total": 2,
+    "jobs_waiting": 0
+  }
+}

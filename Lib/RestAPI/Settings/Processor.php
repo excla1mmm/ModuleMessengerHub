@@ -18,6 +18,7 @@ use Modules\ModuleMessengerHub\Lib\Routing\RuleRepository;
 use Modules\ModuleMessengerHub\Lib\Settings\HubSettings;
 use Modules\ModuleMessengerHub\Lib\Sources\CoreModuleStatusProbe;
 use Modules\ModuleMessengerHub\Lib\Sources\ModuleStatusProbe;
+use Modules\ModuleMessengerHub\Lib\Sources\Modules\SettingsStatusCapabilityStore;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceAvailability;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceCatalog;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceInterface;
@@ -262,7 +263,8 @@ final class Processor
                 $this->apiKeySync,
                 $this->states(),
                 new RuleRepository($this->database()),
-                $this->moduleProbe()
+                $this->moduleProbe(),
+                $this->settings === null ? null : new SettingsStatusCapabilityStore($this->settings)
             ))->apply();
         } catch (Throwable) {
             // the collector worker reconciles the key within a minute
@@ -305,6 +307,8 @@ final class Processor
                 'enabled' => $state['enabled'],
                 'availability' => $availability,
                 'availability_name' => $translator->t((string)SourceCatalog::availabilityKey($availability)),
+                // the version that serves the contract: the UI tells "update the module to N"
+                'update_to' => SourceCatalog::minVersion($source->id()),
                 'last_poll_at' => $state['last_poll_at'],
                 'last_ok_at' => $state['last_ok_at'],
                 'last_error_code' => $state['last_error_code'],

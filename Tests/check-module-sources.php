@@ -10,7 +10,6 @@ use Modules\ModuleMessengerHub\Lib\Events\HubEvent;
 use Modules\ModuleMessengerHub\Lib\Sources\Collector;
 use Modules\ModuleMessengerHub\Lib\Sources\ModuleStatusProbe;
 use Modules\ModuleMessengerHub\Lib\Sources\Modules\AiAttentionCallSource;
-use Modules\ModuleMessengerHub\Lib\Sources\Modules\AiWorkerStateSource;
 use Modules\ModuleMessengerHub\Lib\Sources\Modules\VaCallbackSource;
 use Modules\ModuleMessengerHub\Lib\Sources\Modules\VaRuntimeSource;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceAvailability;
@@ -122,12 +121,23 @@ const MAP = [
 
 // ======================= registry =======================
 $registry = SourceRegistry::default();
-check(count($registry->all()) === 9, 'registry: nine sources (5 core + 4 module)');
+check(count($registry->all()) === 12, 'registry: twelve sources (5 core + 7 module)');
 check($registry->find(AiAttentionCallSource::ID) instanceof AiAttentionCallSource, 'registry: attention_call');
-check($registry->find(AiWorkerStateSource::ID) instanceof AiWorkerStateSource, 'registry: worker state');
+check($registry->find('local_stt.status') !== null, 'registry: local STT status');
+check($registry->find('cloud_stt.status') !== null, 'registry: cloud STT status');
+check($registry->find('cloud_ai.status') !== null, 'registry: cloud AI status');
+check($registry->find('ai_supervisor.workers') !== null, 'registry: AI Supervisor status with /workers fallback');
 check($registry->find(VaCallbackSource::ID) instanceof VaCallbackSource, 'registry: callbacks');
 check($registry->find(VaRuntimeSource::ID) instanceof VaRuntimeSource, 'registry: runtime');
-$moduleIds = ['ai_supervisor.attention_call', 'ai_supervisor.workers', 'voice_agent.callbacks', 'voice_agent.runtime'];
+$moduleIds = [
+    'ai_supervisor.attention_call',
+    'ai_supervisor.workers',
+    'local_stt.status',
+    'cloud_stt.status',
+    'cloud_ai.status',
+    'voice_agent.callbacks',
+    'voice_agent.runtime',
+];
 foreach ($moduleIds as $mid) {
     $source = $registry->find($mid);
     check($source !== null && $source->mode() === SourceInterface::MODE_POLL, "registry: $mid is poll");
@@ -136,7 +146,11 @@ foreach ($moduleIds as $mid) {
 check($registry->apiReadPaths(array_merge(['core.advice'], $moduleIds)) === [
     '/api/v3/advice',
     '/api/v3/module-ai-supervisor/calls',
+    '/api/v3/module-ai-supervisor/status',
     '/api/v3/module-ai-supervisor/workers',
+    '/api/v3/module-cloud-ai-supervisor/status',
+    '/api/v3/module-cloud-speech-to-text/status',
+    '/api/v3/module-local-speech-to-text/status',
     '/api/v3/module-voice-agent/callbacks',
     '/api/v3/module-voice-agent/runtime',
 ], 'registry: apiReadPaths union (all read-only)');
@@ -303,48 +317,6 @@ foreach ($stable as $sid) {
         break;
     }
 }
-
-// ======================= ai_supervisor.workers =======================
-$h2 = hubTestDatabase();
-$states2 = new SourceStateRepository($h2);
-$store2 = new EventStore($h2);
-$workersFixture = fixture('ai-supervisor/workers.json');
-$workers = new AiWorkerStateSource();
-check($workers->eventTypes() === ['ai_supervisor.worker_offline', 'ai_supervisor.worker_online'], 'workers: event types');
-check($workers->apiReadPaths() === [AiWorkerStateSource::API_READ_PATH], 'workers: read path');
-
-runPass([$workers], new StaticProbe(SourceAvailability::AVAILABLE), new FixtureRestReader([AiWorkerStateSource::PATH => $workersFixture]), $states2, $store2, $now);
-check(count(rows($h2)) === 0, 'workers: baseline records nothing');
-
-// offline worker of the baseline comes back online -> recovery event
-$now += 60;
-$flippedOnline = $workersFixture;
-$flippedOnline['items'][1]['status'] = 'online';
-runPass([$workers], new StaticProbe(SourceAvailability::AVAILABLE), new FixtureRestReader([AiWorkerStateSource::PATH => $flippedOnline]), $states2, $store2, $now);
-check(count(rows($h2)) === 1, 'workers: offline -> online emits recovery');
-
-// and goes offline again
-$now += 60;
-runPass([$workers], new StaticProbe(SourceAvailability::AVAILABLE), new FixtureRestReader([AiWorkerStateSource::PATH => $workersFixture]), $states2, $store2, $now);
-$stored2 = rows($h2);
-check(count($stored2) === 2, 'workers: online -> offline emits one down event');
-if (count($stored2) === 2) {
-    $down = $stored2[1];
-    $payload = $down['payload'];
-    check($down['event_type'] === 'ai_supervisor.worker_offline' && $down['severity'] === HubEvent::SEVERITY_WARNING, 'workers: offline is warning');
-    check(str_starts_with((string)$down['dedupe_key'], 'ai_worker:win-worker-02:offline:'), 'workers: dedupe ai_worker:{uid}:{state}:{since}');
-    check(($payload['subject']['worker']['previous_status'] ?? '') === 'online', 'workers: payload carries previous state');
-}
-
-$now += 60;
-runPass([$workers], new StaticProbe(SourceAvailability::AVAILABLE), new FixtureRestReader([AiWorkerStateSource::PATH => $workersFixture]), $states2, $store2, $now);
-check(count(rows($h2)) === 2, 'workers: stable state emits nothing');
-
-// a worker never seen before that is already offline: no event
-$fresh = ['items' => [['worker_uid' => 'brand-new', 'status' => 'offline', 'name' => 'New', 'last_seen' => 0]]];
-$now += 60;
-runPass([$workers], new StaticProbe(SourceAvailability::AVAILABLE), new FixtureRestReader([AiWorkerStateSource::PATH => $fresh]), $states2, $store2, $now);
-check(count(rows($h2)) === 2, 'workers: first sighting of an offline worker stays silent');
 
 // ======================= voice_agent.callbacks =======================
 $h3 = hubTestDatabase();

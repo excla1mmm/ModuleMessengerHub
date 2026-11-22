@@ -90,6 +90,11 @@ final class Collector
                 $report[$id] = ['status' => SourceAvailability::AVAILABLE, 'recorded' => $recorded];
             } catch (SourceException $exception) {
                 $this->fail($id, $exception->errorCode, $now);
+                if ($exception->errorCode === 'api_incompatible') {
+                    // the module version does not serve the resource yet (e.g. no /status): the next
+                    // successful poll after an update must set a fresh baseline, not diff old data
+                    $this->states->resetCursor($id);
+                }
                 $report[$id] = ['status' => SourceAvailability::fromErrorCode($exception->errorCode), 'recorded' => 0];
             } catch (Throwable) {
                 $this->fail($id, 'internal_error', $now);

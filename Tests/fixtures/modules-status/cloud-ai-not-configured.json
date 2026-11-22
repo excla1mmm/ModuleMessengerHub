@@ -1,0 +1,15 @@
+{
+  "state": "paused",
+  "since": 1700000000,
+  "issues": [
+    {
+      "code": "processing_paused",
+      "ref": "not_configured",
+      "severity": "warning",
+      "since": 1700000000
+    }
+  ],
+  "counters": {
+    "jobs_waiting": 0
+  }
+}

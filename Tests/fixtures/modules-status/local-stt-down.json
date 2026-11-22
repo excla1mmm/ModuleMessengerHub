@@ -1,0 +1,23 @@
+{
+  "state": "down",
+  "since": 1795153998,
+  "issues": [
+    {
+      "code": "backlog_no_workers",
+      "ref": "queue",
+      "severity": "critical",
+      "since": 1795153998
+    },
+    {
+      "code": "worker_offline",
+      "ref": "2df52bb5d7d9",
+      "severity": "warning",
+      "since": 1793262107
+    }
+  ],
+  "counters": {
+    "workers_online": 0,
+    "workers_total": 4,
+    "jobs_waiting": 4
+  }
+}

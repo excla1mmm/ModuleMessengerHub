@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Modules\ModuleMessengerHub\Lib\Sources;
 
+use Modules\ModuleMessengerHub\Lib\Sources\Modules\ModuleStatusSource;
+
 /**
  * UI metadata of sources: interface group, name/event-type/module/availability translation keys.
  *
@@ -33,6 +35,11 @@ final class SourceCatalog
         'core.voicemail' => self::GROUP_CALLS,
         'ai_supervisor.attention_call' => self::GROUP_AI_SUPERVISOR,
         'ai_supervisor.workers' => self::GROUP_AI_SUPERVISOR,
+        // stage 3b-2 gives speech recognition its own category; until then the existing groups
+        // keep the sources visible in the current interface (no hidden sources)
+        'local_stt.status' => self::GROUP_PBX,
+        'cloud_stt.status' => self::GROUP_PBX,
+        'cloud_ai.status' => self::GROUP_AI_SUPERVISOR,
         'voice_agent.callbacks' => self::GROUP_VOICE_AGENT,
         'voice_agent.runtime' => self::GROUP_VOICE_AGENT,
         'core.provider_status' => self::GROUP_PBX,
@@ -52,6 +59,16 @@ final class SourceCatalog
         'ai_supervisor.attention_call' => 'EventTypeAttentionCall',
         'ai_supervisor.worker_offline' => 'EventTypeWorkerOffline',
         'ai_supervisor.worker_online' => 'EventTypeWorkerOnline',
+        'local_stt.worker_offline' => 'EventTypeLocalSttWorkerOffline',
+        'local_stt.worker_online' => 'EventTypeLocalSttWorkerOnline',
+        'local_stt.backlog_no_workers' => 'EventTypeLocalSttBacklog',
+        'local_stt.backlog_resolved' => 'EventTypeLocalSttBacklogResolved',
+        'cloud_stt.incident' => 'EventTypeCloudSttIncident',
+        'cloud_stt.incident_resolved' => 'EventTypeCloudSttIncidentResolved',
+        'cloud_stt.paused' => 'EventTypeCloudSttPaused',
+        'cloud_stt.resumed' => 'EventTypeCloudSttResumed',
+        'cloud_ai.paused' => 'EventTypeCloudAiPaused',
+        'cloud_ai.resumed' => 'EventTypeCloudAiResumed',
         'voice_agent.callback_request' => 'EventTypeCallbackRequest',
         'voice_agent.runtime_down' => 'EventTypeRuntimeDown',
         'voice_agent.runtime_up' => 'EventTypeRuntimeUp',
@@ -73,6 +90,7 @@ final class SourceCatalog
         SourceAvailability::MODULE_MISSING => 'SourceStateNoinst',
         SourceAvailability::MODULE_DISABLED => 'SourceStateModoff',
         SourceAvailability::API_FORBIDDEN => 'SourceStateNoacc',
+        SourceAvailability::API_INCOMPATIBLE => 'SourceStateOutdated',
         SourceAvailability::ERROR => 'SourceStateErr',
     ];
 
@@ -89,6 +107,9 @@ final class SourceCatalog
         'core.pbx_started' => 'SourcePbxStarted',
         'ai_supervisor.attention_call' => 'SourceAttentionCall',
         'ai_supervisor.workers' => 'SourceAiWorkers',
+        'local_stt.status' => 'SourceLocalSttStatus',
+        'cloud_stt.status' => 'SourceCloudSttStatus',
+        'cloud_ai.status' => 'SourceCloudAiStatus',
         'voice_agent.callbacks' => 'SourceVaCallbacks',
         'voice_agent.runtime' => 'SourceVaRuntime',
     ];
@@ -163,6 +184,16 @@ final class SourceCatalog
         };
     }
 
+    /**
+     * Minimal module version that serves the source contract ('' when the source has no such bound).
+     * A source whose `/status` answers 404 reports availability api_incompatible; the interface can
+     * then say "update the module to <version>" instead of a generic error.
+     */
+    public static function minVersion(string $sourceId): string
+    {
+        return ModuleStatusSource::profileFor($sourceId)?->minVersion ?? '';
+    }
+
     public static function availabilityKey(string $availability): ?string
     {
         return isset(self::AVAILABILITY_KEYS[$availability])
@@ -181,6 +212,19 @@ final class SourceCatalog
             'core.pbx_started' => ['core.pbx_started'],
             'ai_supervisor.attention_call' => ['ai_supervisor.attention_call'],
             'ai_supervisor.workers' => ['ai_supervisor.worker_offline', 'ai_supervisor.worker_online'],
+            'local_stt.status' => [
+                'local_stt.worker_offline',
+                'local_stt.worker_online',
+                'local_stt.backlog_no_workers',
+                'local_stt.backlog_resolved',
+            ],
+            'cloud_stt.status' => [
+                'cloud_stt.incident',
+                'cloud_stt.incident_resolved',
+                'cloud_stt.paused',
+                'cloud_stt.resumed',
+            ],
+            'cloud_ai.status' => ['cloud_ai.paused', 'cloud_ai.resumed'],
             'voice_agent.callbacks' => ['voice_agent.callback_request'],
             'voice_agent.runtime' => ['voice_agent.runtime_down', 'voice_agent.runtime_up'],
             default => [],

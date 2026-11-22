@@ -1,0 +1,15 @@
+{
+  "state": "degraded",
+  "since": 1793000000,
+  "issues": [
+    {
+      "code": "incident_open",
+      "ref": "inc_5f31c2a9",
+      "severity": "warning",
+      "since": 1793000000
+    }
+  ],
+  "counters": {
+    "incidents_open": 1
+  }
+}

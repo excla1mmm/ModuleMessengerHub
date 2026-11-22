@@ -16,7 +16,8 @@ notifications to **Telegram** and **MAX**.
   test message through the same queue as real notifications.
 - **Collect events** from the PBX and from installed MIKO modules: missed call, provider down/up,
   system warnings, voicemail; call needing attention (AI Supervisor), callback request and offline
-  workers (VoiceAgent); module status changes.
+  workers (VoiceAgent); module status changes (speech recognition workers and queue, cloud speech
+  incidents, cloud AI pauses).
 - **Rules ("Уведомления")**: choose a scenario (event type), conditions (employees, call direction,
   providers, quality score) and recipients — selected chats, the employee's linked personal chat,
   or "employee, otherwise the shared chat".
