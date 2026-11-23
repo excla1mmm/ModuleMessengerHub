@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Changed
+- Stage 3b-6 (station acceptance, docs only): hub 6.7 with AI Supervisor, Cloud AI Supervisor and Local STT
+  rebuilt without `/status`; sources stay available, no re-alerts, collector restart without duplicates, probe
+  delivery of the new event types. Core's token cache keeps old key paths for about 5 minutes after a package update.
 - Module status sources read the modules' existing resources (#1, decision of 2026-11-23): `/status` stays only
   in ModuleCloudSpeechToText (1.120+). AI Supervisor is read through `GET …/module-ai-supervisor/workers` (`read`),
   Cloud AI Supervisor through `GET …/module-cloud-ai-supervisor/runtime` (`read`), Local STT through
