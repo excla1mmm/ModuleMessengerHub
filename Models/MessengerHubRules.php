@@ -48,7 +48,7 @@ class MessengerHubRules extends ModulesModelsBase
      */
     public ?string $min_severity = 'info';
 
-    /** JSON object: user_ids, directions, providers, quality_score. */
+    /** JSON object: user_ids, directions, providers, quality_score, reasons. */
     /**
      * @Column(type="string", nullable=false)
      */

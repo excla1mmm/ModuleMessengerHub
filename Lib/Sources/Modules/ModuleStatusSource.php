@@ -11,34 +11,43 @@ use Modules\ModuleMessengerHub\Lib\Sources\SourceException;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceInterface;
 
 /**
- * Generic reader of the uniform module monitoring resource
- * `GET /pbxcore/api/v3/<module-slug>/status` (stage 3b-1, GitHub issue #1).
+ * Source of module problems with baseline, debounce and recovery (stage 3b, GitHub issue #1).
  *
- * One class, one config entry per module (ModuleStatusSource::PROFILES):
+ * The state of a module reaches the diff as a status snapshot (`state`, `since`, `issues[code, ref,
+ * severity, since]`, `counters`). Where it comes from depends on the module (decision of 2026-11-23):
+ *  - ModuleCloudSpeechToText serves the uniform `GET /pbxcore/api/v3/module-cloud-speech-to-text/status`
+ *    (min version 1.120) -> reader `status`;
+ *  - ModuleAISupervisor: `GET /workers` -> AiWorkerStateSource;
+ *  - ModuleCloudAISupervisor: `GET /runtime` -> CloudAiRuntimeSnapshot;
+ *  - ModuleLocalSpeechToText: `GET /workers` (+ `GET /jobs` for the backlog) -> LocalSttSnapshot.
+ * The three modules do not ship `/status`; the hub never writes to them and never reads their tables.
+ *
+ * One class, one config entry per kind of problem (ModuleStatusSource::PROFILES):
  *  - diff by (code, ref) between polls, cursor in m_MessengerHubSourceState;
  *  - appearance -> event, disappearance -> recovery event where the profile defines one;
  *  - baseline on enable and on the first successful poll after the module becomes available:
  *    issues already present are recorded as known and never broadcast (history is not broadcast);
  *  - dedupe key `<source>:<code>:<ref>:<episode since>` (never the top-level `since`), so a restart,
- *    a re-poll or an acknowledged Cloud STT incident never re-alerts; a `since` that moves while the
- *    pair stays present is one incident (no event, no new debounce); a pair absent in the previous
- *    poll starts a new episode; recovery is sent only for an announced incident;
+ *    a re-poll, an acknowledged Cloud STT incident or a switch of the reader never re-alerts; a `since`
+ *    that moves while the pair stays present is one incident (no event, no new debounce); a pair absent
+ *    in the previous poll starts a new episode; recovery is sent only for an announced incident;
  *  - debounce: an issue must be observed for N seconds before the event (per code, e.g. 120 s for
  *    worker_offline, 0 for billing), which suppresses a worker blinking offline/online;
- *  - a 404 on `/status` means the installed module version is older than the contract: availability
- *    `api_incompatible`, no events, no log noise, and the cursor is re-baselined once the module
- *    is updated (Collector).
+ *  - a 404 on the resource means the installed module version is older than the contract:
+ *    availability `api_incompatible`, no events, no log noise, and the cursor is re-baselined once the
+ *    module is updated (Collector).
  *
- * ModuleAISupervisor does not serve `/status` yet: its profile prefers `/status` and falls back to
- * the `/workers` reader (AiWorkerStateSource), with identical dedupe keys. TODO(#1): drop the
- * fallback and the `/workers` read grant once the module ships `/status`.
+ * One source (= one wizard scenario) per kind of problem; each polls once a minute and handles only
+ * its own codes.
  */
 final class ModuleStatusSource implements SourceInterface
 {
-    public const string SOURCE_LOCAL_STT = 'local_stt.status';
-    public const string SOURCE_CLOUD_STT = 'cloud_stt.status';
-    public const string SOURCE_CLOUD_AI = 'cloud_ai.status';
-    /** Historical id (stage 1.3): keeps the user's enabled switch and the event family. */
+    public const string SOURCE_LOCAL_STT_WORKERS = 'local_stt.workers';
+    public const string SOURCE_LOCAL_STT_BACKLOG = 'local_stt.backlog';
+    public const string SOURCE_CLOUD_STT_INCIDENTS = 'cloud_stt.incidents';
+    public const string SOURCE_CLOUD_STT_PAUSED = 'cloud_stt.paused';
+    public const string SOURCE_CLOUD_AI_PAUSED = 'cloud_ai.paused';
+    /** Historical id (stage 1.3): keeps the user's enabled switch, cursor and the event family. */
     public const string SOURCE_AI_SUPERVISOR = 'ai_supervisor.workers';
 
     public const string EVENT_LOCAL_STT_WORKER_OFFLINE = 'local_stt.worker_offline';
@@ -55,17 +64,24 @@ final class ModuleStatusSource implements SourceInterface
     public const string EVENT_AI_SUPERVISOR_WORKER_ONLINE = 'ai_supervisor.worker_online';
 
     public const int POLL_INTERVAL_SEC = 60;
-    public const int DEFAULT_CAPABILITY_RECHECK_SEC = 6 * 3600;
     public const int MAX_TRACKED_ISSUES = 500;
     private const int MAX_REF_LENGTH = 120;
     private const array STATUS_STATES = ['ok', 'degraded', 'down', 'paused'];
 
-    /** source id => profile config; a module with /status is one entry here. */
+    /** How the snapshot is obtained (ModuleStatusProfile::$reader). */
+    public const string READER_STATUS = 'status';
+    public const string READER_AI_WORKERS = 'ai_workers';
+    public const string READER_CLOUD_AI_RUNTIME = 'cloud_ai_runtime';
+    public const string READER_LOCAL_STT_WORKERS = 'local_stt_workers';
+    public const string READER_LOCAL_STT_BACKLOG = 'local_stt_backlog';
+
+    /** source id => profile config; one source per kind of problem. */
     private const array PROFILES = [
-        self::SOURCE_LOCAL_STT => [
+        self::SOURCE_LOCAL_STT_WORKERS => [
             'module' => 'ModuleLocalSpeechToText',
-            'slug' => 'module-local-speech-to-text',
-            'min_version' => '1.154',
+            'reader' => self::READER_LOCAL_STT_WORKERS,
+            'paths' => [LocalSttSnapshot::WORKERS_API_PATH],
+            'min_version' => '',
             'rules' => [
                 [
                     'code' => 'worker_offline',
@@ -74,6 +90,14 @@ final class ModuleStatusSource implements SourceInterface
                     'severity' => HubEvent::SEVERITY_WARNING,
                     'debounce' => 120,
                 ],
+            ],
+        ],
+        self::SOURCE_LOCAL_STT_BACKLOG => [
+            'module' => 'ModuleLocalSpeechToText',
+            'reader' => self::READER_LOCAL_STT_BACKLOG,
+            'paths' => [LocalSttSnapshot::WORKERS_API_PATH, LocalSttSnapshot::JOBS_API_PATH],
+            'min_version' => '',
+            'rules' => [
                 [
                     'code' => 'backlog_no_workers',
                     'event' => self::EVENT_LOCAL_STT_BACKLOG,
@@ -83,9 +107,10 @@ final class ModuleStatusSource implements SourceInterface
                 ],
             ],
         ],
-        self::SOURCE_CLOUD_STT => [
+        self::SOURCE_CLOUD_STT_INCIDENTS => [
             'module' => 'ModuleCloudSpeechToText',
-            'slug' => 'module-cloud-speech-to-text',
+            'reader' => self::READER_STATUS,
+            'paths' => ['/api/v3/module-cloud-speech-to-text/status'],
             'min_version' => '1.120',
             'rules' => [
                 [
@@ -97,6 +122,14 @@ final class ModuleStatusSource implements SourceInterface
                     'severity' => HubEvent::SEVERITY_WARNING,
                     'debounce' => 0,
                 ],
+            ],
+        ],
+        self::SOURCE_CLOUD_STT_PAUSED => [
+            'module' => 'ModuleCloudSpeechToText',
+            'reader' => self::READER_STATUS,
+            'paths' => ['/api/v3/module-cloud-speech-to-text/status'],
+            'min_version' => '1.120',
+            'rules' => [
                 [
                     'code' => 'processing_paused',
                     'event' => self::EVENT_CLOUD_STT_PAUSED,
@@ -106,10 +139,12 @@ final class ModuleStatusSource implements SourceInterface
                 ],
             ],
         ],
-        self::SOURCE_CLOUD_AI => [
+        self::SOURCE_CLOUD_AI_PAUSED => [
             'module' => 'ModuleCloudAISupervisor',
-            'slug' => 'module-cloud-ai-supervisor',
-            'min_version' => '1.46',
+            'reader' => self::READER_CLOUD_AI_RUNTIME,
+            'paths' => [CloudAiRuntimeSnapshot::API_PATH],
+            // /runtime with the `pause` block exists since the first release (v1.2)
+            'min_version' => '',
             'rules' => [
                 [
                     'code' => 'processing_paused',
@@ -134,10 +169,9 @@ final class ModuleStatusSource implements SourceInterface
         ],
         self::SOURCE_AI_SUPERVISOR => [
             'module' => 'ModuleAISupervisor',
-            // `/status` is not released yet: prefer it and fall back to /workers (TODO(#1))
-            'slug' => 'module-ai-supervisor',
+            'reader' => self::READER_AI_WORKERS,
+            'paths' => [AiWorkerStateSource::API_READ_PATH],
             'min_version' => '',
-            'fallback_slug' => 'module-ai-supervisor',
             'rules' => [
                 [
                     'code' => 'worker_offline',
@@ -150,10 +184,8 @@ final class ModuleStatusSource implements SourceInterface
         ],
     ];
 
-    public function __construct(
-        private readonly ModuleStatusProfile $profile,
-        private readonly ?StatusCapabilityStore $capabilities = null,
-    ) {
+    public function __construct(private readonly ModuleStatusProfile $profile)
+    {
     }
 
     /** @return list<ModuleStatusProfile> */
@@ -190,21 +222,12 @@ final class ModuleStatusSource implements SourceInterface
     }
 
     /**
-     * `/status` is always readable. The `/workers` fallback path stays in the key only while the
-     * module is known to lack `/status` or its capability is still unknown; once `/status` answers,
-     * the fallback path leaves the key (Q15 in-place update, issue #1 item 6).
+     * The resources this source reads. The level of each (read, admin for the two Local STT paths)
+     * is decided by Lib/Api/KeyPermissions, never here.
      */
     public function apiReadPaths(): array
     {
-        $paths = [$this->profile->statusApiPath()];
-        if ($this->profile->fallbackApiPath() !== null) {
-            $capability = $this->capabilities?->get($this->profile->sourceId) ?? StatusCapability::unknown();
-            if ($capability->statusPathAvailable !== true) {
-                $paths[] = (string)$this->profile->fallbackApiPath();
-            }
-        }
-
-        return $paths;
+        return $this->profile->readPaths;
     }
 
     public function mode(): string
@@ -219,62 +242,7 @@ final class ModuleStatusSource implements SourceInterface
 
     public function poll(SourceContext $context, array $cursor): SourceBatch
     {
-        $now = $context->now();
-        $reader = 'status';
-        $capabilityChecked = false;
-
-        if ($this->profile->fallbackApiPath() === null) {
-            $data = $this->readStatus($context);
-        } else {
-            $capability = $this->capabilities?->get($this->profile->sourceId) ?? StatusCapability::unknown();
-            $fallbackActive = $capability->statusPathAvailable === false;
-            $useStatus = !$fallbackActive
-                || $capability->dueForRecheck($now, $this->profile->capabilityRecheckSec);
-
-            $data = null;
-            if ($useStatus) {
-                try {
-                    $data = $context->rest->get($this->profile->statusPath());
-                    if ($capability->statusPathAvailable !== true) {
-                        $this->remember(true, $now); // only the flip is persisted; no write every minute
-                    }
-                    $capabilityChecked = true;
-                } catch (SourceException $exception) {
-                    if ($exception->errorCode === 'api_not_found') {
-                        $this->remember(false, $now);
-                        $capabilityChecked = true;
-                        $reader = 'workers';
-                    } elseif ($fallbackActive) {
-                        // a periodic re-check failed for another reason: keep reading /workers,
-                        // do not flip the capability (the next due poll asks /status again)
-                        $reader = 'workers';
-                    } else {
-                        throw $exception;
-                    }
-                }
-            } else {
-                $reader = 'workers';
-            }
-
-            if ($reader === 'workers') {
-                $data = $context->rest->get((string)$this->profile->fallbackPath());
-            }
-        }
-
-        $snapshot = $reader === 'workers'
-            ? AiWorkerStateSource::snapshot($data ?? [], $now)
-            : self::snapshot($data ?? []);
-
-        $batch = self::buildBatch($this->profile, $snapshot, $cursor, $now);
-        $next = $batch->cursor;
-        if ($this->profile->fallbackApiPath() !== null) {
-            $next['reader'] = $reader;
-            $next['reader_checked_at'] = $capabilityChecked
-                ? $now
-                : (int)($cursor['reader_checked_at'] ?? 0);
-        }
-
-        return new SourceBatch($batch->events, $next);
+        return self::buildBatch($this->profile, $this->readSnapshot($context), $cursor, $context->now());
     }
 
     /**
@@ -305,7 +273,7 @@ final class ModuleStatusSource implements SourceInterface
             ];
         }
 
-        // no cursor at all, or a stage-1.3 AiWorkerStateSource cursor ({"workers": ...}) — the first
+        // no cursor at all (new source, re-enabled, or a stage-1.3 cursor without `issues`) — the first
         // successful poll records what is already broken as known and stays silent (issue #1 item 6)
         if ($cursor === [] || !array_key_exists('issues', $cursor)) {
             $issues = [];
@@ -313,7 +281,7 @@ final class ModuleStatusSource implements SourceInterface
                 $issues[$key] = self::startEpisode($issue, $now, false, '');
             }
 
-            return SourceBatch::baseline(self::nextCursor($issues, [], $snapshot, $cursor));
+            return SourceBatch::baseline(self::nextCursor($issues, [], $snapshot));
         }
 
         $known = is_array($cursor['issues'] ?? null) ? $cursor['issues'] : [];
@@ -395,7 +363,7 @@ final class ModuleStatusSource implements SourceInterface
             }
         }
 
-        return new SourceBatch($events, self::nextCursor($issues, $closed, $snapshot, $cursor));
+        return new SourceBatch($events, self::nextCursor($issues, $closed, $snapshot));
     }
 
     /**
@@ -467,26 +435,54 @@ final class ModuleStatusSource implements SourceInterface
         ];
     }
 
-    /** @return array<string, mixed> */
-    private function readStatus(SourceContext $context): array
+    /** @return array{state: string, since: int, issues: list<array<string, mixed>>, counters: array<string, int>} */
+    private function readSnapshot(SourceContext $context): array
     {
         try {
-            return $context->rest->get($this->profile->statusPath());
+            $now = $context->now();
+
+            return match ($this->profile->reader) {
+                self::READER_STATUS => self::snapshot($context->rest->get($this->profile->primaryPath())),
+                self::READER_AI_WORKERS => AiWorkerStateSource::snapshot(
+                    $context->rest->get(AiWorkerStateSource::PATH),
+                    $now
+                ),
+                self::READER_CLOUD_AI_RUNTIME => CloudAiRuntimeSnapshot::snapshot(
+                    $context->rest->get(CloudAiRuntimeSnapshot::PATH)
+                ),
+                self::READER_LOCAL_STT_WORKERS => LocalSttSnapshot::snapshot(
+                    LocalSttSnapshot::workers(LocalSttSnapshot::readWorkers($context->rest), $now),
+                    null,
+                    0,
+                    $now
+                ),
+                self::READER_LOCAL_STT_BACKLOG => $this->readLocalSttBacklog($context, $now),
+                default => throw new SourceException('api_bad_response'),
+            };
         } catch (SourceException $exception) {
             if ($exception->errorCode === 'api_not_found') {
-                // an older module version without /status: "update the module", not an error
+                // an older module version without the resource: "update the module", not an error
                 throw new SourceException('api_incompatible', $this->profile->minVersion);
             }
             throw $exception;
         }
     }
 
-    private function remember(bool $available, int $now): void
+    /**
+     * The jobs are read only while no worker is online: with an online worker there is no backlog problem
+     * and the poll stays one cheap request.
+     *
+     * @return array{state: string, since: int, issues: list<array<string, mixed>>, counters: array<string, int>}
+     */
+    private function readLocalSttBacklog(SourceContext $context, int $now): array
     {
-        $this->capabilities?->remember(
-            $this->profile->sourceId,
-            $available ? StatusCapability::available($now) : StatusCapability::missing($now)
-        );
+        $workers = LocalSttSnapshot::workers(LocalSttSnapshot::readWorkers($context->rest), $now);
+        if ($workers['online'] > 0) {
+            return LocalSttSnapshot::snapshot($workers, null, 0, $now);
+        }
+        $jobs = LocalSttSnapshot::readPendingJobs($context->rest);
+
+        return LocalSttSnapshot::snapshot($workers, $jobs['waiting'], $jobs['oldest_created_at'], $now);
     }
 
     /**
@@ -549,10 +545,9 @@ final class ModuleStatusSource implements SourceInterface
      * @param array<string, array<string, mixed>> $issues
      * @param array<string, int> $closed tombstones: pair => episode since of the last announced, ended episode
      * @param array{state: string, since: int, issues: list<array<string, mixed>>, counters: array<string, int>} $snapshot
-     * @param array<string, mixed> $cursor
      * @return array<string, mixed>
      */
-    private static function nextCursor(array $issues, array $closed, array $snapshot, array $cursor): array
+    private static function nextCursor(array $issues, array $closed, array $snapshot): array
     {
         $issues = self::capIssues($issues);
         $next = [
@@ -561,12 +556,6 @@ final class ModuleStatusSource implements SourceInterface
             'state' => $snapshot['state'],
             'counters' => $snapshot['counters'],
         ];
-        foreach (['reader', 'reader_checked_at'] as $key) {
-            if (array_key_exists($key, $cursor)) {
-                $next[$key] = $cursor[$key];
-            }
-        }
-
         return $next;
     }
 
@@ -602,12 +591,11 @@ final class ModuleStatusSource implements SourceInterface
 
         return new ModuleStatusProfile(
             moduleId: (string)$config['module'],
-            slug: (string)$config['slug'],
+            reader: (string)$config['reader'],
             sourceId: $sourceId,
             minVersion: (string)($config['min_version'] ?? ''),
             rules: $rules,
-            fallbackSlug: isset($config['fallback_slug']) ? (string)$config['fallback_slug'] : null,
-            capabilityRecheckSec: (int)($config['capability_recheck'] ?? self::DEFAULT_CAPABILITY_RECHECK_SEC),
+            readPaths: array_values(array_map('strval', (array)($config['paths'] ?? []))),
         );
     }
 }

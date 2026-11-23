@@ -135,6 +135,52 @@ check(
     'a range requires a score'
 );
 
+// ---------- module status: recovery switch, importance, Cloud AI reasons (stage 3b-4) ----------
+
+function statusEvent(string $type, string $ref, string $severity, bool $recovered, string $code = 'processing_paused'): HubEvent
+{
+    return hubEvent($type, ['subject' => ['call' => null, 'client_number' => '', 'employees' => [], 'provider' => null,
+        'module_status' => ['module' => 'M', 'code' => $code, 'ref' => $ref, 'severity' => $severity, 'recovered' => $recovered]]], $severity);
+}
+
+// «Сообщать о восстановлении» is the recovery type in event_types: without it only the problem is sent
+$problemOnly = Rule::fromRow(ruleRow(['event_types' => '["local_stt.worker_offline"]']));
+$withRecovery = Rule::fromRow(ruleRow(['event_types' => '["local_stt.worker_offline","local_stt.worker_online"]']));
+$offline = statusEvent('local_stt.worker_offline', 'abc', 'warning', false, 'worker_offline');
+$online = statusEvent('local_stt.worker_online', 'abc', 'info', true, 'worker_offline');
+check($problemOnly->matches($offline) && !$problemOnly->matches($online), 'recovery switch off: the recovery event is not sent');
+check($withRecovery->matches($offline) && $withRecovery->matches($online), 'recovery switch on: problem and recovery are sent');
+
+// importance: «only critical» also covers the recovery of a critical incident and not of a warning one
+$criticalOnly = Rule::fromRow(ruleRow(['event_types' => '["cloud_stt.incident","cloud_stt.incident_resolved"]', 'min_severity' => 'critical']));
+$warningUp = Rule::fromRow(ruleRow(['event_types' => '["cloud_stt.incident","cloud_stt.incident_resolved"]', 'min_severity' => 'warning']));
+$incWarn = statusEvent('cloud_stt.incident', 'inc1', 'warning', false, 'incident_open');
+$incCrit = statusEvent('cloud_stt.incident', 'inc2', 'critical', false, 'incident_open');
+$resWarn = new HubEvent('cloud_stt.incidents', 'cloud_stt.incident_resolved', HubEvent::SEVERITY_INFO, 'k0', 1, statusEvent('cloud_stt.incident_resolved', 'inc1', 'warning', true, 'incident_open')->payload);
+$resCrit = new HubEvent('cloud_stt.incidents', 'cloud_stt.incident_resolved', HubEvent::SEVERITY_INFO, 'k', 1, statusEvent('cloud_stt.incident_resolved', 'inc2', 'critical', true, 'incident_open')->payload);
+check(!$criticalOnly->matches($incWarn) && $criticalOnly->matches($incCrit), 'importance: only critical incidents pass the critical filter');
+check(!$criticalOnly->matches($resWarn) && $criticalOnly->matches($resCrit), 'importance: the recovery follows the importance of its incident');
+check($warningUp->matches($incWarn) && $warningUp->matches($incCrit) && $warningUp->matches($resWarn), 'importance: warning and above passes warnings and their recoveries');
+
+// Cloud AI pause reasons: the pause and the resume follow the same reasons
+$money = Rule::fromRow(ruleRow([
+    'event_types' => '["cloud_ai.paused","cloud_ai.resumed"]',
+    'filters_json' => '{"reasons":["insufficient_funds","low_balance"]}',
+]));
+check($money->matches(statusEvent('cloud_ai.paused', 'insufficient_funds', 'critical', false)), 'reasons: a selected reason matches');
+check($money->matches(statusEvent('cloud_ai.resumed', 'low_balance', 'warning', true)), 'reasons: the resume of a selected reason matches');
+check(!$money->matches(statusEvent('cloud_ai.paused', 'manual', 'info', false)), 'reasons: an unselected reason does not match');
+check(!$money->matches(statusEvent('cloud_ai.resumed', 'manual', 'info', true)), 'reasons: the resume of an unselected reason does not match');
+check($money->matches(statusEvent('cloud_ai.paused', 'brand_new_reason', 'warning', false)), 'reasons: an unknown reason passes the filter');
+check($money->matches(statusEvent('cloud_ai.resumed', 'brand_new_reason', 'info', true)), 'reasons: the resume of an unknown reason passes the filter');
+check(!$money->matches(statusEvent('cloud_ai.paused', 'daily_limit_reached', 'warning', false)), 'reasons: a known reason outside the selection is filtered');
+check(Rule::fromRow(ruleRow(['event_types' => '["cloud_ai.paused"]']))->matches(statusEvent('cloud_ai.paused', 'manual', 'info', false)), 'reasons: no filter means every reason');
+$reasonsOnOther = Rule::fromRow(ruleRow(['event_types' => '["cloud_stt.paused"]', 'filters_json' => '{"reasons":["manual"]}']));
+check($reasonsOnOther->matches(statusEvent('cloud_stt.paused', 'maintenance', 'warning', false)), 'reasons: the filter applies to Cloud AI events only');
+$defaults = \Modules\ModuleMessengerHub\Lib\Sources\Modules\CloudAiPauseReasons::defaults();
+check(count($defaults) === 7 && !in_array('manual', $defaults, true) && in_array('source_unavailable', $defaults, true), 'reasons: defaults are everything except manual');
+check(count(\Modules\ModuleMessengerHub\Lib\Sources\Modules\CloudAiPauseReasons::all()) === 8, 'reasons: eight selectable reasons in five groups');
+
 // ---------- templates ----------
 
 $texts = hubTestTexts();

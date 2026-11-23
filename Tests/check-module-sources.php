@@ -121,20 +121,24 @@ const MAP = [
 
 // ======================= registry =======================
 $registry = SourceRegistry::default();
-check(count($registry->all()) === 12, 'registry: twelve sources (5 core + 7 module)');
+check(count($registry->all()) === 14, 'registry: fourteen sources (5 core + 9 module)');
 check($registry->find(AiAttentionCallSource::ID) instanceof AiAttentionCallSource, 'registry: attention_call');
-check($registry->find('local_stt.status') !== null, 'registry: local STT status');
-check($registry->find('cloud_stt.status') !== null, 'registry: cloud STT status');
-check($registry->find('cloud_ai.status') !== null, 'registry: cloud AI status');
-check($registry->find('ai_supervisor.workers') !== null, 'registry: AI Supervisor status with /workers fallback');
+check($registry->find('local_stt.workers') !== null, 'registry: local STT workers');
+check($registry->find('local_stt.backlog') !== null, 'registry: local STT backlog');
+check($registry->find('cloud_stt.incidents') !== null, 'registry: cloud STT incidents');
+check($registry->find('cloud_stt.paused') !== null, 'registry: cloud STT paused');
+check($registry->find('cloud_ai.paused') !== null, 'registry: cloud AI paused');
+check($registry->find('ai_supervisor.workers') !== null, 'registry: AI Supervisor workers (/status only)');
 check($registry->find(VaCallbackSource::ID) instanceof VaCallbackSource, 'registry: callbacks');
 check($registry->find(VaRuntimeSource::ID) instanceof VaRuntimeSource, 'registry: runtime');
 $moduleIds = [
     'ai_supervisor.attention_call',
     'ai_supervisor.workers',
-    'local_stt.status',
-    'cloud_stt.status',
-    'cloud_ai.status',
+    'local_stt.workers',
+    'local_stt.backlog',
+    'cloud_stt.incidents',
+    'cloud_stt.paused',
+    'cloud_ai.paused',
     'voice_agent.callbacks',
     'voice_agent.runtime',
 ];
@@ -146,11 +150,11 @@ foreach ($moduleIds as $mid) {
 check($registry->apiReadPaths(array_merge(['core.advice'], $moduleIds)) === [
     '/api/v3/advice',
     '/api/v3/module-ai-supervisor/calls',
-    '/api/v3/module-ai-supervisor/status',
     '/api/v3/module-ai-supervisor/workers',
-    '/api/v3/module-cloud-ai-supervisor/status',
+    '/api/v3/module-cloud-ai-supervisor/runtime',
     '/api/v3/module-cloud-speech-to-text/status',
-    '/api/v3/module-local-speech-to-text/status',
+    '/api/v3/module-local-speech-to-text/jobs',
+    '/api/v3/module-local-speech-to-text/workers',
     '/api/v3/module-voice-agent/callbacks',
     '/api/v3/module-voice-agent/runtime',
 ], 'registry: apiReadPaths union (all read-only)');

@@ -284,6 +284,35 @@
         low_balance: 'MessageStatusCloudAiLowBalance'
     };
 
+    // Problem event type -> its recovery type. A status scenario is always one pair; «Сообщать о восстановлении»
+    // is the recovery type being in the rule's event_types (no separate storage).
+    var STATUS_PAIRS = {
+        'local_stt.worker_offline': 'local_stt.worker_online',
+        'local_stt.backlog_no_workers': 'local_stt.backlog_resolved',
+        'cloud_stt.incident': 'cloud_stt.incident_resolved',
+        'cloud_stt.paused': 'cloud_stt.resumed',
+        'cloud_ai.paused': 'cloud_ai.resumed',
+        'ai_supervisor.worker_offline': 'ai_supervisor.worker_online'
+    };
+    // Cloud AI pause reasons by group (rule filter `reasons`); not_configured never produces events.
+    var CLOUD_AI_REASON_GROUPS = [
+        ['module_messenger_hub_WizardReasonGroupMoney', ['insufficient_funds', 'low_balance']],
+        ['module_messenger_hub_WizardReasonGroupLicense', ['license_missing', 'auth_invalid']],
+        ['module_messenger_hub_WizardReasonGroupLimits', ['daily_limit_reached', 'model_unavailable']],
+        ['module_messenger_hub_WizardReasonGroupSource', ['source_unavailable']],
+        ['module_messenger_hub_WizardReasonGroupManual', ['manual']]
+    ];
+
+    function cloudAiReasons(includeManual) {
+        var reasons = [];
+        CLOUD_AI_REASON_GROUPS.forEach(function (group) {
+            group[1].forEach(function (reason) {
+                if (includeManual || reason !== 'manual') { reasons.push(reason); }
+            });
+        });
+        return reasons;
+    }
+
     function moduleStatusOf(item) {
         var subject = item && item.payload && item.payload.subject ? item.payload.subject : {};
         return subject.module_status && typeof subject.module_status === 'object' ? subject.module_status : null;
@@ -2351,7 +2380,7 @@
     // ---------- notifications: wizard ----------
 
     function emptyFilters() {
-        return { user_ids: [], directions: [], providers: [], quality_score: null };
+        return { user_ids: [], directions: [], providers: [], quality_score: null, reasons: null };
     }
 
     function normalizeRetract(options) {
@@ -2382,6 +2411,9 @@
         }
         if (Array.isArray(filters.providers)) {
             result.providers = filters.providers.map(String);
+        }
+        if (Array.isArray(filters.reasons)) {
+            result.reasons = filters.reasons.map(String);
         }
         if (filters.quality_score && typeof filters.quality_score === 'object') {
             result.quality_score = {};
@@ -2423,13 +2455,16 @@
     function openRuleWizard(rule) {
         ensureWizardData();
         var source = rule ? sourceForRule(rule) : null;
+        var ruleTypes = rule ? (rule.event_types || []).slice() : [];
         state.ruleWizard = {
             step: rule ? firstStepAfterScenario((rule.event_types || []).slice()) : 1,
             editId: rule ? Number(rule.id) : 0,
             sourceId: source ? source.id : '',
-            eventTypes: rule ? (rule.event_types || []).slice() : [],
+            eventTypes: ruleTypes,
             title: rule ? rule.title : '',
             filters: normalizeFilters(rule ? rule.filters : null),
+            recover: rule ? wizardHasRecovery(ruleTypes) : true,
+            minSeverity: rule && rule.min_severity === 'critical' ? 'critical' : 'warning',
             targetMode: rule ? rule.target_mode : 'employee_or_recipients',
             chatIds: rule
                 ? (rule.chat_ids || []).map(Number).filter(function (id) {
@@ -2443,6 +2478,10 @@
             botId: rule && rule.chats && rule.chats.length > 0 ? Number(rule.chats[0].bot_id) : 0,
             error: ''
         };
+        var opened = state.ruleWizard;
+        if (rule && wizardSupportsReasons(opened.eventTypes) && opened.filters.reasons === null) {
+            opened.filters.reasons = cloudAiReasons(true); // no filter = every reason, including a manual pause
+        }
         $('#mh-rules-view').attr('hidden', true);
         $('#mh-wizard').removeAttr('hidden');
         $('#messenger-hub-root').addClass('mh-wizard-open');
@@ -2480,9 +2519,39 @@
         return types.indexOf('core.provider_down') >= 0 || types.indexOf('core.provider_up') >= 0;
     }
 
+    function wizardHasRecovery(types) {
+        return Object.keys(STATUS_PAIRS).some(function (problem) { return types.indexOf(STATUS_PAIRS[problem]) >= 0; });
+    }
+
+    // A module status scenario (problem and/or its recovery): step 2 offers «Сообщать о восстановлении».
+    function wizardHasStatus(types) {
+        return wizardHasRecovery(types) || Object.keys(STATUS_PAIRS).some(function (problem) { return types.indexOf(problem) >= 0; });
+    }
+
+    function wizardSupportsReasons(types) {
+        return types.indexOf('cloud_ai.paused') >= 0 || types.indexOf('cloud_ai.resumed') >= 0;
+    }
+
+    function wizardSupportsSeverity(types) {
+        return types.indexOf('cloud_stt.incident') >= 0;
+    }
+
+    // Adds or removes the recovery type of every problem type in the list.
+    function wizardWithRecovery(types, on) {
+        var recoveries = Object.keys(STATUS_PAIRS).map(function (problem) { return STATUS_PAIRS[problem]; });
+        var result = types.filter(function (type) { return recoveries.indexOf(type) < 0; });
+        if (on) {
+            result.slice().forEach(function (type) {
+                if (STATUS_PAIRS[type] && result.indexOf(STATUS_PAIRS[type]) < 0) { result.push(STATUS_PAIRS[type]); }
+            });
+        }
+        return result;
+    }
+
     // Step 2 exists only for scenarios with conditions; the others go straight to «Куда отправить».
     function wizardHasConditions(types) {
         return wizardSupportsEmployees(types) || wizardSupportsDirections(types) || wizardSupportsProviders(types)
+            || wizardHasStatus(types)
             || types.indexOf('core.missed_call') >= 0 || types.indexOf('ai_supervisor.attention_call') >= 0;
     }
 
@@ -2544,9 +2613,11 @@
         'core.voicemail': 'mic',
         'ai_supervisor.attention_call': 'sparkle',
         'ai_supervisor.workers': 'robot',
-        'local_stt.status': 'mic',
-        'cloud_stt.status': 'mic',
-        'cloud_ai.status': 'sparkle',
+        'local_stt.workers': 'mic',
+        'local_stt.backlog': 'mic',
+        'cloud_stt.incidents': 'mic',
+        'cloud_stt.paused': 'mic',
+        'cloud_ai.paused': 'sparkle',
         'voice_agent.callbacks': 'phone',
         'voice_agent.runtime': 'robot',
         'core.provider_status': 'server',
@@ -2634,6 +2705,36 @@
                 + '<span>' + esc(t('module_messenger_hub_WizardQualityTo')) + '</span><input type="number" min="0" max="100" class="mh-quality-max mh-input-xs" value="' + (range.max !== undefined ? range.max : '') + '">'
                 + '</div></div>';
         }
+        if (wizardSupportsSeverity(w.eventTypes)) {
+            html += '<div class="field"><label>' + esc(t('module_messenger_hub_WizardSeverity')) + '</label>'
+                + '<div class="mh-seg" role="group" aria-label="' + esc(t('module_messenger_hub_WizardSeverity')) + '">';
+            [['warning', 'module_messenger_hub_WizardSeverityWarning'], ['critical', 'module_messenger_hub_WizardSeverityCritical']].forEach(function (pair) {
+                html += '<button type="button" data-severity="' + pair[0] + '" aria-pressed="' + (w.minSeverity === pair[0] ? 'true' : 'false') + '">'
+                    + esc(t(pair[1])) + '</button>';
+            });
+            html += '</div></div>';
+        }
+        if (wizardSupportsReasons(w.eventTypes)) {
+            var chosen = w.filters.reasons || [];
+            html += '<div class="field" id="mh-cond-reasons"><label>' + esc(t('module_messenger_hub_WizardReasons')) + '</label>';
+            CLOUD_AI_REASON_GROUPS.forEach(function (group) {
+                html += '<div class="mh-reason-group"><div class="mh-reason-title">' + esc(t(group[0])) + '</div>';
+                group[1].forEach(function (reason) {
+                    html += '<label class="mh-reason-check"><input type="checkbox" data-reason="' + reason + '"'
+                        + (chosen.indexOf(reason) >= 0 ? ' checked' : '') + '>'
+                        + '<span>' + esc(t('module_messenger_hub_' + STATUS_PAUSE_KEYS[reason])) + '</span></label>';
+                });
+                html += '</div>';
+            });
+            html += '</div>';
+        }
+        if (wizardHasStatus(w.eventTypes)) {
+            html += '<div class="mh-switch-row mh-recover-row">'
+                + '<label class="ui toggle checkbox' + (w.recover ? ' checked' : '') + '" id="mh-recover-enabled">'
+                + '<input type="checkbox" class="hidden"' + (w.recover ? ' checked' : '') + ' aria-label="' + esc(t('module_messenger_hub_WizardRecovery')) + '">'
+                + '<span class="mh-track"></span></label>'
+                + '<span>' + esc(t('module_messenger_hub_WizardRecovery')) + '</span></div>';
+        }
         if (w.eventTypes.indexOf('core.missed_call') >= 0) {
             html += '<div class="mh-switch-row mh-retract-row">'
                 + '<label class="ui toggle checkbox' + (w.retract.enabled ? ' checked' : '') + '" id="mh-retract-enabled">'
@@ -2695,7 +2796,31 @@
     function bindWizardConditions() {
         var $form = $('#mh-wizard-conditions');
         $form.off('.wizard');
-        $form.on('click.wizard', '.mh-seg button', function () {
+        $form.on('click.wizard', '.mh-seg button[data-severity]', function () {
+            var w = state.ruleWizard;
+            if (!w) { return; }
+            w.minSeverity = String($(this).data('severity')) === 'critical' ? 'critical' : 'warning';
+            $(this).closest('.mh-seg').find('button').attr('aria-pressed', 'false');
+            $(this).attr('aria-pressed', 'true');
+            renderWizardPreview();
+        });
+        $form.on('change.wizard', '#mh-recover-enabled input', function () {
+            var w = state.ruleWizard;
+            if (!w) { return; }
+            w.recover = $(this).prop('checked');
+            $('#mh-recover-enabled').toggleClass('checked', w.recover);
+            w.eventTypes = wizardWithRecovery(w.eventTypes, w.recover);
+            renderWizardPreview();
+        });
+        $form.on('change.wizard', '#mh-cond-reasons input[data-reason]', function () {
+            var w = state.ruleWizard;
+            if (!w) { return; }
+            w.filters.reasons = $form.find('#mh-cond-reasons input[data-reason]:checked').map(function () {
+                return String($(this).data('reason'));
+            }).get();
+            renderWizardPreview();
+        });
+        $form.on('click.wizard', '.mh-seg button[data-direction]', function () {
             var w = state.ruleWizard;
             if (!w) { return; }
             var value = String($(this).data('direction'));
@@ -2930,6 +3055,21 @@
             $('#mh-wizard-preview, #mh-wizard-preview-target').empty();
             return;
         }
+        var html = wizardPreviewBubble(type, w);
+        // the recovery switch is part of the preview: a second bubble shows what the recovery looks like
+        var recovery = STATUS_PAIRS[type];
+        if (recovery && w.eventTypes.indexOf(recovery) >= 0) {
+            html += wizardPreviewBubble(recovery, w);
+        }
+        // the messenger is part of the preview, so the aside says which bubble it shows
+        // (the design has no visible caption above the bubble)
+        $('.mh-wizard-preview').attr('aria-label',
+            t(wizardIsMax() ? 'module_messenger_hub_WizardPreviewChannelMax' : 'module_messenger_hub_WizardPreviewTitle'));
+        // step 2 shows the conditions preview, step 3 the same preview for the chosen bot
+        $('#mh-wizard-preview, #mh-wizard-preview-target').html(html);
+    }
+
+    function wizardPreviewBubble(type, w) {
         var names = eventTypeNames();
         var title = names[type] || type;
         if (type === 'ai_supervisor.attention_call') {
@@ -2983,6 +3123,10 @@
             case 'cloud_ai.paused':
             case 'cloud_ai.resumed':
                 var sample = STATUS_PREVIEW_SAMPLES[type];
+                if (wizardSupportsReasons([type]) && w.filters.reasons && w.filters.reasons.length > 0) {
+                    // the sample shows the first selected pause reason, so the choice is visible
+                    sample = $.extend({}, sample, { ref: w.filters.reasons[0] });
+                }
                 var scenarioSource = sourceById(w.sourceId);
                 if (scenarioSource && scenarioSource.module_name) {
                     lines.push(esc(scenarioSource.module_name));
@@ -3011,12 +3155,7 @@
         if (button) {
             html += '<div class="mh-preview-button' + (isMax ? ' is-max' : '') + '">' + esc(t('module_messenger_hub_WizardPreviewButton')) + ' ↗</div>';
         }
-        // the messenger is part of the preview, so the aside says which bubble it shows
-        // (the design has no visible caption above the bubble)
-        $('.mh-wizard-preview').attr('aria-label',
-            t(isMax ? 'module_messenger_hub_WizardPreviewChannelMax' : 'module_messenger_hub_WizardPreviewTitle'));
-        // step 2 shows the conditions preview, step 3 the same preview for the chosen bot
-        $('#mh-wizard-preview, #mh-wizard-preview-target').html(html);
+        return html;
     }
 
     // Audio bubbles follow the text (Plan/03): fragments = one bubble per fragment, otherwise the whole file.
@@ -3065,6 +3204,10 @@
             return;
         }
         if (w.step === 2) {
+            if (wizardSupportsReasons(w.eventTypes) && (!w.filters.reasons || w.filters.reasons.length === 0)) {
+                showWizardError(t('module_messenger_hub_WizardReasonsRequired'));
+                return;
+            }
             w.step = 3;
             renderWizard();
             return;
@@ -3093,6 +3236,10 @@
         if (filters.user_ids.length > 0) { result.user_ids = filters.user_ids; }
         if (filters.directions.length > 0) { result.directions = filters.directions; }
         if (filters.providers.length > 0) { result.providers = filters.providers; }
+        // every reason selected = no filter (a manual pause included); a subset is stored as chosen
+        if (filters.reasons && filters.reasons.length > 0 && filters.reasons.length < cloudAiReasons(true).length) {
+            result.reasons = filters.reasons;
+        }
         if (filters.quality_score !== null && Object.keys(filters.quality_score).length > 0) {
             result.quality_score = filters.quality_score;
         }
@@ -3128,8 +3275,8 @@
             title: title,
             enabled: true,
             event_types: w.eventTypes,
-            min_severity: 'info',
-            filters: pruneFilters(w.filters),
+            min_severity: wizardSupportsSeverity(w.eventTypes) ? w.minSeverity : 'info',
+            filters: pruneFilters(wizardSupportsReasons(w.eventTypes) ? w.filters : $.extend({}, w.filters, { reasons: null })),
             target_mode: w.targetMode,
             chat_ids: w.chatIds,
             options: options
@@ -3185,6 +3332,11 @@
                 w.eventTypes = (source.event_types || []).map(function (type) { return type.type; });
                 if (w.editId === 0) { w.title = source.name; }
                 w.filters = emptyFilters();
+                w.recover = true;
+                w.minSeverity = 'warning';
+                if (wizardSupportsReasons(w.eventTypes)) {
+                    w.filters.reasons = cloudAiReasons(false); // new rule: everything except a manual pause
+                }
             }
             renderWizardScenarios();
             updateWizardNext();

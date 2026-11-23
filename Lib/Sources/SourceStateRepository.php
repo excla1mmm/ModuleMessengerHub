@@ -17,6 +17,12 @@ final class SourceStateRepository
     {
     }
 
+    /** Carries the retired per-module status source ids over to the per-problem ones (stage 3b-4). */
+    public function migrateLegacyIds(): void
+    {
+        SourceIdMigration::run($this->db);
+    }
+
     /**
      * @return array{source_id: string, enabled: bool, cursor: array<string, mixed>, availability: string,
      *     last_poll_at: ?int, last_ok_at: ?int, last_error_code: string, baseline_set_at: ?int}
@@ -86,6 +92,15 @@ final class SourceStateRepository
             'UPDATE ' . self::TABLE . ' SET availability = :availability, last_poll_at = :now,'
             . ' last_error_code = :code WHERE source_id = :id',
             ['availability' => $availability, 'now' => $now, 'code' => $errorCode, 'id' => $sourceId]
+        );
+    }
+
+    /** Records a poll attempt only (rate-limits a transient refusal); availability, cursor and error stay as they were. */
+    public function markPollAttempt(string $sourceId, int $now): void
+    {
+        $this->db->execute(
+            'UPDATE ' . self::TABLE . ' SET last_poll_at = :now WHERE source_id = :id',
+            ['now' => $now, 'id' => $sourceId]
         );
     }
 

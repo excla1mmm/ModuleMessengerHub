@@ -20,6 +20,7 @@ use Modules\ModuleMessengerHub\Lib\RestAPI\Common\UnknownActionException;
 use Modules\ModuleMessengerHub\Lib\RestAPI\Common\ValidationException;
 use Modules\ModuleMessengerHub\Lib\Routing\ChatResolver;
 use Modules\ModuleMessengerHub\Lib\Routing\Rule;
+use Modules\ModuleMessengerHub\Lib\Sources\Modules\CloudAiPauseReasons;
 use Modules\ModuleMessengerHub\Lib\Routing\RuleRepository;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceCatalog;
 use Modules\ModuleMessengerHub\Lib\Storage\HubDatabase;
@@ -44,7 +45,7 @@ final class Processor
     ];
     private const array OPTION_KEYS = ['mask_phone', 'attachments', 'retract_on_callback'];
     private const array ATTACHMENT_MODES = [AttachmentMode::NONE, AttachmentMode::FRAGMENTS, AttachmentMode::RECORDING];
-    private const array FILTER_KEYS = ['user_ids', 'directions', 'providers', 'quality_score'];
+    private const array FILTER_KEYS = ['user_ids', 'directions', 'providers', 'quality_score', 'reasons'];
 
     public function __construct(
         private readonly ?HubDatabase $db = null,
@@ -476,6 +477,20 @@ final class Processor
                         $providers[trim($provider)] = true;
                     }
                     $filters['providers'] = array_keys($providers);
+                    break;
+                case 'reasons':
+                    // Cloud AI pause reasons; an empty list would silence the rule, so it is refused
+                    if (!is_array($item) || $item === []) {
+                        throw new ValidationException('invalid_filter', 'filters');
+                    }
+                    $reasons = [];
+                    foreach ($item as $reason) {
+                        if (!is_string($reason) || !CloudAiPauseReasons::isKnown($reason)) {
+                            throw new ValidationException('invalid_filter', 'filters');
+                        }
+                        $reasons[$reason] = true;
+                    }
+                    $filters['reasons'] = array_keys($reasons);
                     break;
                 case 'quality_score':
                     if (!is_array($item)) {

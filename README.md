@@ -98,7 +98,9 @@ Phone numbers, employee names and event texts are sent to an external messenger.
 default; numbers can be masked; attachments are `none` by default and a recording is sent only for a rule where the
 administrator chose it (probe/test events can only use the module's own probe directory). Bot tokens are stored only on the PBX, are never
 returned by the API (only a short hint is shown) and never appear in logs or error codes. The hub uses its
-own read-only API key for the sources it polls.
+own restricted API key for the sources it polls: bound to the PBX itself (localhost), `read` on the resources it
+polls, and `admin` only on the two ModuleLocalSpeechToText resources (`/workers`, `/jobs`) that module serves to API keys
+at that level; the hub only sends GET requests to them.
 
 ## Support
 

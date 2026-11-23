@@ -1,12 +1,12 @@
 {
   "state": "down",
-  "since": 1795153998,
+  "since": 1794990000,
   "issues": [
     {
       "code": "backlog_no_workers",
       "ref": "queue",
       "severity": "critical",
-      "since": 1795153998
+      "since": 1794990000
     },
     {
       "code": "worker_offline",

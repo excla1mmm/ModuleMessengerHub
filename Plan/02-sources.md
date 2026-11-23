@@ -98,12 +98,12 @@ interface SourceInterface
 | Модуль | Тип события | Откуда | Доступ | Курсор / дедуп | Этап |
 |---|---|---|---|---|---|
 | ModuleAISupervisor | `ai_supervisor.attention_call` | `GET /pbxcore/api/v3/module-ai-supervisor/calls?attention=1&period=…&limit=…` (фильтр `attention` — `Lib/RestAPI/Calls/DataStructure.php:193`); запись — публичный `GET /pbxcore/api/v3/cdr/{id}` / `?linkedid=…` (read) | ✅ `read`, звонки и CDR видны | скользящее окно по дате + `ref_id`; `ai_attention:{ref_id}` | 1 ✅ (1.3); вложение — 3a |
-| ModuleAISupervisor | `ai_supervisor.worker_offline` (+ `…_online`) | `GET …/module-ai-supervisor/status` (stage 3b-1); пока версия без `/status` — запасной `GET …/module-ai-supervisor/workers` | ✅ `read` на `/status`; `/workers` добавляется в ключ, только пока обнаружен запасной путь (TODO(#1)) | `<source>:worker_offline:<ref>:<since>`, одинаковый у обоих читателей | 1 ✅ (1.3), 3b-1 ✅ |
+| ModuleAISupervisor | `ai_supervisor.worker_offline` (+ `…_online`) | `GET …/module-ai-supervisor/workers` (любая версия модуля с `/workers`; полей `id`, `status`, `last_seen`) | ✅ `read` | `<source>:worker_offline:<ref>:<since>` | 1 ✅ (1.3), 3b-1 ✅, 3b-5 ✅ |
 | ModuleAISupervisor | `ai_supervisor.call_assigned` | `GET …/calls` с полями workflow — проверить фильтр по изменению | ✅ `read` (тот же ресурс) | `ai_assign:{ref_id}:{assignee}:{ts}` | 4 |
-| ModuleCloudAISupervisor | `cloud_ai.paused` / `cloud_ai.resumed` | `GET …/module-cloud-ai-supervisor/status` (с 1.46), `issues[]` с `code = processing_paused` и `ref` = причина | ✅ `read` только на `/status` | `<source>:processing_paused:<reason>:<episode since>` | 3b-1 ✅ |
-| ModuleLocalSpeechToText | `local_stt.worker_offline` (+ `…_online`) | `GET …/module-local-speech-to-text/status` (с 1.154), `issues[]` с `code = worker_offline` | ✅ `read` только на `/status` | `<source>:worker_offline:<ref>:<episode since>` | 3b-1 ✅ |
-| ModuleLocalSpeechToText | `local_stt.backlog_no_workers` (+ `…_resolved`) | тот же `/status`, `code = backlog_no_workers`, `ref = queue` | ✅ `read` только на `/status` | `<source>:backlog_no_workers:queue:<episode since>` | 3b-1 ✅ |
-| ModuleCloudSpeechToText | `cloud_stt.incident` (+ `…_resolved`), `cloud_stt.paused` / `cloud_stt.resumed` | `GET …/module-cloud-speech-to-text/status` (с 1.120): `incident_open` (ref = публичный id инцидента) и `processing_paused` (ref `user`/`maintenance`) | ✅ `read` только на `/status` | `<source>:<code>:<ref>:<episode since>`, подтверждённый инцидент не алертит повторно | 3b-1 ✅ |
+| ModuleCloudAISupervisor | `cloud_ai.paused` / `cloud_ai.resumed` | `GET …/module-cloud-ai-supervisor/runtime` (с первого релиза, v1.2): `pause.paused`, `pause.pause_reason` (= `ref`), `pause.paused_at` (= `since`), `summary.analysis_pending` (счётчик) | ✅ `read` на `/runtime` (`RestRequestContext::isAdministrator` принимает `read` для GET) | `<source>:processing_paused:<reason>:<episode since>` | 3b-5 ✅ |
+| ModuleLocalSpeechToText | `local_stt.worker_offline` (+ `…_online`) | `GET …/module-local-speech-to-text/workers` (`id`, `status`, `last_seen`, `created_at`): офлайн = статус не `online` или `last_seen` старше 900 с (`STTWorker::markStaleOffline`); `ref` = первые 12 hex `sha256("ModuleLocalSpeechToText:<id>")` | ⚠️ модуль требует `admin` на `/workers` для ключа: ключ хаба получает `admin` ровно на этот путь (Plan/07) | `<source>:worker_offline:<ref>:<episode since>`, `since` = `last_seen` (нет — `created_at`) | 3b-5 ✅ |
+| ModuleLocalSpeechToText | `local_stt.backlog_no_workers` (+ `…_resolved`) | `/workers` (как выше) и, только пока ни один воркер не онлайн, `GET …/module-local-speech-to-text/jobs?status=pending&limit=1` (число задач — `pagination.total_items`; самая старая — вторым запросом `offset=total-1`, список идёт по `id` по убыванию): есть ждущие задачи и нет онлайн-воркера ≥ 600 с, `ref = queue`, `since` = max(последний `last_seen`, `created_at` самой старой ждущей задачи) | ⚠️ `admin` ровно на `/workers` и `/jobs` | `<source>:backlog_no_workers:queue:<episode since>` | 3b-5 ✅ |
+| ModuleCloudSpeechToText | `cloud_stt.incident` (+ `…_resolved`), `cloud_stt.paused` / `cloud_stt.resumed` | `GET …/module-cloud-speech-to-text/status` (с 1.120): `incident_open` (ref = публичный id инцидента) и `processing_paused` (ref `user`/`maintenance`) | ✅ `read` только на `/status` | `<source>:<code>:<ref>:<episode since>`, подтверждённый инцидент не алертит повторно | 3b-1 ✅; единственный модуль с `/status` (решение 23.11.2026) |
 | ModuleVoiceAgent | `voice_agent.callback_request` | `GET /pbxcore/api/v3/module-voice-agent/callbacks` — новые заявки на перезвон | ✅ `read` | `va_callback:{id}` | 1 ✅ (1.3) |
 | ModuleVoiceAgent | `voice_agent.runtime_down/up` | `GET …/module-voice-agent/runtime` (`health`, `agents`) | ✅ `read` | `va_runtime:{state}:{since}` | 1 ✅ (1.3) |
 
@@ -140,10 +140,9 @@ interface SourceInterface
   покинувшие окно. **Ограничение:** мониторинг покрывает не более `MAX_PAGES × PAGE_LIMIT` = 300
   самых свежих attention-звонков окна 7 дней; поздний анализ звонка старше 300 самых свежих
   attention-звонков не будет обнаружен.
-- **`ai_supervisor.workers`** (`AiWorkerStateSource`, poll 60 с, `/api/v3/module-ai-supervisor/workers`):
-  статусы `online`/`offline` сам модуль уже дебаунсит (таймаут heartbeat 900 с). События — только
-  переходы уже виденного воркера: `worker_offline` (warning), `worker_online` (info, восстановление).
-  Воркер, впервые увиденный офлайн, событие не даёт.
+- **`ai_supervisor.workers`** (`ModuleStatusSource`, poll 60 с, `/api/v3/module-ai-supervisor/workers`, `read`;
+  с 3b-5 читается `/workers` — модуль `/status` не выпускает): события — `worker_offline` (warning,
+  debounce 120 с), `worker_online` (info, восстановление). Воркер, уже бывший офлайн на baseline, событие не даёт.
 - **`voice_agent.callbacks`** (`VaCallbackSource`, poll 60 с, `/api/v3/module-voice-agent/callbacks`):
   список приходит «новейшие первыми» (`created_at DESC, id DESC`), курсор `max_id`; события только
   по новым заявкам, dedupe `va_callback:{id}`. Страница 100: при потоке >100 заявок за интервал
@@ -164,9 +163,18 @@ interface SourceInterface
 
 ### Реализация 3b-1 (22.11.2026, без станции)
 
-Модули-источники (Local STT 1.154+, Cloud STT 1.120+, Cloud AI 1.46+, ИИ Супервайзер — ещё не
-выпущено) отдают один универсальный ресурс `GET /pbxcore/api/v3/<module-slug>/status`
-(`PBXApiResult.data`):
+**Решение 23.11.2026 (3b-5): универсальный ресурс `/status` остаётся только у ModuleCloudSpeechToText (1.120+).**
+Остальные три модуля его не выпускают; хаб читает их существующие ресурсы и приводит ответ к тому же снимку
+(`state`, `since`, `issues`, `counters`), поэтому сценарии, условия, миграция и ключи дедупликации не изменились:
+
+| Модуль | Ресурс | Права ключа | Читатель |
+|---|---|---|---|
+| Cloud STT | `GET …/module-cloud-speech-to-text/status` (с 1.120) | `read` | `ModuleStatusSource::snapshot()` |
+| ИИ Супервайзер | `GET …/module-ai-supervisor/workers` | `read` | `AiWorkerStateSource` |
+| Cloud AI Supervisor | `GET …/module-cloud-ai-supervisor/runtime` | `read` | `CloudAiRuntimeSnapshot` |
+| Local STT | `GET …/module-local-speech-to-text/workers`, `…/jobs` | **`admin`** на эти два пути | `LocalSttSnapshot` |
+
+Форма `/status` Cloud STT (`PBXApiResult.data`):
 
 ```json
 {
@@ -181,11 +189,48 @@ interface SourceInterface
 между опросами; верхний `since` информационный и **не участвует в дедупликации** (при `state = ok`
 модули отдают `0`). Свободного текста, адресов и путей в ответе нет.
 
-Реализовано одним адаптером `Lib/Sources/Modules/ModuleStatusSource`: профиль на модуль (module id,
-slug, source id, минимальная версия, правила `code → тип события / серьёзность / recovery / debounce`)
-задан в `ModuleStatusSource::PROFILES`; регистрация — `SourceRegistry::default()`. Источники:
-`local_stt.status`, `cloud_stt.status`, `cloud_ai.status`, `ai_supervisor.workers` (id сохранён с
-этапа 1.3, чтобы не потерять выключатель и семейство событий). Проверки — `Tests/check-status-sources.php`.
+Реализовано одним адаптером `Lib/Sources/Modules/ModuleStatusSource`: профиль на источник (module id,
+вид читателя, пути ресурсов, source id, минимальная версия — только у Cloud STT, правила
+`code → тип события / серьёзность / recovery / debounce`) задан в `ModuleStatusSource::PROFILES`;
+регистрация — `SourceRegistry::default()`.
+
+**Один источник = один сценарий = один вид проблемы (этап 3b-4).** Источник опрашивает ресурс своего
+модуля раз в минуту и обрабатывает только свои коды (общий разбор ответа между источниками не нужен: опрос
+локальный, дешёвый, а связность источников хуже). `local_stt.workers` читает только `/workers`;
+`local_stt.backlog` читает `/workers` и, лишь пока ни один воркер не онлайн, `/jobs`:
+
+| Источник | Модуль | Код → события | Название (ru) |
+|---|---|---|---|
+| `local_stt.workers` | Local STT | `worker_offline` → `local_stt.worker_offline` / `local_stt.worker_online` | Сбой воркеров распознавания |
+| `local_stt.backlog` | Local STT | `backlog_no_workers` → `local_stt.backlog_no_workers` / `local_stt.backlog_resolved` | Очередь распознавания без воркеров |
+| `cloud_stt.incidents` | Cloud STT | `incident_open` → `cloud_stt.incident` / `cloud_stt.incident_resolved` | Инциденты облачного распознавания |
+| `cloud_stt.paused` | Cloud STT | `processing_paused` → `cloud_stt.paused` / `cloud_stt.resumed` | Пауза облачного распознавания |
+| `cloud_ai.paused` | Cloud AI Supervisor | `processing_paused` → `cloud_ai.paused` / `cloud_ai.resumed` (`not_configured` игнорируется) | Пауза облачного анализа |
+| `ai_supervisor.workers` | ИИ Супервайзер | `worker_offline` → `ai_supervisor.worker_offline` / `…_online` | Сбой воркеров |
+
+Имена типов событий не менялись, поэтому правила (они хранят `event_types`, а не id источника) работают без
+правки: правило со всеми четырьмя типами Local STT совпадёт с событиями обоих новых источников.
+
+**Миграция идентификаторов (`SourceIdMigration`, вызывается воркером коллектора при старте и перед чтением
+настроек REST; идемпотентна).** Прежние `local_stt.status`, `cloud_stt.status`, `cloud_ai.status` исчезли:
+выключатель `enabled` прежней строки `m_MessengerHubSourceState` переносится на новые источники того же
+модуля, курсоры отбрасываются, прежние строки и кэш `status_capability.*` удаляются. Новые источники
+стартуют с пустым курсором, то есть с тихого baseline: проблемы, существующие на момент обновления, записываются
+как «известные» и не рассылаются. Ключ дедупликации содержит id источника (`cloud_stt.incidents:…` вместо
+`cloud_stt.status:…`), поэтому повтор объявленного инцидента защищён не ключом, а baseline: пара, уже
+присутствующая при первом опросе, события не порождает ни под каким ключом. Цена: recovery для инцидента,
+объявленного до обновления, не придёт (пара не «объявлена» новым источником); новые эпизоды работают как обычно.
+`ai_supervisor.workers` сохраняет id, ключ и курсор: смена читателя ничего не пересылает.
+
+**Условия сценария на шаге 2 мастера.** «Сообщать о восстановлении» (по умолчанию включено) — наличие
+recovery-типа в `event_types` правила (отдельного хранилища нет). Важность для `cloud_stt.incident` —
+`min_severity` правила (`warning` — по умолчанию, `critical`); recovery-событие всегда `info`, поэтому для
+правила со status-payload сравнивается серьёзность закрываемого инцидента (`module_status.severity`).
+Причины паузы Cloud AI — фильтр `filters.reasons` (список из `insufficient_funds`, `low_balance`,
+`license_missing`, `auth_invalid`, `daily_limit_reached`, `model_unavailable`, `source_unavailable`, `manual`),
+Router сравнивает его с `subject.module_status.ref` событий `cloud_ai.paused` и `cloud_ai.resumed`; новое правило
+по умолчанию берёт всё, кроме `manual`; нет фильтра — все причины; неизвестная модулю хаба причина не
+совпадает. Группы в мастере: «Деньги», «Лицензия и доступ», «Лимиты и модель», «Источник данных», «Ручная пауза».
 
 - **Diff по (`code`, `ref`)** в `m_MessengerHubSourceState`: появление → событие, исчезновение →
   recovery-событие (info) там, где оно определено. Базлайн — на включении источника и на первом
@@ -211,19 +256,25 @@ slug, source id, минимальная версия, правила `code → �
 - **Серьёзность**: `local_stt.worker_offline` — warning, `local_stt.backlog_no_workers` — critical;
   `cloud_stt.incident` — как у инцидента; `cloud_stt.paused` и `cloud_ai.paused` — по причине;
   recovery-события — info.
-- **ИИ Супервайзер без `/status`**: источник сначала читает `/status`; на 404 запоминает отсутствие
-  возможности (кэш в `m_MessengerHubSettings`, ключ `status_capability.<source>`) и в том же опросе
-  читает `/workers` (`AiWorkerStateSource::snapshot`, ref = первые 12 hex
-  `sha256("ModuleAISupervisor:<id>")` — тот же, что у `/status`). Оба читателя дают одинаковые
-  `code`/`ref`/`since` и одинаковый `dedupe_key`; переключение читателя не алертит повторно. Пока
-  запасной путь в ходу, `read` на `/workers` остаётся в ключе, `/status` — всегда (для повторной
-  проверки раз в 6 ч). После ответа `/status` путь `/workers` уходит из ключа (Q15, на месте).
-  `TODO(#1)`: удалить запасной reader и путь `/workers` из ключа, когда ИИ Супервайзер выпустит `/status`.
-- **Доступность при старом модуле**: 404 на `/status` → `api_incompatible` (в интерфейсе —
-  «Нужно обновить модуль», `settings:getSources` отдаёт `update_to` = минимальную версию), курсор
-  сбрасывается, ошибок в лог нет; после обновления модуля — тихий базлайн.
-- Ключ хаба: только `read` на `/status` каждого установленного модуля; `/workers` — только пока
-  обнаружен запасной путь ИИ Супервайзера. Шаблоны — `Lib/Routing/Templates/ModuleStatusTemplate.php`
+- **ИИ Супервайзер** читает `/workers` (`read`): `ref` = первые 12 hex `sha256("ModuleAISupervisor:<id>")`,
+  `since` = `last_seen`, офлайн — собственный статус модуля, воркеры, молчащие дольше 30 суток, не считаются.
+  Ключ `<source>:worker_offline:<ref>:<since>` и курсор те же, что были при чтении `/status` (тот же `ref` и
+  `since`): воркер, уже объявленный раньше, не алертит повторно, его recovery приходит со старым типом события.
+- **Local STT**: онлайн — статус `online` **и** `last_seen` не старше 900 с; `ref` — первые 12 hex
+  `sha256("ModuleLocalSpeechToText:<id>")`, `since` = `last_seen` (воркер, не выходивший на связь, — `created_at`)
+  — как в курсорах эпохи `/status`. Имена, адреса и ключи воркеров, `call_id` задач в снимок не попадают.
+  `backlog_no_workers`: ждущие задачи есть, онлайн-воркеров нет ≥ 600 с. Если `since` в эпизоде сдвигается,
+  это тот же инцидент (правило «движущегося `since`» выше).
+- **Cloud AI**: `/runtime` → `pause.paused = true` и непустая `pause.pause_reason` дают один `processing_paused`
+  с `ref` = причина и `since` = `paused_at`; серьёзность по причине (см. выше), `not_configured` игнорируется,
+  неизвестная причина проходит со `warning`. Счётчик `jobs_waiting` = `summary.analysis_pending`, если он есть.
+  Баланс, модель и лимиты не читаются.
+- **Доступность при старом модуле**: 404 на ресурсе → `api_incompatible` (в интерфейсе — «Нужно обновить
+  модуль», `settings:getSources` отдаёт `update_to`; минимальная версия задана только у Cloud STT — 1.120,
+  у остальных пусто), курсор сбрасывается, ошибок в лог нет; после обновления модуля — тихий базлайн.
+  403 на ресурсе при исправном ключе (после самолечения ключа) → `api_forbidden` («Модуль не даёт доступа к данным»).
+- Ключ хаба (Plan/07): `read` на ресурсах источников (у ИИ Супервайзера `/calls` и `/workers`, у Cloud AI `/runtime`,
+  у Cloud STT `/status`), **`admin` ровно на `/workers` и `/jobs` Local STT**, привязан к localhost. Шаблоны — `Lib/Routing/Templates/ModuleStatusTemplate.php`
   (коды и причины переводятся в человеческий текст, счётчики и время — в заметках).
 
 Кандидаты следующих версий (сторонние/другие модули MIKO, только при наличии читаемого API):
@@ -239,4 +290,4 @@ API отвечает и версия контракта совместима →
 
 Значения: `available`, `disabled`, `module_missing`, `module_disabled`, `api_forbidden`,
 `api_incompatible` (модуль установлен и включён, но не отдаёт нужный ресурс — например, `/status`
-появился только в новой версии; интерфейс показывает минимальную версию из `update_to`), `error`.
+Cloud STT появился только в 1.120; интерфейс показывает минимальную версию из `update_to`), `error`.

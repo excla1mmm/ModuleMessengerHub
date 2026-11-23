@@ -13,7 +13,10 @@ use RuntimeException;
 /**
  * The hub's own restricted, read-only Core API key (Plan/11-open-questions.md, decision Q1).
  *
- * - full_permissions = '0', allowed_paths = {path: 'read'} for enabled sources only — never 'write' or 'admin';
+ * - full_permissions = '0', allowed_paths = {path: level} for enabled sources only: 'read', and 'admin' on
+ *   exactly the two ModuleLocalSpeechToText paths /workers and /jobs (that module demands it); never 'write'
+ *   (see KeyPermissions);
+ * - bound to localhost (networkfilterid = 'localhost'): set on create and on every sync and repair;
  * - Core stores only the bcrypt hash; the plain key is a hub secret in m_MessengerHubSettings;
  * - a path-set change rewrites allowed_paths on the existing record (Q15: same id and secret, so polls
  *   running with the old secret stay authorised; TokenValidationService cache is dropped so the new
@@ -50,13 +53,19 @@ final class HubApiKey implements ApiKeySync, ApiKeyRepairer
         $id = (int)$this->settings->get(HubSettings::HUB_API_KEY_ID);
         $record = $this->ownKey($id);
 
-        return match (KeySyncPlan::decide(
+        $decision = KeySyncPlan::decide(
             $plain,
             $id,
             $this->settings->get(HubSettings::HUB_API_KEY_PATHS),
             $wanted,
             $record !== null
-        )) {
+        );
+        if ($decision === KeySyncPlan::KEEP && $record !== null && !$this->recordMatches($record, $paths)) {
+            // same path set but a level or the network filter drifted (older package, hand edit): rewrite in place
+            $decision = KeySyncPlan::UPDATE_PATHS;
+        }
+
+        return match ($decision) {
             KeySyncPlan::KEEP => $plain,
             KeySyncPlan::UPDATE_PATHS => $this->updatePaths($record, $id, $paths, $wanted),
             default => $this->create($paths),
@@ -124,9 +133,12 @@ final class HubApiKey implements ApiKeySync, ApiKeyRepairer
             && $plain !== ''
             && password_verify($plain, (string)$record->key_hash);
         $pathsMatch = $record instanceof ApiKeys
-            && KeySyncPlan::normalizePathsJson((string)$record->allowed_paths) === KeySyncPlan::pathsJson($paths);
+            && KeyPermissions::pathsMatch((string)$record->allowed_paths, $paths)
+            && (string)$record->full_permissions === KeyPermissions::FULL_PERMISSIONS;
+        $networkMatches = $record instanceof ApiKeys
+            && KeyPermissions::networkMatches($record->networkfilterid);
 
-        return KeyHealth::diagnose($record instanceof ApiKeys, $secretMatches, $pathsMatch);
+        return KeyHealth::diagnose($record instanceof ApiKeys, $secretMatches, $pathsMatch, $networkMatches);
     }
 
     /**
@@ -142,7 +154,7 @@ final class HubApiKey implements ApiKeySync, ApiKeyRepairer
             return;
         }
         HubLogger::event('api_key', 'self_heal', ['reason' => $health], LOG_WARNING);
-        if ($health === KeyHealth::PATHS_STALE) {
+        if (KeyHealth::isInPlaceRepair($health)) {
             $record = $this->ownKey((int)$this->settings->get(HubSettings::HUB_API_KEY_ID));
             if ($record instanceof ApiKeys) {
                 $this->updatePaths($record, (int)$record->id, $paths, KeySyncPlan::pathsJson($paths));
@@ -160,14 +172,12 @@ final class HubApiKey implements ApiKeySync, ApiKeyRepairer
      */
     private function updatePaths(ApiKeys $record, int $id, array $paths, string $wanted): string
     {
-        $record->allowed_paths = json_encode(
-            array_fill_keys($paths, 'read'),
-            JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
-        );
+        $this->applyFields($record, $paths);
         if (!$record->save()) {
             throw new RuntimeException('hub_api_key_save_failed');
         }
         TokenValidationService::clearCache();
+        $this->startGrace();
         $this->settings->set(HubSettings::HUB_API_KEY_PATHS, $wanted);
         HubLogger::event('api_key', 'paths_updated', ['key_id' => $id, 'paths' => count($paths)]);
 
@@ -184,17 +194,13 @@ final class HubApiKey implements ApiKeySync, ApiKeyRepairer
         $key->key_hash = password_hash($plain, PASSWORD_BCRYPT);
         $key->key_suffix = substr($plain, -4);
         $key->key_display = substr($plain, 0, 5) . '...' . substr($plain, -5);
-        $key->networkfilterid = null;
-        $key->full_permissions = '0';
-        $key->allowed_paths = json_encode(
-            array_fill_keys($paths, 'read'),
-            JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
-        );
+        $this->applyFields($key, $paths);
         $key->created_at = date('Y-m-d H:i:s');
         if (!$key->save()) {
             throw new RuntimeException('hub_api_key_save_failed');
         }
         TokenValidationService::clearCache();
+        $this->startGrace();
 
         $this->settings->set(HubSettings::HUB_API_KEY, $plain);
         $this->settings->set(HubSettings::HUB_API_KEY_ID, (string)$key->id);
@@ -202,6 +208,29 @@ final class HubApiKey implements ApiKeySync, ApiKeyRepairer
         HubLogger::event('api_key', 'created', ['key_id' => (int)$key->id, 'paths' => count($paths)]);
 
         return $plain;
+    }
+
+    /** Core's own API worker keeps the old permissions cached for ~5 minutes: polls may be refused meanwhile. */
+    private function startGrace(): void
+    {
+        (new KeyGraceWindow($this->settings))->start(time());
+    }
+
+    /** Writes the fields of KeyPermissions::recordFields (levels, localhost binding, no full access). @param list<string> $paths */
+    private function applyFields(ApiKeys $record, array $paths): void
+    {
+        $fields = KeyPermissions::recordFields($paths);
+        $record->networkfilterid = $fields['networkfilterid'];
+        $record->full_permissions = $fields['full_permissions'];
+        $record->allowed_paths = $fields['allowed_paths'];
+    }
+
+    /** @param list<string> $paths */
+    private function recordMatches(ApiKeys $record, array $paths): bool
+    {
+        return KeyPermissions::pathsMatch((string)$record->allowed_paths, $paths)
+            && KeyPermissions::networkMatches($record->networkfilterid)
+            && (string)$record->full_permissions === KeyPermissions::FULL_PERMISSIONS;
     }
 
     /** The Core record at $id when it exists and is ours; null otherwise (foreign keys are never touched). */

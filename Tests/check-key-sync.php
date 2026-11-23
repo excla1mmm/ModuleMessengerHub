@@ -101,11 +101,11 @@ check(
 const ALL_POLL_PATHS = [
     '/api/v3/advice',
     '/api/v3/module-ai-supervisor/calls',
-    '/api/v3/module-ai-supervisor/status',
     '/api/v3/module-ai-supervisor/workers',
-    '/api/v3/module-cloud-ai-supervisor/status',
+    '/api/v3/module-cloud-ai-supervisor/runtime',
     '/api/v3/module-cloud-speech-to-text/status',
-    '/api/v3/module-local-speech-to-text/status',
+    '/api/v3/module-local-speech-to-text/jobs',
+    '/api/v3/module-local-speech-to-text/workers',
     '/api/v3/module-voice-agent/callbacks',
     '/api/v3/module-voice-agent/runtime',
 ];
@@ -126,11 +126,11 @@ $result = $processor->process(['action' => 'patch', 'data' => ['sources' => ['co
 check($result->success, 'patch disables core.advice');
 check($spy->calls === [[
     '/api/v3/module-ai-supervisor/calls',
-    '/api/v3/module-ai-supervisor/status',
     '/api/v3/module-ai-supervisor/workers',
-    '/api/v3/module-cloud-ai-supervisor/status',
+    '/api/v3/module-cloud-ai-supervisor/runtime',
     '/api/v3/module-cloud-speech-to-text/status',
-    '/api/v3/module-local-speech-to-text/status',
+    '/api/v3/module-local-speech-to-text/jobs',
+    '/api/v3/module-local-speech-to-text/workers',
     '/api/v3/module-voice-agent/callbacks',
     '/api/v3/module-voice-agent/runtime',
 ]], 'disabling a source syncs the key without its path');
@@ -165,11 +165,11 @@ $paths = ApiKeyPaths::compute(
 check($paths === [
     '/api/v3/advice',
     '/api/v3/module-ai-supervisor/calls',
-    '/api/v3/module-ai-supervisor/status',
     '/api/v3/module-ai-supervisor/workers',
-    '/api/v3/module-cloud-ai-supervisor/status',
+    '/api/v3/module-cloud-ai-supervisor/runtime',
     '/api/v3/module-cloud-speech-to-text/status',
-    '/api/v3/module-local-speech-to-text/status',
+    '/api/v3/module-local-speech-to-text/jobs',
+    '/api/v3/module-local-speech-to-text/workers',
 ], 'PATCH-time compute matches the collector compute (module off -> paths out)');
 
 // /api/v3/cdr follows enabled attachment rules, not the AI source alone (stage 3a-1)

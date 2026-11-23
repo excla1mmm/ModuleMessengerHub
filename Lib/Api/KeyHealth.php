@@ -22,15 +22,23 @@ final class KeyHealth
     public const string MISSING = 'missing';
     /** The record is ours but the stored plain key no longer matches its hash. */
     public const string SECRET_INVALID = 'secret_invalid';
-    /** The record and secret are fine, but its allowed_paths differ from the wanted set. */
+    /** The record and secret are fine, but its allowed_paths (paths or levels) differ from the wanted set. */
     public const string PATHS_STALE = 'paths_stale';
+    /** The record, secret and paths are fine, but the key is not bound to localhost. */
+    public const string NETWORK_STALE = 'network_stale';
 
     /**
      * @param bool $recordIsOurs the Core record exists and carries the hub description
      * @param bool $secretMatches password_verify(stored plain key, record hash)
-     * @param bool $pathsMatch allowed_paths of the record equal the wanted path set
+     * @param bool $pathsMatch allowed_paths of the record (paths and levels) equal the wanted set
+     * @param bool $networkMatches the record's networkfilterid is 'localhost'
      */
-    public static function diagnose(bool $recordIsOurs, bool $secretMatches, bool $pathsMatch): string
+    public static function diagnose(
+        bool $recordIsOurs,
+        bool $secretMatches,
+        bool $pathsMatch,
+        bool $networkMatches = true
+    ): string
     {
         if (!$recordIsOurs) {
             return self::MISSING;
@@ -39,7 +47,17 @@ final class KeyHealth
             return self::SECRET_INVALID;
         }
 
-        return $pathsMatch ? self::HEALTHY : self::PATHS_STALE;
+        if (!$pathsMatch) {
+            return self::PATHS_STALE;
+        }
+
+        return $networkMatches ? self::HEALTHY : self::NETWORK_STALE;
+    }
+
+    /** Drift that is repaired in place: same record id and secret (Q15). */
+    public static function isInPlaceRepair(string $health): bool
+    {
+        return $health === self::PATHS_STALE || $health === self::NETWORK_STALE;
     }
 
     /** True when the key needs a repair (anything except HEALTHY). */

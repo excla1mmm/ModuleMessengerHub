@@ -7,7 +7,6 @@ namespace Modules\ModuleMessengerHub\Lib\Api;
 use Modules\ModuleMessengerHub\Lib\Routing\RuleRepository;
 use Modules\ModuleMessengerHub\Lib\Sources\ApiKeyPaths;
 use Modules\ModuleMessengerHub\Lib\Sources\ModuleStatusProbe;
-use Modules\ModuleMessengerHub\Lib\Sources\Modules\StatusCapabilityStore;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceRegistry;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceStateRepository;
 use Throwable;
@@ -25,7 +24,6 @@ final class ApiKeyReconciler
         private readonly SourceStateRepository $states,
         private readonly RuleRepository $rules,
         private readonly ?ModuleStatusProbe $probe,
-        private readonly ?StatusCapabilityStore $statusCapabilities = null,
     ) {
     }
 
@@ -37,7 +35,7 @@ final class ApiKeyReconciler
         try {
             $probe = $this->probe;
             $paths = ApiKeyPaths::compute(
-                SourceRegistry::default($this->statusCapabilities)->pollSources(),
+                SourceRegistry::default()->pollSources(),
                 fn (string $id): bool => $this->states->isEnabled($id),
                 static fn (string $module): string => $probe->status($module)
             );

@@ -115,7 +115,7 @@ use Modules\ModuleMessengerHub\Lib\Sources\SourceCatalog;
     $state = dataOf($result);
     check($state['hub_enabled'] === false, 'hub_enabled defaults to false');
     check($state['events_retention_days'] === 30, 'retention defaults to 30');
-    check(count($state['sources']) === 12, 'twelve registered sources in the map');
+    check(count($state['sources']) === 14, 'fourteen registered sources in the map');
     check(!isset($state['hub_api_key']), 'getList exposes no secrets');
     assertNoSecret($result, 'settings getList');
 
@@ -188,7 +188,7 @@ use Modules\ModuleMessengerHub\Lib\Sources\SourceCatalog;
     check($state['hub_enabled'] === true, 'hub_enabled stored');
     check($state['events_retention_days'] === 90, 'retention stored');
     check($state['sources']['core.missed_call'] === false, 'sources replaced wholesale by PUT');
-    check(count($state['sources']) === 12, 'PUT still knows all sources');
+    check(count($state['sources']) === 14, 'PUT still knows all sources');
     assertNoSecret($result, 'settings update');
 
     // ---------- settings: stage-2 fields ----------
@@ -228,7 +228,7 @@ use Modules\ModuleMessengerHub\Lib\Sources\SourceCatalog;
     $result = $processor->process(['action' => 'getSources']);
     check($result->success && $result->httpCode === 200, 'getSources succeeds');
     $items = dataOf($result)['items'];
-    check(count($items) === 12, 'getSources lists twelve sources');
+    check(count($items) === 14, 'getSources lists fourteen sources');
     $byId = [];
     foreach ($items as $item) {
         $byId[$item['id']] = $item;
@@ -244,7 +244,7 @@ use Modules\ModuleMessengerHub\Lib\Sources\SourceCatalog;
     check($byId['voice_agent.runtime']['availability'] === SourceAvailability::MODULE_DISABLED, 'live probe wins: module_disabled');
     check($byId['core.missed_call']['kind'] === 'core' && $byId['core.missed_call']['module'] === '', 'core source has no module');
     check($byId['core.provider_status']['group'] === 'pbx', 'provider status in the PBX group');
-    foreach (['local_stt.status', 'cloud_stt.status', 'cloud_ai.status'] as $speechSource) {
+    foreach (['local_stt.workers', 'local_stt.backlog', 'cloud_stt.incidents', 'cloud_stt.paused', 'cloud_ai.paused'] as $speechSource) {
         check(isset($byId[$speechSource]) && $byId[$speechSource]['group'] === 'speech_ai', "$speechSource is in the speech recognition group");
     }
     check($byId['ai_supervisor.workers']['group'] === 'ai_supervisor', 'AI Supervisor workers stay in the AI Supervisor group');
@@ -252,9 +252,13 @@ use Modules\ModuleMessengerHub\Lib\Sources\SourceCatalog;
         array_search('speech_ai', SourceCatalog::GROUP_ORDER, true) === array_search('ai_supervisor', SourceCatalog::GROUP_ORDER, true) + 1,
         'speech group follows the AI Supervisor group'
     );
-    check($byId['local_stt.status']['group_name'] !== $byId['local_stt.status']['group_key'], 'speech group name is translated');
-    check($byId['local_stt.status']['update_to'] === '1.154', 'update_to carries the minimal version');
-    check($byId['ai_supervisor.workers']['update_to'] === '', 'no minimal version for the AI Supervisor fallback');
+    check($byId['local_stt.workers']['group_name'] !== $byId['local_stt.workers']['group_key'], 'speech group name is translated');
+    check($byId['cloud_stt.incidents']['update_to'] === '1.120' && $byId['cloud_stt.paused']['update_to'] === '1.120', 'update_to carries the Cloud STT /status minimal version');
+    check(
+        $byId['local_stt.workers']['update_to'] === '' && $byId['local_stt.backlog']['update_to'] === ''
+        && $byId['cloud_ai.paused']['update_to'] === '' && $byId['ai_supervisor.workers']['update_to'] === '',
+        'sources that read existing resources have no minimal version'
+    );
     check($byId['core.advice']['mode'] === 'poll' && $byId['core.advice']['poll_interval_sec'] > 0, 'poll metadata');
     check($byId['core.pbx_started']['mode'] === 'push', 'push metadata');
     assertNoSecret($result, 'settings getSources');

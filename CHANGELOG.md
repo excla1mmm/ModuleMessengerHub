@@ -3,6 +3,38 @@
 ## Unreleased
 
 ### Fixed
+- Core keeps the old permissions of the hub key in its token cache for about 5 minutes after a key change
+  (also inside its own API worker). For 6 minutes after the hub creates, updates or repairs its key, and on the
+  first collector pass after install or update, `api_unauthorized`/`api_forbidden` from source polls are treated
+  as transient: the previous availability is kept, nothing is emitted or reset, key self-healing is not
+  triggered, and one `key_cache_grace` line is logged per source (#1). The deadline is stored in hub settings.
+
+### Changed
+- Stage 3b-6 (station acceptance, docs only): hub 6.7 with AI Supervisor, Cloud AI Supervisor and Local STT
+  rebuilt without `/status`; sources stay available, no re-alerts, collector restart without duplicates, probe
+  delivery of the new event types. Core's token cache keeps old key paths for about 5 minutes after a package update.
+- Module status sources read the modules' existing resources (#1, decision of 2026-11-23): `/status` stays only
+  in ModuleCloudSpeechToText (1.120+). AI Supervisor is read through `GET …/module-ai-supervisor/workers` (`read`),
+  Cloud AI Supervisor through `GET …/module-cloud-ai-supervisor/runtime` (`read`), Local STT through
+  `GET …/module-local-speech-to-text/workers` and `…/jobs` (the module demands `admin` there). Scenarios, wizard
+  conditions, migration, episode semantics and dedupe keys are unchanged; `ref` and `since` equal the `/status`
+  ones, so cursors from the `/status` era do not re-alert. «Update the module» hints (`update_to`) remain only for
+  Cloud STT.
+- The hub's Core API key is bound to localhost (`networkfilterid = 'localhost'`) and carries `admin` only on the two
+  Local STT paths `/workers` and `/jobs` (the module requires it), `read` everywhere else, never `write` or full
+  access; it is set on create and on every sync/repair, and `verify()` repairs a different filter or level in place
+  (same key id and secret).
+- Stage 3b-4 accepted on the test station with ModuleAISupervisor 1.186.6 (the first release that ships `/status`)
+  and the hub 6.6 package: migration without noise, reason filter and recovery switch checked.
+- Module status sources (#1, stage 3b-4): one source (one wizard scenario) per kind of problem instead of one per
+  module: `local_stt.workers`, `local_stt.backlog`, `cloud_stt.incidents`, `cloud_stt.paused`, `cloud_ai.paused`
+  (`ai_supervisor.workers` unchanged). The retired `local_stt.status`, `cloud_stt.status` and `cloud_ai.status`
+  hand their enabled switch to the new sources of the same module; the new sources start with a silent baseline
+  (no events and no recoveries for problems that exist at the update). Event types are unchanged, so existing
+  rules keep matching.
+- AI Supervisor source (3b-4) read only `/status`; superseded by the entry above (reads `/workers` again).
+
+### Fixed
 - Stage 3b-3 (station acceptance): the notifications list shows the `api_incompatible` source state
   («update the module») as a yellow informational label, not red. The collector drops Core's token cache once
   after its first key sync, so a package update no longer leaves the new `/status` paths answered with 401
@@ -20,6 +52,11 @@
   scratch files only when they exist (no `SHUTDOWN-ERROR` with a temp path when a worker is stopped).
 
 ### Added
+- Conditions of status scenarios (step 2 of the wizard): «Notify on recovery» (the recovery event type in the
+  rule's event types), minimal importance for Cloud STT incidents (`min_severity`; the recovery of an incident follows
+  the importance of the incident), and pause reasons of Cloud AI by group (`filters.reasons`, validated by the Rules
+  REST, applied to `subject.module_status.ref`; a reason unknown to the hub passes the filter, known reasons outside the
+  selection are filtered).
 - Stage 3b-2 — UI for module status sources: scenario category «Распознавание речи и облачный ИИ»
   (`speech_ai`, after the AI Supervisor group) in the wizard, the notifications list and the journal type
   filter; informational source states without buttons, including «update the module to version N»;

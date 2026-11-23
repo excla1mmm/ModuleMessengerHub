@@ -10,7 +10,9 @@ require __DIR__ . '/support/bootstrap.php';
 
 use Modules\ModuleMessengerHub\Lib\Api\ApiKeyGuard;
 use Modules\ModuleMessengerHub\Lib\Api\ApiKeyRepairer;
+use Modules\ModuleMessengerHub\Lib\Api\KeyGraceWindow;
 use Modules\ModuleMessengerHub\Lib\Api\KeyHealth;
+use Modules\ModuleMessengerHub\Lib\Settings\HubSettings;
 use Modules\ModuleMessengerHub\Lib\Api\KeySyncPlan;
 use Modules\ModuleMessengerHub\Lib\Events\EventStore;
 use Modules\ModuleMessengerHub\Lib\Events\HubEvent;
@@ -229,5 +231,70 @@ $db = hubTestDatabase();
 $source = new FlakyKeySource(1);
 $report = collectorFor($source, null, $db)->runOnce();
 check(($report['fake.source']['status'] ?? '') === SourceAvailability::API_FORBIDDEN, 'no guard -> plain api_forbidden');
+
+// ---------- Core token cache grace (Plan/08) ----------
+
+function graceCollector(SourceInterface $source, ?ApiKeyGuard $guard, \Modules\ModuleMessengerHub\Lib\Storage\HubDatabase $db, int $now): Collector
+{
+    return new Collector(
+        [$source],
+        new SourceStateRepository($db),
+        new EventStore($db),
+        new Probe(),
+        new SourceContext(new NoRest(), static fn (): int => $now),
+        $guard,
+        new KeyGraceWindow(new HubSettings($db))
+    );
+}
+
+// first pass after install/update starts the window once; a 403 inside it changes nothing
+$db = hubTestDatabase();
+$settings = new HubSettings($db);
+$grace = new KeyGraceWindow($settings);
+check(!$grace->active(5000), 'grace: not active before anything started it');
+$repairer = new SpyRepairer(KeyHealth::MISSING);
+$guard = new ApiKeyGuard($repairer, ['/api/v3/advice'], 300);
+$source = new FlakyKeySource(99, 'api_forbidden');
+$report = graceCollector($source, $guard, $db, 5000)->runOnce();
+check($settings->get(HubSettings::HUB_API_KEY_GRACE_UNTIL) === (string)(5000 + KeyGraceWindow::GRACE_SEC), 'grace: first pass starts a 6 minute window');
+check(($report['fake.source']['status'] ?? '') === 'key_cache_grace' && ($report['fake.source']['recorded'] ?? 0) === 0, 'grace: 403 is reported as transient');
+$state = (new SourceStateRepository($db))->get('fake.source');
+check($state['availability'] === '' && $state['last_error_code'] === '' && $state['last_poll_at'] === 5000, 'grace: availability untouched, only the poll attempt is recorded');
+check($repairer->repairs === [] && $source->polls === 1, 'grace: no self-heal and no retry');
+check($state['cursor'] === [], 'grace: cursor not reset');
+
+// the previous availability is kept
+$states = new SourceStateRepository($db);
+$states->markPolled('fake.source', ['ok' => true], 5001);
+$graceKept = graceCollector($source, $guard, $db, 5100);
+$graceKept->runOnce();
+$state = $states->get('fake.source');
+check($state['availability'] === SourceAvailability::AVAILABLE && $state['cursor'] === ['ok' => true], 'grace: a known availability and cursor are kept');
+
+// a restart (new collector, same settings) keeps the window; the deadline is not moved by another first pass
+$graceKept = graceCollector($source, $guard, $db, 5200);
+$graceKept->runOnce();
+check($settings->get(HubSettings::HUB_API_KEY_GRACE_UNTIL) === (string)(5000 + KeyGraceWindow::GRACE_SEC), 'grace: a worker restart keeps the deadline');
+check($states->get('fake.source')['availability'] === SourceAvailability::AVAILABLE, 'grace: still no state change after a restart');
+
+// after the window the normal logic applies (healthy key -> module refusal)
+$repairer->health = KeyHealth::HEALTHY;
+$report = graceCollector($source, $guard, $db, 5000 + KeyGraceWindow::GRACE_SEC + 1)->runOnce();
+check(($report['fake.source']['status'] ?? '') === SourceAvailability::API_FORBIDDEN, 'grace: after the window 403 -> api_forbidden');
+check($states->get('fake.source')['last_error_code'] === 'api_forbidden', 'grace: the code is stored after the window');
+
+// another error code is never swallowed by the grace
+$db = hubTestDatabase();
+$source = new FlakyKeySource(99, 'api_not_found');
+$report = graceCollector($source, null, $db, 6000)->runOnce();
+check(($report['fake.source']['status'] ?? '') === SourceAvailability::MODULE_MISSING, 'grace: only 401/403 are transient');
+
+// a key change restarts an expired window
+$db = hubTestDatabase();
+$grace = new KeyGraceWindow(new HubSettings($db));
+$grace->start(100);
+check($grace->active(100 + KeyGraceWindow::GRACE_SEC - 1) && !$grace->active(100 + KeyGraceWindow::GRACE_SEC), 'grace: lasts exactly 6 minutes');
+$grace->ensureStarted(10000);
+check(!$grace->active(10000), 'grace: ensureStarted does not restart an already started window');
 
 finish('hub key self-healing OK');

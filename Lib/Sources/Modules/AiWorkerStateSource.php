@@ -7,16 +7,13 @@ namespace Modules\ModuleMessengerHub\Lib\Sources\Modules;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceException;
 
 /**
- * Reader of ModuleAISupervisor `GET /pbxcore/api/v3/module-ai-supervisor/workers` (stage 1.3).
+ * Reader of ModuleAISupervisor `GET /pbxcore/api/v3/module-ai-supervisor/workers` (needs `read`).
  *
- * Since stage 3b-1 this is no longer a source of its own: it is the fallback reader used by
- * ModuleStatusSource while the installed AI Supervisor version does not serve `/status` yet.
- * It converts worker rows to the same status snapshot shape as `/status` (fixed code, opaque
- * ref, stable since, integer counters) and computes the ref exactly like the module's own
- * StatusBuilder, so both readers produce identical dedupe keys.
- *
- * TODO(#1): remove this reader and the `read` grant on `/workers` once ModuleAISupervisor ships
- * `/status` in a release (then ModuleStatusSource reads `/status` only).
+ * The module does not ship `/status` (decision of 2026-11-23, Plan/11 Q10): this reader converts worker
+ * rows to the status snapshot shape ModuleStatusSource diffs (fixed code, opaque ref, stable since,
+ * integer counters). The ref is the first 12 hex of sha256("ModuleAISupervisor:<id>") and `since` is the
+ * worker's last_seen, so the dedupe keys equal the ones built while the hub read `/status` (cursors of
+ * stage 3b-4 stay valid and never re-alert).
  */
 final class AiWorkerStateSource
 {
