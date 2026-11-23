@@ -10,12 +10,14 @@ use Modules\ModuleMessengerHub\Lib\Sources\Modules\ModuleStatusSource;
  * UI metadata of sources: interface group, name/event-type/module/availability translation keys.
  *
  * Pure data so the REST layer stays Core-free and testable (Plan/06, getSources).
- * Group order is the fixed order of the approved design: Calls → AI Supervisor → Voice agent → PBX.
+ * Group order is the fixed order of the approved design: Calls → AI Supervisor → Speech recognition and cloud AI → Voice agent → PBX
+ * (the speech/cloud-AI group sits next to the AI Supervisor: the same audience, the same AI pipeline).
  */
 final class SourceCatalog
 {
     public const string GROUP_CALLS = 'calls';
     public const string GROUP_AI_SUPERVISOR = 'ai_supervisor';
+    public const string GROUP_SPEECH_AI = 'speech_ai';
     public const string GROUP_VOICE_AGENT = 'voice_agent';
     public const string GROUP_PBX = 'pbx';
 
@@ -23,6 +25,7 @@ final class SourceCatalog
     public const array GROUP_ORDER = [
         self::GROUP_CALLS,
         self::GROUP_AI_SUPERVISOR,
+        self::GROUP_SPEECH_AI,
         self::GROUP_VOICE_AGENT,
         self::GROUP_PBX,
     ];
@@ -35,11 +38,9 @@ final class SourceCatalog
         'core.voicemail' => self::GROUP_CALLS,
         'ai_supervisor.attention_call' => self::GROUP_AI_SUPERVISOR,
         'ai_supervisor.workers' => self::GROUP_AI_SUPERVISOR,
-        // stage 3b-2 gives speech recognition its own category; until then the existing groups
-        // keep the sources visible in the current interface (no hidden sources)
-        'local_stt.status' => self::GROUP_PBX,
-        'cloud_stt.status' => self::GROUP_PBX,
-        'cloud_ai.status' => self::GROUP_AI_SUPERVISOR,
+        'local_stt.status' => self::GROUP_SPEECH_AI,
+        'cloud_stt.status' => self::GROUP_SPEECH_AI,
+        'cloud_ai.status' => self::GROUP_SPEECH_AI,
         'voice_agent.callbacks' => self::GROUP_VOICE_AGENT,
         'voice_agent.runtime' => self::GROUP_VOICE_AGENT,
         'core.provider_status' => self::GROUP_PBX,
@@ -179,6 +180,7 @@ final class SourceCatalog
         return self::KEY_PREFIX . match ($group) {
             self::GROUP_CALLS => 'GroupCalls',
             self::GROUP_AI_SUPERVISOR => 'GroupAiSupervisor',
+            self::GROUP_SPEECH_AI => 'GroupSpeechAi',
             self::GROUP_VOICE_AGENT => 'GroupVoiceAgent',
             default => 'GroupPbx',
         };

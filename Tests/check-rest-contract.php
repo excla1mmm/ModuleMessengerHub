@@ -39,6 +39,7 @@ namespace {
     use Modules\ModuleMessengerHub\Lib\Sources\ApiKeyPaths;
     use Modules\ModuleMessengerHub\Lib\Sources\ModuleStatusProbe;
     use Modules\ModuleMessengerHub\Lib\Sources\SourceAvailability;
+use Modules\ModuleMessengerHub\Lib\Sources\SourceCatalog;
     use Modules\ModuleMessengerHub\Lib\Sources\SourceInterface;
     use Modules\ModuleMessengerHub\Lib\Sources\SourceRegistry;
     use Modules\ModuleMessengerHub\Lib\Storage\HubDatabase;
@@ -243,6 +244,17 @@ namespace {
     check($byId['voice_agent.runtime']['availability'] === SourceAvailability::MODULE_DISABLED, 'live probe wins: module_disabled');
     check($byId['core.missed_call']['kind'] === 'core' && $byId['core.missed_call']['module'] === '', 'core source has no module');
     check($byId['core.provider_status']['group'] === 'pbx', 'provider status in the PBX group');
+    foreach (['local_stt.status', 'cloud_stt.status', 'cloud_ai.status'] as $speechSource) {
+        check(isset($byId[$speechSource]) && $byId[$speechSource]['group'] === 'speech_ai', "$speechSource is in the speech recognition group");
+    }
+    check($byId['ai_supervisor.workers']['group'] === 'ai_supervisor', 'AI Supervisor workers stay in the AI Supervisor group');
+    check(
+        array_search('speech_ai', SourceCatalog::GROUP_ORDER, true) === array_search('ai_supervisor', SourceCatalog::GROUP_ORDER, true) + 1,
+        'speech group follows the AI Supervisor group'
+    );
+    check($byId['local_stt.status']['group_name'] !== $byId['local_stt.status']['group_key'], 'speech group name is translated');
+    check($byId['local_stt.status']['update_to'] === '1.154', 'update_to carries the minimal version');
+    check($byId['ai_supervisor.workers']['update_to'] === '', 'no minimal version for the AI Supervisor fallback');
     check($byId['core.advice']['mode'] === 'poll' && $byId['core.advice']['poll_interval_sec'] > 0, 'poll metadata');
     check($byId['core.pbx_started']['mode'] === 'push', 'push metadata');
     assertNoSecret($result, 'settings getSources');

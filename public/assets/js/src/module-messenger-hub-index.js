@@ -8,7 +8,7 @@
     var API_BASE = '/pbxcore/api/v3/module-messenger-hub';
     var PAGE_LIMIT = 50;
     var REFRESH_SEC = 30;
-    var GROUP_ORDER = ['calls', 'ai_supervisor', 'voice_agent', 'pbx'];
+    var GROUP_ORDER = ['calls', 'ai_supervisor', 'speech_ai', 'voice_agent', 'pbx'];
 
     var ICON_ERROR = '<svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg>';
     var ICON_CHEVRON = '<svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg>';
@@ -249,10 +249,97 @@
         var key = {
             calls: 'module_messenger_hub_GroupCalls',
             ai_supervisor: 'module_messenger_hub_GroupAiSupervisor',
+            speech_ai: 'module_messenger_hub_GroupSpeechAi',
             voice_agent: 'module_messenger_hub_GroupVoiceAgent',
             pbx: 'module_messenger_hub_GroupPbx'
         }[group] || group;
         return t(key);
+    }
+
+    // ---------- module status events (stage 3b): human words for (code, ref), raw codes only in a tooltip ----------
+
+    var STATUS_RECOVERY_KEYS = {
+        'local_stt.worker_online': 'MessageStatusWorkerOnline',
+        'local_stt.backlog_resolved': 'MessageStatusBacklogResolved',
+        'cloud_stt.incident_resolved': 'MessageStatusIncidentResolved',
+        'cloud_stt.resumed': 'MessageStatusResumed',
+        'cloud_ai.resumed': 'MessageStatusCloudAiResumed',
+        'ai_supervisor.worker_online': 'MessageStatusWorkerOnline'
+    };
+    var STATUS_CODE_KEYS = {
+        worker_offline: 'MessageStatusWorkerOffline',
+        backlog_no_workers: 'MessageStatusBacklog',
+        incident_open: 'MessageStatusIncident'
+    };
+    var STATUS_PAUSE_KEYS = {
+        user: 'MessageStatusPausedUser',
+        maintenance: 'MessageStatusPausedMaintenance',
+        manual: 'MessageStatusCloudAiManual',
+        license_missing: 'MessageStatusCloudAiLicense',
+        auth_invalid: 'MessageStatusCloudAiAuth',
+        model_unavailable: 'MessageStatusCloudAiModel',
+        daily_limit_reached: 'MessageStatusCloudAiDailyLimit',
+        source_unavailable: 'MessageStatusCloudAiSourceUnavailable',
+        insufficient_funds: 'MessageStatusCloudAiInsufficientFunds',
+        low_balance: 'MessageStatusCloudAiLowBalance'
+    };
+
+    function moduleStatusOf(item) {
+        var subject = item && item.payload && item.payload.subject ? item.payload.subject : {};
+        return subject.module_status && typeof subject.module_status === 'object' ? subject.module_status : null;
+    }
+
+    /** One sentence for an event type + (code, ref); an unknown pair gets a neutral line, never the raw code. */
+    function statusPhrase(eventType, status) {
+        var code = String((status && status.code) || '');
+        var ref = String((status && status.ref) || '');
+        var key = STATUS_RECOVERY_KEYS[eventType]
+            || (code === 'processing_paused' ? STATUS_PAUSE_KEYS[ref] : null)
+            || STATUS_CODE_KEYS[code]
+            || 'MessageStatusUnknown';
+        return t('module_messenger_hub_' + key);
+    }
+
+    function statusCounterNotes(status) {
+        var counters = status && status.counters ? status.counters : {};
+        var notes = [];
+        if (typeof counters.workers_online === 'number' && typeof counters.workers_total === 'number') {
+            notes.push(tf('module_messenger_hub_MessageStatusWorkersCounters', { online: counters.workers_online, total: counters.workers_total }));
+        }
+        if (typeof counters.jobs_waiting === 'number') {
+            notes.push(tf('module_messenger_hub_MessageStatusJobsWaiting', { count: counters.jobs_waiting }));
+        }
+        if (typeof counters.incidents_open === 'number') {
+            notes.push(tf('module_messenger_hub_MessageStatusIncidentsOpen', { count: counters.incidents_open }));
+        }
+        return notes;
+    }
+
+    /** Technical tooltip: the raw code and reference of the module status, never the main text. */
+    function statusRawCode(item) {
+        var status = moduleStatusOf(item);
+        if (!status || !status.code) {
+            return '';
+        }
+        return String(status.code) + (status.ref ? ':' + status.ref : '');
+    }
+
+    /** Informational state of a source whose module cannot be read (no action buttons, decision Q14). */
+    function sourceStateText(source) {
+        switch (source.availability) {
+            case 'module_missing':
+                return t('module_messenger_hub_SourceStateNoinst');
+            case 'module_disabled':
+                return t('module_messenger_hub_SourceStateModoff');
+            case 'api_forbidden':
+                return t('module_messenger_hub_NotifSourceNoAccess');
+            case 'api_incompatible':
+                return source.update_to
+                    ? tf('module_messenger_hub_SourceStateOutdatedTo', { version: source.update_to })
+                    : t('module_messenger_hub_SourceStateOutdatedAny');
+            default:
+                return source.availability_name || '';
+        }
     }
 
     function buildPeriodMenu() {
@@ -569,8 +656,14 @@
                 return testSystem.bot_title || '';
             case 'ai_supervisor.worker_offline':
             case 'ai_supervisor.worker_online':
+                if (subject.module_status) {
+                    return statusPhrase(item.event_type, subject.module_status);
+                }
                 return (subject.worker && subject.worker.name) || facts.summary || '';
             default:
+                if (subject.module_status) {
+                    return statusPhrase(item.event_type, subject.module_status);
+                }
                 return facts.summary || '';
         }
     }
@@ -619,7 +712,7 @@
             + '<td class="mh-chevron-cell">' + ICON_CHEVRON + '</td>'
             + '<td class="mh-cell-time">' + fmtCellTime(item.occurred_at) + '</td>'
             + '<td><div class="mh-event-cell"><span class="mh-truncate" title="' + esc(eventName) + '">' + esc(eventName) + '</span>' + probe + '</div></td>'
-            + '<td class="mh-truncate mh-muted" title="' + esc(brief) + '">' + esc(brief) + '</td>'
+            + '<td class="mh-truncate mh-muted" title="' + esc(statusRawCode(item) !== '' ? brief + ' (' + statusRawCode(item) + ')' : brief) + '">' + esc(brief) + '</td>'
             + '<td>' + deliveryCell(item) + '</td>'
             + '</tr>';
     }
@@ -649,6 +742,10 @@
             fields.push([t('module_messenger_hub_DetailScore'), facts.scores.quality]);
         }
         if (facts.summary) { fields.push([t('module_messenger_hub_DetailSummary'), facts.summary]); }
+        if (subject.module_status) {
+            fields.push([t('module_messenger_hub_DetailSummary'),
+                [statusPhrase(item.event_type, subject.module_status)].concat(statusCounterNotes(subject.module_status)).join('. ')]);
+        }
         if ((facts.reasons || []).length > 0) {
             fields.push([t('module_messenger_hub_DetailReasons'), facts.reasons.join('; ')]);
         }
@@ -2071,6 +2168,7 @@
                 module_disabled: t('module_messenger_hub_SourceStateModoff'),
                 module_missing: t('module_messenger_hub_SourceStateNoinst'),
                 api_forbidden: t('module_messenger_hub_NotifSourceNoAccess'),
+                api_incompatible: sourceStateText(source),
                 disabled: t('module_messenger_hub_SourceStateOff'),
                 error: t('module_messenger_hub_SourceStateErr')
             };
@@ -2446,6 +2544,9 @@
         'core.voicemail': 'mic',
         'ai_supervisor.attention_call': 'sparkle',
         'ai_supervisor.workers': 'robot',
+        'local_stt.status': 'mic',
+        'cloud_stt.status': 'mic',
+        'cloud_ai.status': 'sparkle',
         'voice_agent.callbacks': 'phone',
         'voice_agent.runtime': 'robot',
         'core.provider_status': 'server',
@@ -2471,7 +2572,7 @@
             }
             html += '<div class="mh-scenario-grid">';
             sources.forEach(function (source) {
-                var disabled = ['module_missing', 'module_disabled', 'api_forbidden', 'error', 'disabled']
+                var disabled = ['module_missing', 'module_disabled', 'api_forbidden', 'api_incompatible', 'error', 'disabled']
                     .indexOf(source.availability) >= 0;
                 var selected = w.sourceId === source.id;
                 // Unavailable scenario: only the reason, no action (user decision Q14).
@@ -2480,7 +2581,7 @@
                     + (disabled ? ' disabled aria-disabled="true"' : '') + '>'
                     + scenarioIcon(source.id)
                     + '<span class="mh-scenario-text"><b>' + esc(source.name) + '</b>'
-                    + (disabled ? '<span class="mh-meta">' + esc(source.availability_name) + '</span>' : '')
+                    + (disabled ? '<span class="mh-meta">' + esc(sourceStateText(source)) + '</span>' : '')
                     + '</span></button>';
             });
             html += '</div>';
@@ -2793,6 +2894,9 @@
         var order = [
             'core.missed_call', 'core.voicemail', 'ai_supervisor.attention_call',
             'ai_supervisor.worker_offline', 'ai_supervisor.worker_online',
+            'local_stt.worker_offline', 'local_stt.worker_online', 'local_stt.backlog_no_workers', 'local_stt.backlog_resolved',
+            'cloud_stt.incident', 'cloud_stt.incident_resolved', 'cloud_stt.paused', 'cloud_stt.resumed',
+            'cloud_ai.paused', 'cloud_ai.resumed',
             'voice_agent.callback_request', 'voice_agent.runtime_down', 'voice_agent.runtime_up',
             'core.provider_down', 'core.provider_up', 'core.advice', 'core.pbx_started'
         ];
@@ -2801,6 +2905,22 @@
         }
         return '';
     }
+
+    // Sample data of the preview bubbles for the module status events; never real values.
+    var STATUS_PREVIEW_SAMPLES = {
+        'ai_supervisor.worker_offline': { code: 'worker_offline', ref: 'sample', counters: { workers_online: 1, workers_total: 2 } },
+        'ai_supervisor.worker_online': { code: 'worker_offline', ref: 'sample', counters: { workers_online: 2, workers_total: 2 } },
+        'local_stt.worker_offline': { code: 'worker_offline', ref: 'sample', counters: { workers_online: 2, workers_total: 3 } },
+        'local_stt.worker_online': { code: 'worker_offline', ref: 'sample', counters: { workers_online: 3, workers_total: 3 } },
+        'local_stt.backlog_no_workers': { code: 'backlog_no_workers', ref: 'queue', counters: { workers_online: 0, workers_total: 3, jobs_waiting: 12 } },
+        'local_stt.backlog_resolved': { code: 'backlog_no_workers', ref: 'queue', counters: { workers_online: 3, workers_total: 3, jobs_waiting: 0 } },
+        'cloud_stt.incident': { code: 'incident_open', ref: 'sample', counters: { incidents_open: 1 } },
+        'cloud_stt.incident_resolved': { code: 'incident_open', ref: 'sample', counters: { incidents_open: 0 } },
+        'cloud_stt.paused': { code: 'processing_paused', ref: 'maintenance', counters: {} },
+        'cloud_stt.resumed': { code: 'processing_paused', ref: 'maintenance', counters: {} },
+        'cloud_ai.paused': { code: 'processing_paused', ref: 'insufficient_funds', counters: { jobs_waiting: 12 } },
+        'cloud_ai.resumed': { code: 'processing_paused', ref: 'insufficient_funds', counters: { jobs_waiting: 0 } }
+    };
 
     function renderWizardPreview() {
         var w = state.ruleWizard;
@@ -2852,7 +2972,23 @@
                 break;
             case 'ai_supervisor.worker_offline':
             case 'ai_supervisor.worker_online':
-                lines.push('stt-1');
+            case 'local_stt.worker_offline':
+            case 'local_stt.worker_online':
+            case 'local_stt.backlog_no_workers':
+            case 'local_stt.backlog_resolved':
+            case 'cloud_stt.incident':
+            case 'cloud_stt.incident_resolved':
+            case 'cloud_stt.paused':
+            case 'cloud_stt.resumed':
+            case 'cloud_ai.paused':
+            case 'cloud_ai.resumed':
+                var sample = STATUS_PREVIEW_SAMPLES[type];
+                var scenarioSource = sourceById(w.sourceId);
+                if (scenarioSource && scenarioSource.module_name) {
+                    lines.push(esc(scenarioSource.module_name));
+                }
+                lines.push(esc(statusPhrase(type, sample)));
+                statusCounterNotes(sample).forEach(function (note) { notes.push(note); });
                 break;
             case 'voice_agent.runtime_down':
             case 'voice_agent.runtime_up':
@@ -2911,8 +3047,8 @@
         if (type === 'core.missed_call' || type === 'voice_agent.callback_request') { return '📞'; }
         if (type === 'core.voicemail') { return '🎙'; }
         if (type === 'ai_supervisor.attention_call' || type === 'core.provider_down' || type === 'voice_agent.runtime_down') { return '⚠️'; }
-        if (type === 'core.provider_up' || type === 'voice_agent.runtime_up' || type === 'ai_supervisor.worker_online') { return '✅'; }
-        if (type === 'ai_supervisor.worker_offline') { return '🔌'; }
+        if (STATUS_RECOVERY_KEYS[type] || type === 'core.provider_up' || type === 'voice_agent.runtime_up') { return '✅'; }
+        if (type === 'ai_supervisor.worker_offline' || type === 'local_stt.worker_offline') { return '🔌'; }
         if (type === 'core.pbx_started') { return '🔄'; }
         return '⚠️';
     }

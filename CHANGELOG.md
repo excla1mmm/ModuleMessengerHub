@@ -16,6 +16,11 @@
   scratch files only when they exist (no `SHUTDOWN-ERROR` with a temp path when a worker is stopped).
 
 ### Added
+- Stage 3b-2 — UI for module status sources: scenario category «Распознавание речи и облачный ИИ»
+  (`speech_ai`, after the AI Supervisor group) in the wizard, the notifications list and the journal type
+  filter; informational source states without buttons, including «update the module to version N»;
+  journal rows and wizard preview bubbles show `/status` events in human words (raw code only in a
+  tooltip); 3 new keys in all 29 locales; JS recompiled with a local Babel setup (no Docker).
 - Stage 3b-1 — module status sources (no UI, no station yet): one generic `ModuleStatusSource` reads the
   uniform `GET …/<module>/status` of Local STT (1.154+), Cloud STT (1.120+) and Cloud AI Supervisor (1.46+),
   diffs issues by (`code`, `ref`), keeps a silent baseline, debounces flapping (`worker_offline` 120 s,
