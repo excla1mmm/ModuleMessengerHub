@@ -33,7 +33,7 @@ use Modules\ModuleMessengerHub\Lib\Sources\SourceInterface;
  * problems (Local STT: workers / backlog; Cloud STT: incidents / paused) has several sources, each
  * polling the same `/status` once a minute and handling only its own codes; a poll is one local
  * request, so sharing a fetch between sources was not worth the coupling. Every source reads `/status`
- * only (ModuleAISupervisor included, since 1.186.5).
+ * only (ModuleAISupervisor included, since 1.186.6).
  */
 final class ModuleStatusSource implements SourceInterface
 {
@@ -152,8 +152,8 @@ final class ModuleStatusSource implements SourceInterface
         self::SOURCE_AI_SUPERVISOR => [
             'module' => 'ModuleAISupervisor',
             'slug' => 'module-ai-supervisor',
-            // `/status` first shipped in 1.186.5; an older module answers 404 -> api_incompatible
-            'min_version' => '1.186.5',
+            // `/status` first shipped in 1.186.6; an older module answers 404 -> api_incompatible
+            'min_version' => '1.186.6',
             'rules' => [
                 [
                     'code' => 'worker_offline',

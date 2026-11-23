@@ -153,7 +153,7 @@ check($catalog::minVersion(ModuleStatusSource::SOURCE_LOCAL_STT_BACKLOG) === '1.
 check($catalog::minVersion(ModuleStatusSource::SOURCE_CLOUD_STT_INCIDENTS) === '1.120', 'catalog: Cloud STT incidents minimal /status version');
 check($catalog::minVersion(ModuleStatusSource::SOURCE_CLOUD_STT_PAUSED) === '1.120', 'catalog: Cloud STT paused minimal /status version');
 check($catalog::minVersion(ModuleStatusSource::SOURCE_CLOUD_AI_PAUSED) === '1.46', 'catalog: Cloud AI minimal /status version');
-check($catalog::minVersion(ModuleStatusSource::SOURCE_AI_SUPERVISOR) === '1.186.5', 'catalog: AI Supervisor needs 1.186.5 (first release with /status)');
+check($catalog::minVersion(ModuleStatusSource::SOURCE_AI_SUPERVISOR) === '1.186.6', 'catalog: AI Supervisor needs 1.186.6 (first release with /status)');
 foreach ($statusIds as $id) {
     check($catalog::group($id) === ($id === ModuleStatusSource::SOURCE_AI_SUPERVISOR ? 'ai_supervisor' : 'speech_ai'), "catalog: group of $id");
     check(isset($ruCatalog[$catalog::nameKey($id)]), "catalog: $id has a translated name");
@@ -444,9 +444,9 @@ try {
     $aiSource->poll(new SourceContext($oldModule, static fn (): int => $t), []);
     check(false, 'AI Supervisor: poll throws api_incompatible');
 } catch (SourceException $exception) {
-    check($exception->errorCode === 'api_incompatible' && $exception->getMessage() === '1.186.5', 'AI Supervisor: api_incompatible carries update_to 1.186.5');
+    check($exception->errorCode === 'api_incompatible' && $exception->getMessage() === '1.186.6', 'AI Supervisor: api_incompatible carries update_to 1.186.6');
 }
-check(($catalog::minVersion(ModuleStatusSource::SOURCE_AI_SUPERVISOR)) === '1.186.5', 'AI Supervisor: update hint version');
+check(($catalog::minVersion(ModuleStatusSource::SOURCE_AI_SUPERVISOR)) === '1.186.6', 'AI Supervisor: update hint version');
 
 // after the update: silent baseline, then debounce and the same dedupe key as before the switch
 $aiRoutes = [$aiStatusPath => $statusSame];

@@ -254,7 +254,7 @@ use Modules\ModuleMessengerHub\Lib\Sources\SourceCatalog;
     );
     check($byId['local_stt.workers']['group_name'] !== $byId['local_stt.workers']['group_key'], 'speech group name is translated');
     check($byId['local_stt.workers']['update_to'] === '1.154' && $byId['cloud_ai.paused']['update_to'] === '1.46', 'update_to carries the minimal version');
-    check($byId['ai_supervisor.workers']['update_to'] === '1.186.5', 'AI Supervisor needs 1.186.5 for /status');
+    check($byId['ai_supervisor.workers']['update_to'] === '1.186.6', 'AI Supervisor needs 1.186.6 for /status');
     check($byId['core.advice']['mode'] === 'poll' && $byId['core.advice']['poll_interval_sec'] > 0, 'poll metadata');
     check($byId['core.pbx_started']['mode'] === 'push', 'push metadata');
     assertNoSecret($result, 'settings getSources');

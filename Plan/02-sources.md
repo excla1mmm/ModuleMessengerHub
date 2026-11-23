@@ -98,7 +98,7 @@ interface SourceInterface
 | Модуль | Тип события | Откуда | Доступ | Курсор / дедуп | Этап |
 |---|---|---|---|---|---|
 | ModuleAISupervisor | `ai_supervisor.attention_call` | `GET /pbxcore/api/v3/module-ai-supervisor/calls?attention=1&period=…&limit=…` (фильтр `attention` — `Lib/RestAPI/Calls/DataStructure.php:193`); запись — публичный `GET /pbxcore/api/v3/cdr/{id}` / `?linkedid=…` (read) | ✅ `read`, звонки и CDR видны | скользящее окно по дате + `ref_id`; `ai_attention:{ref_id}` | 1 ✅ (1.3); вложение — 3a |
-| ModuleAISupervisor | `ai_supervisor.worker_offline` (+ `…_online`) | `GET …/module-ai-supervisor/status` (с 1.186.5; только он) | ✅ `read` только на `/status` | `<source>:worker_offline:<ref>:<since>` | 1 ✅ (1.3), 3b-1 ✅, 3b-4 ✅ |
+| ModuleAISupervisor | `ai_supervisor.worker_offline` (+ `…_online`) | `GET …/module-ai-supervisor/status` (с 1.186.6; только он) | ✅ `read` только на `/status` | `<source>:worker_offline:<ref>:<since>` | 1 ✅ (1.3), 3b-1 ✅, 3b-4 ✅ |
 | ModuleAISupervisor | `ai_supervisor.call_assigned` | `GET …/calls` с полями workflow — проверить фильтр по изменению | ✅ `read` (тот же ресурс) | `ai_assign:{ref_id}:{assignee}:{ts}` | 4 |
 | ModuleCloudAISupervisor | `cloud_ai.paused` / `cloud_ai.resumed` | `GET …/module-cloud-ai-supervisor/status` (с 1.46), `issues[]` с `code = processing_paused` и `ref` = причина | ✅ `read` только на `/status` | `<source>:processing_paused:<reason>:<episode since>` | 3b-1 ✅ |
 | ModuleLocalSpeechToText | `local_stt.worker_offline` (+ `…_online`) | `GET …/module-local-speech-to-text/status` (с 1.154), `issues[]` с `code = worker_offline` | ✅ `read` только на `/status` | `<source>:worker_offline:<ref>:<episode since>` | 3b-1 ✅ |
@@ -141,7 +141,7 @@ interface SourceInterface
   самых свежих attention-звонков окна 7 дней; поздний анализ звонка старше 300 самых свежих
   attention-звонков не будет обнаружен.
 - **`ai_supervisor.workers`** (`ModuleStatusSource`, poll 60 с, `/api/v3/module-ai-supervisor/status`, с этапа 3b-4
-  только `/status`; версия модуля ниже 1.186.5 → `api_incompatible`): события — `worker_offline` (warning,
+  только `/status`; версия модуля ниже 1.186.6 → `api_incompatible`): события — `worker_offline` (warning,
   debounce 120 с), `worker_online` (info, восстановление). Воркер, уже бывший офлайн на baseline, событие не даёт.
 - **`voice_agent.callbacks`** (`VaCallbackSource`, poll 60 с, `/api/v3/module-voice-agent/callbacks`):
   список приходит «новейшие первыми» (`created_at DESC, id DESC`), курсор `max_id`; события только
@@ -245,7 +245,7 @@ Router сравнивает его с `subject.module_status.ref` событий
 - **Серьёзность**: `local_stt.worker_offline` — warning, `local_stt.backlog_no_workers` — critical;
   `cloud_stt.incident` — как у инцидента; `cloud_stt.paused` и `cloud_ai.paused` — по причине;
   recovery-события — info.
-- **ИИ Супервайзер** читает только `/status` (версия **1.186.5**; запасной `/workers` и кэш возможности
+- **ИИ Супервайзер** читает только `/status` (версия **1.186.6**; запасной `/workers` и кэш возможности
   удалены в 3b-4). Ключ `<source>:worker_offline:<ref>:<since>` и курсор прежние: воркер, уже объявленный
   через `/workers`, не алертит повторно, его recovery приходит со старым типом события.
 - **Доступность при старом модуле**: 404 на `/status` → `api_incompatible` (в интерфейсе —

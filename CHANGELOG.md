@@ -9,8 +9,8 @@
   hand their enabled switch to the new sources of the same module; the new sources start with a silent baseline
   (no events and no recoveries for problems that exist at the update). Event types are unchanged, so existing
   rules keep matching.
-- AI Supervisor source reads only `/status` (needs ModuleAISupervisor 1.186.5; older versions show «update the
-  module to 1.186.5»). The `/workers` fallback, the capability cache and the `/workers` path in the hub key are
+- AI Supervisor source reads only `/status` (needs ModuleAISupervisor 1.186.6; older versions show «update the
+  module to 1.186.6»). The `/workers` fallback, the capability cache and the `/workers` path in the hub key are
   removed; dedupe keys and cursors are unchanged.
 
 ### Fixed
