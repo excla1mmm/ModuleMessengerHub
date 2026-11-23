@@ -2173,7 +2173,7 @@
                 error: t('module_messenger_hub_SourceStateErr')
             };
             if (labels[source.availability]) {
-                var cls = (source.availability === 'module_disabled' || source.availability === 'disabled') ? 'ui yellow label' : 'ui red label';
+                var cls = (source.availability === 'module_disabled' || source.availability === 'disabled' || source.availability === 'api_incompatible') ? 'ui yellow label' : 'ui red label';
                 return '<span class="' + cls + '">' + esc(labels[source.availability]) + '</span>';
             }
         }
