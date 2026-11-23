@@ -142,11 +142,41 @@ $bad = [
     [['title' => 'X', 'enabled' => true, 'event_types' => ['core.missed_call'], 'target_mode' => 'recipients', 'chat_ids' => [1], 'filters' => ['departments' => [1]]], 'unknown_filter'],
     [['title' => 'X', 'enabled' => true, 'event_types' => ['core.missed_call'], 'target_mode' => 'recipients', 'chat_ids' => [1], 'options' => ['colour' => 'red']], 'unknown_option'],
     [['title' => '', 'enabled' => true, 'event_types' => ['core.missed_call'], 'target_mode' => 'recipients', 'chat_ids' => [1]], 'invalid_title'],
+    [['title' => 'X', 'enabled' => true, 'event_types' => ['cloud_ai.paused'], 'target_mode' => 'recipients', 'chat_ids' => [1], 'filters' => ['reasons' => []]], 'empty reasons'],
+    [['title' => 'X', 'enabled' => true, 'event_types' => ['cloud_ai.paused'], 'target_mode' => 'recipients', 'chat_ids' => [1], 'filters' => ['reasons' => ['not_configured']]], 'not_configured is not a selectable reason'],
+    [['title' => 'X', 'enabled' => true, 'event_types' => ['cloud_ai.paused'], 'target_mode' => 'recipients', 'chat_ids' => [1], 'filters' => ['reasons' => 'manual']], 'reasons must be a list'],
+    [['title' => 'X', 'enabled' => true, 'event_types' => ['cloud_ai.paused'], 'target_mode' => 'recipients', 'chat_ids' => [1], 'filters' => ['reasons' => [5]]], 'reason must be a string'],
+    [['title' => 'X', 'enabled' => true, 'event_types' => ['cloud_stt.incident'], 'target_mode' => 'recipients', 'chat_ids' => [1], 'min_severity' => 'urgent'], 'unknown severity'],
 ];
 foreach ($bad as $case) {
     $result = $processor->process(['action' => 'create', 'data' => $case[0]]);
     check(!$result->success && $result->httpCode === 422, 'validation rejects: ' . $case[1]);
 }
+
+// Cloud AI pause reasons and the importance filter are stored as given (stage 3b-4)
+$result = $processor->process(['action' => 'create', 'data' => [
+    'title' => 'Cloud AI pause',
+    'enabled' => true,
+    'event_types' => ['cloud_ai.paused', 'cloud_ai.resumed'],
+    'filters' => ['reasons' => ['insufficient_funds', 'low_balance', 'insufficient_funds']],
+    'target_mode' => 'recipients',
+    'chat_ids' => [1],
+]]);
+$ruleReasons = dataOf($result);
+check($result->success && $ruleReasons['filters']['reasons'] === ['insufficient_funds', 'low_balance'], 'reasons filter is accepted and de-duplicated');
+check($ruleReasons['source_id'] === 'cloud_ai.paused', 'cloud AI rule belongs to the cloud_ai.paused source');
+$result = $processor->process(['action' => 'create', 'data' => [
+    'title' => 'Cloud STT incidents',
+    'enabled' => true,
+    'event_types' => ['cloud_stt.incident'],
+    'min_severity' => 'critical',
+    'target_mode' => 'recipients',
+    'chat_ids' => [1],
+]]);
+$ruleIncidents = dataOf($result);
+check($result->success && $ruleIncidents['min_severity'] === 'critical' && $ruleIncidents['event_types'] === ['cloud_stt.incident'], 'incident rule keeps its minimal importance and no recovery type');
+$processor->process(['action' => 'delete', 'data' => ['id' => $ruleReasons['id']]]);
+$processor->process(['action' => 'delete', 'data' => ['id' => $ruleIncidents['id']]]);
 
 // ---------- list / priority ----------
 

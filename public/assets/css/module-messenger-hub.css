@@ -167,6 +167,10 @@
 .module-messenger-hub .ui.radio.checkbox.checked .mh-box, .mh-modal .ui.radio.checkbox.checked .mh-box { background: #fff; border: 5px solid var(--mh-color-brand); }
 .module-messenger-hub .ui.radio.checkbox.checked .mh-box::after, .mh-modal .ui.radio.checkbox.checked .mh-box::after { display: none; }
 .module-messenger-hub .mh-switch-row, .mh-modal .mh-switch-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.module-messenger-hub .mh-reason-group { margin-bottom: 8px; }
+.module-messenger-hub .mh-reason-title { font-weight: 600; color: var(--mh-color-text); margin-bottom: 2px; }
+.module-messenger-hub .mh-reason-check { display: flex; align-items: center; gap: 8px; padding: 2px 0; cursor: pointer; }
+.module-messenger-hub .mh-reason-check input { margin: 0; }
 
 /* ================= Forms ================= */
 .module-messenger-hub .mh-form-col, .mh-modal .mh-form-col { max-width: var(--mh-form-col); width: 100%; }

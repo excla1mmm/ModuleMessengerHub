@@ -12,7 +12,7 @@ use Modules\ModuleMessengerHub\Lib\Events\HubEvent;
  *
  * All matching rules fire; the Outbox unique index keeps one message per (event, chat).
  * Stage 2 filters (user decision Q14): employees, call direction, providers, and for
- * ai_supervisor.attention_call the quality score range. Groups/departments are a stage 4 To Do.
+ * ai_supervisor.attention_call the quality score range, for cloud_ai.paused/resumed the pause reasons. Groups/departments are a stage 4 To Do.
  */
 final class Rule
 {
@@ -82,11 +82,29 @@ final class Rule
         if (!$this->enabled || !EventTypeMatcher::matches($this->eventTypes, $event->eventType)) {
             return false;
         }
-        if (HubEvent::severityRank($event->severity) < HubEvent::severityRank($this->minSeverity)) {
+        if (HubEvent::severityRank(self::effectiveSeverity($event)) < HubEvent::severityRank($this->minSeverity)) {
             return false;
         }
 
         return $this->filtersMatch($event);
+    }
+
+    /**
+     * A recovery event is always `info`; for a module status the importance the user filters on is the
+     * one of the problem it closes (`module_status.severity` is kept from the announced incident), so a
+     * «only critical» rule also gets the recovery of a critical incident and none of a warning.
+     */
+    private static function effectiveSeverity(HubEvent $event): string
+    {
+        $status = $event->payload['subject']['module_status'] ?? null;
+        if (is_array($status) && ($status['recovered'] ?? false) === true) {
+            $original = (string)($status['severity'] ?? '');
+            if (in_array($original, [HubEvent::SEVERITY_INFO, HubEvent::SEVERITY_WARNING, HubEvent::SEVERITY_CRITICAL], true)) {
+                return $original;
+            }
+        }
+
+        return $event->severity;
     }
 
     /** Masking: the rule wins, otherwise the global default (Plan/05). */
@@ -125,7 +143,26 @@ final class Rule
         return $this->employeesMatch($event)
             && $this->directionsMatch($event)
             && $this->providersMatch($event)
-            && $this->qualityMatch($event);
+            && $this->qualityMatch($event)
+            && $this->reasonsMatch($event);
+    }
+
+    /**
+     * Cloud AI pause reasons (`filters.reasons`): the pause and the resume follow the same reasons.
+     * A reason the hub does not know yet (a newer module) is not selected, so it does not match.
+     */
+    private function reasonsMatch(HubEvent $event): bool
+    {
+        $wanted = self::strings($this->filters['reasons'] ?? []);
+        if ($wanted === []) {
+            return true;
+        }
+        if (!in_array($event->eventType, ['cloud_ai.paused', 'cloud_ai.resumed'], true)) {
+            return true;
+        }
+        $ref = (string)($event->payload['subject']['module_status']['ref'] ?? '');
+
+        return $ref !== '' && in_array($ref, $wanted, true);
     }
 
     private function employeesMatch(HubEvent $event): bool
