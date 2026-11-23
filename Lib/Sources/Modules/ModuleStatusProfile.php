@@ -16,7 +16,6 @@ final class ModuleStatusProfile
 {
     /**
      * @param list<ModuleStatusRule> $rules
-     * @param string|null $fallbackSlug module slug whose `/workers` reader is used when /status is absent
      */
     public function __construct(
         public readonly string $moduleId,
@@ -24,8 +23,6 @@ final class ModuleStatusProfile
         public readonly string $sourceId,
         public readonly string $minVersion,
         public readonly array $rules,
-        public readonly ?string $fallbackSlug = null,
-        public readonly int $capabilityRecheckSec = 21600,
     ) {
         if ($this->moduleId === '' || $this->slug === '' || $this->sourceId === '' || $this->rules === []) {
             throw new InvalidArgumentException('module status profile is incomplete');
@@ -40,18 +37,6 @@ final class ModuleStatusProfile
     public function statusPath(): string
     {
         return '/pbxcore' . $this->statusApiPath();
-    }
-
-    public function fallbackApiPath(): ?string
-    {
-        return $this->fallbackSlug === null ? null : '/api/v3/' . $this->fallbackSlug . '/workers';
-    }
-
-    public function fallbackPath(): ?string
-    {
-        $path = $this->fallbackApiPath();
-
-        return $path === null ? null : '/pbxcore' . $path;
     }
 
     public function rule(string $code): ?ModuleStatusRule

@@ -102,7 +102,6 @@ const ALL_POLL_PATHS = [
     '/api/v3/advice',
     '/api/v3/module-ai-supervisor/calls',
     '/api/v3/module-ai-supervisor/status',
-    '/api/v3/module-ai-supervisor/workers',
     '/api/v3/module-cloud-ai-supervisor/status',
     '/api/v3/module-cloud-speech-to-text/status',
     '/api/v3/module-local-speech-to-text/status',
@@ -127,7 +126,6 @@ check($result->success, 'patch disables core.advice');
 check($spy->calls === [[
     '/api/v3/module-ai-supervisor/calls',
     '/api/v3/module-ai-supervisor/status',
-    '/api/v3/module-ai-supervisor/workers',
     '/api/v3/module-cloud-ai-supervisor/status',
     '/api/v3/module-cloud-speech-to-text/status',
     '/api/v3/module-local-speech-to-text/status',
@@ -166,7 +164,6 @@ check($paths === [
     '/api/v3/advice',
     '/api/v3/module-ai-supervisor/calls',
     '/api/v3/module-ai-supervisor/status',
-    '/api/v3/module-ai-supervisor/workers',
     '/api/v3/module-cloud-ai-supervisor/status',
     '/api/v3/module-cloud-speech-to-text/status',
     '/api/v3/module-local-speech-to-text/status',

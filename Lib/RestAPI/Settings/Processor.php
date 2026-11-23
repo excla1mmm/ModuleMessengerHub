@@ -18,7 +18,6 @@ use Modules\ModuleMessengerHub\Lib\Routing\RuleRepository;
 use Modules\ModuleMessengerHub\Lib\Settings\HubSettings;
 use Modules\ModuleMessengerHub\Lib\Sources\CoreModuleStatusProbe;
 use Modules\ModuleMessengerHub\Lib\Sources\ModuleStatusProbe;
-use Modules\ModuleMessengerHub\Lib\Sources\Modules\SettingsStatusCapabilityStore;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceAvailability;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceCatalog;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceInterface;
@@ -47,6 +46,7 @@ final class Processor
     private ?Translator $translator;
     private ?ApiKeySync $apiKeySync;
     private ?HubDatabase $db;
+    private bool $legacyIdsMigrated = false;
 
     public function __construct(
         ?HubSettings $settings = null,
@@ -263,8 +263,7 @@ final class Processor
                 $this->apiKeySync,
                 $this->states(),
                 new RuleRepository($this->database()),
-                $this->moduleProbe(),
-                $this->settings === null ? null : new SettingsStatusCapabilityStore($this->settings)
+                $this->moduleProbe()
             ))->apply();
         } catch (Throwable) {
             // the collector worker reconciles the key within a minute
@@ -441,7 +440,13 @@ final class Processor
 
     private function states(): SourceStateRepository
     {
-        return $this->states ?? new SourceStateRepository($this->database());
+        $repository = $this->states ?? new SourceStateRepository($this->database());
+        if (!$this->legacyIdsMigrated) {
+            $this->legacyIdsMigrated = true;
+            $repository->migrateLegacyIds(); // stage 3b-4: before the interface lazily creates the new rows
+        }
+
+        return $repository;
     }
 
     private function moduleProbe(): ?ModuleStatusProbe

@@ -17,6 +17,12 @@ final class SourceStateRepository
     {
     }
 
+    /** Carries the retired per-module status source ids over to the per-problem ones (stage 3b-4). */
+    public function migrateLegacyIds(): void
+    {
+        SourceIdMigration::run($this->db);
+    }
+
     /**
      * @return array{source_id: string, enabled: bool, cursor: array<string, mixed>, availability: string,
      *     last_poll_at: ?int, last_ok_at: ?int, last_error_code: string, baseline_set_at: ?int}

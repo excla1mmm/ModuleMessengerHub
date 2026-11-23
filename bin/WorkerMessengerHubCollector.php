@@ -18,7 +18,6 @@ use Modules\ModuleMessengerHub\Lib\Settings\HubSettings;
 use Modules\ModuleMessengerHub\Lib\Sources\ApiKeyPaths;
 use Modules\ModuleMessengerHub\Lib\Sources\Collector;
 use Modules\ModuleMessengerHub\Lib\Sources\CoreModuleStatusProbe;
-use Modules\ModuleMessengerHub\Lib\Sources\Modules\SettingsStatusCapabilityStore;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceContext;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceInterface;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceRecorder;
@@ -44,9 +43,10 @@ class WorkerMessengerHubCollector extends WorkerBase
         HubLogger::event('collector', 'started', ['pid' => getmypid()]);
         $db = new PhalconHubDatabase();
         $settings = new HubSettings($db);
-        // the /status capability cache decides whether the AI Supervisor /workers path stays in the key
-        $registry = SourceRegistry::default(new SettingsStatusCapabilityStore($settings));
         $states = new SourceStateRepository($db);
+        // stage 3b-4: carry the enable flags of the retired per-module status sources over (idempotent)
+        $states->migrateLegacyIds();
+        $registry = SourceRegistry::default();
         $events = new EventStore($db);
         $apiKey = new HubApiKey($settings);
         // one context and one guard for the whole worker lifetime: the 5-minute repair throttle must
