@@ -34,7 +34,8 @@
 - Conditions of status scenarios (step 2 of the wizard): «Notify on recovery» (the recovery event type in the
   rule's event types), minimal importance for Cloud STT incidents (`min_severity`; the recovery of an incident follows
   the importance of the incident), and pause reasons of Cloud AI by group (`filters.reasons`, validated by the Rules
-  REST, applied to `subject.module_status.ref`).
+  REST, applied to `subject.module_status.ref`; a reason unknown to the hub passes the filter, known reasons outside the
+  selection are filtered).
 - Stage 3b-2 — UI for module status sources: scenario category «Распознавание речи и облачный ИИ»
   (`speech_ai`, after the AI Supervisor group) in the wizard, the notifications list and the journal type
   filter; informational source states without buttons, including «update the module to version N»;

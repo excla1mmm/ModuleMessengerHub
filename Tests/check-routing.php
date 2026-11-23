@@ -171,7 +171,9 @@ check($money->matches(statusEvent('cloud_ai.paused', 'insufficient_funds', 'crit
 check($money->matches(statusEvent('cloud_ai.resumed', 'low_balance', 'warning', true)), 'reasons: the resume of a selected reason matches');
 check(!$money->matches(statusEvent('cloud_ai.paused', 'manual', 'info', false)), 'reasons: an unselected reason does not match');
 check(!$money->matches(statusEvent('cloud_ai.resumed', 'manual', 'info', true)), 'reasons: the resume of an unselected reason does not match');
-check(!$money->matches(statusEvent('cloud_ai.paused', 'brand_new_reason', 'warning', false)), 'reasons: an unknown reason is not selected');
+check($money->matches(statusEvent('cloud_ai.paused', 'brand_new_reason', 'warning', false)), 'reasons: an unknown reason passes the filter');
+check($money->matches(statusEvent('cloud_ai.resumed', 'brand_new_reason', 'info', true)), 'reasons: the resume of an unknown reason passes the filter');
+check(!$money->matches(statusEvent('cloud_ai.paused', 'daily_limit_reached', 'warning', false)), 'reasons: a known reason outside the selection is filtered');
 check(Rule::fromRow(ruleRow(['event_types' => '["cloud_ai.paused"]']))->matches(statusEvent('cloud_ai.paused', 'manual', 'info', false)), 'reasons: no filter means every reason');
 $reasonsOnOther = Rule::fromRow(ruleRow(['event_types' => '["cloud_stt.paused"]', 'filters_json' => '{"reasons":["manual"]}']));
 check($reasonsOnOther->matches(statusEvent('cloud_stt.paused', 'maintenance', 'warning', false)), 'reasons: the filter applies to Cloud AI events only');

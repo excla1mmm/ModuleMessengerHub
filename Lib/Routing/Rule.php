@@ -6,6 +6,7 @@ namespace Modules\ModuleMessengerHub\Lib\Routing;
 
 use Modules\ModuleMessengerHub\Lib\Attachments\AttachmentMode;
 use Modules\ModuleMessengerHub\Lib\Events\HubEvent;
+use Modules\ModuleMessengerHub\Lib\Sources\Modules\CloudAiPauseReasons;
 
 /**
  * One routing rule (Plan/05-events-rules-templates.md).
@@ -149,7 +150,8 @@ final class Rule
 
     /**
      * Cloud AI pause reasons (`filters.reasons`): the pause and the resume follow the same reasons.
-     * A reason the hub does not know yet (a newer module) is not selected, so it does not match.
+     * A reason the hub does not know yet (a newer module) passes: it must not be dropped silently. Known reasons
+     * outside the selection are filtered.
      */
     private function reasonsMatch(HubEvent $event): bool
     {
@@ -162,7 +164,11 @@ final class Rule
         }
         $ref = (string)($event->payload['subject']['module_status']['ref'] ?? '');
 
-        return $ref !== '' && in_array($ref, $wanted, true);
+        if ($ref === '' || !CloudAiPauseReasons::isKnown($ref)) {
+            return true;
+        }
+
+        return in_array($ref, $wanted, true);
     }
 
     private function employeesMatch(HubEvent $event): bool
