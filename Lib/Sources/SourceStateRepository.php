@@ -95,6 +95,15 @@ final class SourceStateRepository
         );
     }
 
+    /** Records a poll attempt only (rate-limits a transient refusal); availability, cursor and error stay as they were. */
+    public function markPollAttempt(string $sourceId, int $now): void
+    {
+        $this->db->execute(
+            'UPDATE ' . self::TABLE . ' SET last_poll_at = :now WHERE source_id = :id',
+            ['now' => $now, 'id' => $sourceId]
+        );
+    }
+
     /** Push sources report their health without a cursor. */
     public function markPushOk(string $sourceId, int $now): void
     {

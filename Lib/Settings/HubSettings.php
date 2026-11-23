@@ -20,6 +20,8 @@ final class HubSettings
     public const string HUB_API_KEY = 'hub_api_key';
     public const string HUB_API_KEY_ID = 'hub_api_key_id';
     public const string HUB_API_KEY_PATHS = 'hub_api_key_paths';
+    /** Unix time until which 401/403 from source polls are transient (Core token cache, KeyGraceWindow). */
+    public const string HUB_API_KEY_GRACE_UNTIL = 'hub_api_key_grace_until';
 
     /** Stage 2 fields (Plan/06): public PBX address for links, masking default, proxy, MAX CA bundle. */
     public const string PBX_PUBLIC_URL = 'pbx_public_url';

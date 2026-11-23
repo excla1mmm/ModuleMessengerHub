@@ -10,6 +10,7 @@ use MikoPBX\Core\Workers\WorkerBase;
 use MikoPBX\PBXCoreREST\Services\TokenValidationService;
 use Modules\ModuleMessengerHub\Lib\Api\ApiKeyGuard;
 use Modules\ModuleMessengerHub\Lib\Api\HubApiKey;
+use Modules\ModuleMessengerHub\Lib\Api\KeyGraceWindow;
 use Modules\ModuleMessengerHub\Lib\Api\LocalRestClient;
 use Modules\ModuleMessengerHub\Lib\Delivery\BeanstalkDeliveryWaker;
 use Modules\ModuleMessengerHub\Lib\Events\EventStore;
@@ -107,7 +108,8 @@ class WorkerMessengerHubCollector extends WorkerBase
                         $events,
                         $probe,
                         $context,
-                        $keyGuard
+                        $keyGuard,
+                        new KeyGraceWindow($settings)
                     );
                     $nextKeySync = $now + self::KEY_SYNC_INTERVAL_SEC;
                 }

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Fixed
+- Core keeps the old permissions of the hub key in its token cache for about 5 minutes after a key change
+  (also inside its own API worker). For 6 minutes after the hub creates, updates or repairs its key, and on the
+  first collector pass after install or update, `api_unauthorized`/`api_forbidden` from source polls are treated
+  as transient: the previous availability is kept, nothing is emitted or reset, key self-healing is not
+  triggered, and one `key_cache_grace` line is logged per source (#1). The deadline is stored in hub settings.
+
 ### Changed
 - Stage 3b-6 (station acceptance, docs only): hub 6.7 with AI Supervisor, Cloud AI Supervisor and Local STT
   rebuilt without `/status`; sources stay available, no re-alerts, collector restart without duplicates, probe

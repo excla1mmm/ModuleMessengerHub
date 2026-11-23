@@ -177,6 +177,7 @@ final class HubApiKey implements ApiKeySync, ApiKeyRepairer
             throw new RuntimeException('hub_api_key_save_failed');
         }
         TokenValidationService::clearCache();
+        $this->startGrace();
         $this->settings->set(HubSettings::HUB_API_KEY_PATHS, $wanted);
         HubLogger::event('api_key', 'paths_updated', ['key_id' => $id, 'paths' => count($paths)]);
 
@@ -199,6 +200,7 @@ final class HubApiKey implements ApiKeySync, ApiKeyRepairer
             throw new RuntimeException('hub_api_key_save_failed');
         }
         TokenValidationService::clearCache();
+        $this->startGrace();
 
         $this->settings->set(HubSettings::HUB_API_KEY, $plain);
         $this->settings->set(HubSettings::HUB_API_KEY_ID, (string)$key->id);
@@ -206,6 +208,12 @@ final class HubApiKey implements ApiKeySync, ApiKeyRepairer
         HubLogger::event('api_key', 'created', ['key_id' => (int)$key->id, 'paths' => count($paths)]);
 
         return $plain;
+    }
+
+    /** Core's own API worker keeps the old permissions cached for ~5 minutes: polls may be refused meanwhile. */
+    private function startGrace(): void
+    {
+        (new KeyGraceWindow($this->settings))->start(time());
     }
 
     /** Writes the fields of KeyPermissions::recordFields (levels, localhost binding, no full access). @param list<string> $paths */

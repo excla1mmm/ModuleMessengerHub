@@ -138,6 +138,7 @@ $key = new HubApiKey($settings);
 $paths = array_keys($map);
 
 $plain = $key->sync($paths);
+check((int)$settings->get(HubSettings::HUB_API_KEY_GRACE_UNTIL) > time(), 'create: the Core token cache grace window starts');
 $id = (int)$settings->get(HubSettings::HUB_API_KEY_ID);
 $record = ApiKeys::findFirstById($id);
 check($plain !== '' && $record instanceof ApiKeys, 'create: a record exists');
@@ -170,7 +171,9 @@ check($record->full_permissions === '0', 'sync: full_permissions back to 0');
 
 // a smaller path set: no admin without the Local STT sources
 $small = ['/api/v3/advice', '/api/v3/module-ai-supervisor/workers'];
+$settings->set(HubSettings::HUB_API_KEY_GRACE_UNTIL, '1');
 $key->sync($small);
+check((int)$settings->get(HubSettings::HUB_API_KEY_GRACE_UNTIL) > time(), 'sync: a path change restarts the grace window');
 check(json_decode((string)$record->allowed_paths, true) === ['/api/v3/advice' => 'read', '/api/v3/module-ai-supervisor/workers' => 'read'], 'sync: no admin path when no Local STT source needs it');
 check($record->networkfilterid === 'localhost' && (int)$settings->get(HubSettings::HUB_API_KEY_ID) === $id, 'sync: still localhost, same record');
 

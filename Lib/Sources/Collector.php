@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Modules\ModuleMessengerHub\Lib\Sources;
 
 use Modules\ModuleMessengerHub\Lib\Api\ApiKeyGuard;
+use Modules\ModuleMessengerHub\Lib\Api\KeyGraceWindow;
 use Modules\ModuleMessengerHub\Lib\Events\EventStore;
+use Modules\ModuleMessengerHub\Lib\Support\HubLogger;
 use Throwable;
 
 /**
@@ -21,6 +23,10 @@ use Throwable;
  * Self-healing hub key (Plan/11 Q14): a 401/403 on a path the key should read first asks the guard
  * to verify and, when needed, repair the key; the poll is retried once. Only a verified-healthy key
  * leaves the source in api_forbidden ("Модуль не даёт доступа к данным").
+ *
+ * Key cache grace (Plan/08): for 6 minutes after a key change Core may still apply the old permissions,
+ * so 401/403 is transient — the previous availability is kept, nothing is emitted, reset or counted
+ * towards self-healing; one `key_cache_grace` line is logged per source.
  */
 final class Collector
 {
@@ -30,6 +36,9 @@ final class Collector
     /** @var array<string, int> consecutive failures per source, in-process only */
     private array $failures = [];
 
+    /** @var array<string, bool> sources already logged for key_cache_grace, in-process only */
+    private array $graceLogged = [];
+
     /** @param list<SourceInterface> $sources */
     public function __construct(
         private readonly array $sources,
@@ -38,6 +47,7 @@ final class Collector
         private readonly ModuleStatusProbe $modules,
         private readonly SourceContext $context,
         private readonly ?ApiKeyGuard $keyGuard = null,
+        private readonly ?KeyGraceWindow $grace = null,
     ) {
     }
 
@@ -47,6 +57,7 @@ final class Collector
     public function runOnce(): array
     {
         $now = $this->context->now();
+        $this->grace?->ensureStarted($now);
         $report = [];
         foreach ($this->sources as $source) {
             if ($source->mode() !== SourceInterface::MODE_POLL) {
@@ -89,6 +100,15 @@ final class Collector
                 $this->failures[$id] = 0;
                 $report[$id] = ['status' => SourceAvailability::AVAILABLE, 'recorded' => $recorded];
             } catch (SourceException $exception) {
+                if ($this->inGrace($exception->errorCode, $now)) {
+                    $this->states->markPollAttempt($id, $now);
+                    if (!isset($this->graceLogged[$id])) {
+                        $this->graceLogged[$id] = true;
+                        HubLogger::event('collector', 'key_cache_grace', ['source' => $id], LOG_WARNING);
+                    }
+                    $report[$id] = ['status' => 'key_cache_grace', 'recorded' => 0];
+                    continue;
+                }
                 $this->fail($id, $exception->errorCode, $now);
                 if ($exception->errorCode === 'api_incompatible') {
                     // the module version does not serve the resource yet (e.g. no /status): the next
@@ -118,6 +138,9 @@ final class Collector
             if ($this->keyGuard === null || !in_array($exception->errorCode, self::KEY_REJECTION_CODES, true)) {
                 throw $exception;
             }
+            if ($this->inGrace($exception->errorCode, $now)) {
+                throw $exception; // Core's cached old permissions, not a broken key: no self-heal attempt
+            }
             $outcome = $this->keyGuard->onRejected($now);
             if ($outcome === ApiKeyGuard::THROTTLED) {
                 // the key is still broken but a repair for this reason already ran: not the module's refusal
@@ -129,6 +152,13 @@ final class Collector
 
             throw $exception;
         }
+    }
+
+    private function inGrace(string $code, int $now): bool
+    {
+        return $this->grace !== null
+            && in_array($code, self::KEY_REJECTION_CODES, true)
+            && $this->grace->active($now);
     }
 
     private function isDue(SourceInterface $source, ?int $lastPollAt, int $now): bool
