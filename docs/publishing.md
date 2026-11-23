@@ -29,13 +29,19 @@ The shared `mikopbx/.github-workflows/extension-publish.yml` used by MIKO module
 
 ## Before submitting — checklist
 
-- [ ] `support_email` / `developer` in `module.json` match the publisher card (today: MIKO / help@miko.ru —
-      decide whether this is a MIKO module or a third-party one).
-- [ ] `SECURITY.md` naming the support e-mail (recommended).
-- [ ] README lists every outbound connection (SEC-004): api.telegram.org, platform-api2.max.ru, the optional proxy,
-      local REST on 127.0.0.1; the bundled Russian Trusted Root CA (source, fingerprint, used only for MAX).
-- [ ] SEC-005 "writes only to its own dir and DB": the hub creates its own restricted Core API key (localhost-bound, `read`, `admin` only on two Local STT paths) — explain why
-      (pull model, Plan/07) and **delete the key record on uninstall** (`HubApiKey::remove()` is not called from `Setup` yet).
-- [ ] Workers survive the no-network test without uncaught exceptions.
+- [x] `developer` / `support_email` in `module.json`: MIKOLAB / ebek@miko.ru (decided; the same address is in README and SECURITY.md).
+- [x] `SECURITY.md` naming the support e-mail.
+- [x] README lists every outbound connection (SEC-004): api.telegram.org, platform-api2.max.ru, the optional proxy,
+      local REST on 127.0.0.1; the bundled Russian Trusted Root CA (file, SHA-256 fingerprint, source, used only for MAX).
+- [x] SEC-005 "writes only to its own dir and DB": the hub creates its own restricted Core API key (localhost-bound,
+      `read`, `admin` only on two Local STT paths; reason: pull model, Plan/07) and deletes it on uninstall
+      (`HubApiKey::remove()` is called from `Setup`).
+- [x] `LICENSE` (GPL) is inside the package built by `scripts/package-module.sh` (the build fails without it).
+- [x] `.gitlab-ci.yml` removed (it held MIKO internal paths); CI is GitHub Actions only.
+- [ ] Install test without outbound network in the module-applications container: workers survive without
+      uncaught exceptions.
 - [ ] Declare only the architectures we test; note the container tests the current PBX image only.
+- [ ] Release order: Cloud STT >= 1.120 and a ModuleCloudAISupervisor release that contains `/runtime` must be
+      published before the hub requires them; then set `min_version` of `cloud_ai.paused`
+      (`TODO(release)` in `ModuleStatusSource`). Until then the hub shows the generic "update the module" hint.
 - [ ] Version format `X.Y[.Z]` growing between uploads.

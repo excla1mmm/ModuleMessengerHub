@@ -103,7 +103,7 @@ foreach ([
     'AGENTS.md', 'CLAUDE.md', 'README.md', 'README.ru.md', 'CHANGELOG.md',
     'Plan/README.md', 'Plan/09-roadmap.md', 'Plan/11-open-questions.md',
     'Setup/PbxExtensionSetup.php', 'Lib/MessengerHubConf.php',
-    'scripts/package-module.sh', '.gitlab-ci.yml',
+    'scripts/package-module.sh', 'SECURITY.md', 'LICENSE',
 ] as $required) {
     if (!is_file($root . '/' . $required)) {
         $fail('missing ' . $required);

@@ -143,7 +143,10 @@ final class ModuleStatusSource implements SourceInterface
             'module' => 'ModuleCloudAISupervisor',
             'reader' => self::READER_CLOUD_AI_RUNTIME,
             'paths' => [CloudAiRuntimeSnapshot::API_PATH],
-            // /runtime with the `pause` block exists since the first release (v1.2)
+            // /runtime with the `pause` block exists only in the develop branch of ModuleCloudAISupervisor,
+            // not in its released master: a 404 is api_incompatible (generic "update the module" hint while
+            // min_version is empty).
+            // TODO(release): set min_version to the first Cloud AI release that ships /runtime.
             'min_version' => '',
             'rules' => [
                 [

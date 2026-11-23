@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Release preparation
+- `module.json`: developer `MIKOLAB`, support e-mail `ebek@miko.ru` (also in README).
+- `LICENSE` is packaged; the package check fails without it.
+- Added `SECURITY.md`; README (en/ru) states the bundled Russian Trusted Root CA: path, SHA-256 fingerprint,
+  official source, used only for MAX.
+- Removed `.gitlab-ci.yml` (internal publishing paths); CI is GitHub Actions only.
+- Cloud AI `/runtime` exists only in the develop branch of ModuleCloudAISupervisor, not in its release: the
+  source comment is corrected, a 404 stays `api_incompatible` with the generic update hint;
+  `TODO(release)` to set `min_version` once Cloud AI ships it.
+- `docs/publishing.md` checklist updated.
+
 ### Fixed
 - Core keeps the old permissions of the hub key in its token cache for about 5 minutes after a key change
   (also inside its own API worker). For 6 minutes after the hub creates, updates or repairs its key, and on the

@@ -44,6 +44,7 @@ COPY_ITEMS=(
   Setup
   composer.json
   module.json
+  LICENSE
   vendor
 )
 
@@ -107,6 +108,12 @@ php -r '
   }
 
   $moduleJson = $zip->getFromName("module.json");
+
+  if ($zip->getFromName("LICENSE") === false) {
+      $zip->close();
+      fwrite(STDERR, "Invalid module package: LICENSE must be at zip root\n");
+      exit(1);
+  }
 
   if ($moduleJson === false) {
       $zip->close();

@@ -102,9 +102,19 @@ own restricted API key for the sources it polls: bound to the PBX itself (localh
 polls, and `admin` only on the two ModuleLocalSpeechToText resources (`/workers`, `/jobs`) that module serves to API keys
 at that level; the hub only sends GET requests to them.
 
+The module ships the Russian Trusted Root CA (the Russian Ministry of Digital Development root) only to verify
+`platform-api2.max.ru`; it is not used for any other connection and TLS verification is never disabled:
+
+- file: `Lib/Channels/Max/certs/russian_trusted_ca.pem`
+- SHA-256 fingerprint: `D2:6D:2D:02:31:B7:C3:9F:92:CC:73:85:12:BA:54:10:35:19:E4:40:5D:68:B5:BD:70:3E:97:88:CA:8E:CF:31`
+  (check: `openssl x509 -noout -fingerprint -sha256 -in Lib/Channels/Max/certs/russian_trusted_ca.pem`)
+- source: https://gu-st.ru/content/Other/doc/russiantrustedca.pem (official issue of the Mintsifry CA)
+
+Vulnerabilities: see [`SECURITY.md`](SECURITY.md).
+
 ## Support
 
-help@miko.ru
+ebek@miko.ru
 
 ## For developers
 

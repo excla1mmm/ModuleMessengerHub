@@ -2,8 +2,8 @@
   "moduleUniqueID": "ModuleMessengerHub",
   "version": "1.0",
   "min_pbx_version": "2025.1.1",
-  "developer": "MIKO",
-  "support_email": "help@miko.ru",
+  "developer": "MIKOLAB",
+  "support_email": "ebek@miko.ru",
   "wiki_links": "",
   "release_settings": {
     "publish_release": true,

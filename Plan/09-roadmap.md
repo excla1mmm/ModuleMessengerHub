@@ -10,7 +10,7 @@
 - Структура модуля, `module.json`, `composer.json`, установщик, пустой `MessengerHubConf`,
   модель `MessengerHubSettings`, переводы регистрационных ключей во всех 29 языках.
 - План (`Plan/`), документация для агентов (`AGENTS.md`, `CLAUDE.md`, `docs/`), README.
-- Сборка `scripts/package-module.sh`, тесты `Tests/run-all.php`, CI `.gitlab-ci.yml`, `.github/workflows/build.yml`.
+- Сборка `scripts/package-module.sh`, тесты `Tests/run-all.php`, CI GitHub Actions (`.github/workflows/ci.yml`).
 
 ## Этап 1 — сбор событий (без отправки) ✅ (19.11.2026)
 

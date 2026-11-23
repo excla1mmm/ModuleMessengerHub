@@ -93,9 +93,19 @@
 АТС, не возвращаются API (показывается лишь короткая подсказка) и не попадают в логи и коды ошибок.
 Для опроса источников хаб использует собственный ключ API только на чтение.
 
+Модуль поставляет корневой сертификат `Russian Trusted Root CA` (НУЦ Минцифры) только для проверки
+`platform-api2.max.ru`; для других соединений он не используется, проверка TLS никогда не отключается:
+
+- файл: `Lib/Channels/Max/certs/russian_trusted_ca.pem`
+- отпечаток SHA-256: `D2:6D:2D:02:31:B7:C3:9F:92:CC:73:85:12:BA:54:10:35:19:E4:40:5D:68:B5:BD:70:3E:97:88:CA:8E:CF:31`
+  (проверка: `openssl x509 -noout -fingerprint -sha256 -in Lib/Channels/Max/certs/russian_trusted_ca.pem`)
+- источник: https://gu-st.ru/content/Other/doc/russiantrustedca.pem (официальная выдача НУЦ Минцифры)
+
+Об уязвимостях: см. [`SECURITY.md`](SECURITY.md).
+
 ## Поддержка
 
-help@miko.ru
+ebek@miko.ru
 
 ## Для разработчиков
 
