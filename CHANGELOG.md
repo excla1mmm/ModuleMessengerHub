@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Fixed
+- Stage 3b-3 (station acceptance): the notifications list shows the `api_incompatible` source state
+  («update the module») as a yellow informational label, not red. The collector drops Core's token cache once
+  after its first key sync, so a package update no longer leaves the new `/status` paths answered with 401
+  for up to 5 minutes (an old worker could re-fill the cache with the previous `allowed_paths`).
 - Module status sources (#1, review): a `since` that moves while a (`code`, `ref`) pair stays present in the
   `/status` answer is one incident (no new event, no new debounce); a new episode starts only when the pair was
   absent in the previous poll. The dedupe key uses the `since` of the first observation of the episode; a pair that

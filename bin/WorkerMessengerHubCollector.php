@@ -7,6 +7,7 @@ namespace Modules\ModuleMessengerHub\bin;
 require_once 'Globals.php';
 
 use MikoPBX\Core\Workers\WorkerBase;
+use MikoPBX\PBXCoreREST\Services\TokenValidationService;
 use Modules\ModuleMessengerHub\Lib\Api\ApiKeyGuard;
 use Modules\ModuleMessengerHub\Lib\Api\HubApiKey;
 use Modules\ModuleMessengerHub\Lib\Api\LocalRestClient;
@@ -90,7 +91,14 @@ class WorkerMessengerHubCollector extends WorkerBase
                         $paths,
                         (new RuleRepository($db))->needsAttentionAttachments()
                     );
+                    $firstPass = $collector === null;
                     $plainKey = $apiKey->sync($paths);
+                    if ($firstPass) {
+                        // an old worker still polling during a package update can re-fill Core's 5-minute
+                        // token cache with the previous allowed_paths after sync() cleared it (seen on the
+                        // station: 401 on the new /status paths until the TTL ended)
+                        TokenValidationService::clearCache();
+                    }
                     $context->rest = new LocalRestClient($plainKey);
                     $keyGuard->updatePaths($paths);
                     $collector = new Collector(
