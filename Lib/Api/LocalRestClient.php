@@ -11,7 +11,7 @@ use Modules\ModuleMessengerHub\Lib\Sources\SourceException;
  *
  * Never logs the key, URLs with query strings or response bodies.
  */
-final class LocalRestClient implements RestReader
+final class LocalRestClient implements PagedRestReader
 {
     public function __construct(
         private readonly string $apiKey,
@@ -21,6 +21,40 @@ final class LocalRestClient implements RestReader
     }
 
     public function get(string $path, array $query = []): array
+    {
+        return self::unwrap($this->fetch($path, $query), $this->lastStatus);
+    }
+
+    public function getPage(string $path, array $query = []): array
+    {
+        $body = $this->fetch($path, $query);
+
+        return ['data' => self::unwrap($body, $this->lastStatus), 'pagination' => self::pagination($body)];
+    }
+
+    /**
+     * `pagination` member of a PBXApiResult body: only the integer counters (total_items, limit, offset).
+     *
+     * @return array<string, int>
+     */
+    public static function pagination(string $body): array
+    {
+        $json = json_decode($body, true);
+        $raw = is_array($json) && is_array($json['pagination'] ?? null) ? $json['pagination'] : [];
+        $page = [];
+        foreach (['total_items', 'limit', 'offset'] as $key) {
+            if (isset($raw[$key]) && (is_int($raw[$key]) || (is_string($raw[$key]) && ctype_digit($raw[$key])))) {
+                $page[$key] = (int)$raw[$key];
+            }
+        }
+
+        return $page;
+    }
+
+    private int $lastStatus = 0;
+
+    /** Performs the GET and returns the raw body; the HTTP status is kept for unwrap(). Never logs. */
+    private function fetch(string $path, array $query): string
     {
         if (!str_starts_with($path, '/pbxcore/api/v3/')) {
             throw new SourceException('api_bad_path');
@@ -48,7 +82,9 @@ final class LocalRestClient implements RestReader
             throw new SourceException('api_unavailable');
         }
 
-        return self::unwrap((string)$body, $status);
+        $this->lastStatus = $status;
+
+        return (string)$body;
     }
 
     /**
