@@ -3,6 +3,17 @@
 ## Unreleased
 
 ### Changed
+- Module status sources read the modules' existing resources (#1, decision of 2026-11-23): `/status` stays only
+  in ModuleCloudSpeechToText (1.120+). AI Supervisor is read through `GET …/module-ai-supervisor/workers` (`read`),
+  Cloud AI Supervisor through `GET …/module-cloud-ai-supervisor/runtime` (`read`), Local STT through
+  `GET …/module-local-speech-to-text/workers` and `…/jobs` (the module demands `admin` there). Scenarios, wizard
+  conditions, migration, episode semantics and dedupe keys are unchanged; `ref` and `since` equal the `/status`
+  ones, so cursors from the `/status` era do not re-alert. «Update the module» hints (`update_to`) remain only for
+  Cloud STT.
+- The hub's Core API key is bound to localhost (`networkfilterid = 'localhost'`) and carries `admin` only on the two
+  Local STT paths `/workers` and `/jobs` (the module requires it), `read` everywhere else, never `write` or full
+  access; it is set on create and on every sync/repair, and `verify()` repairs a different filter or level in place
+  (same key id and secret).
 - Stage 3b-4 accepted on the test station with ModuleAISupervisor 1.186.6 (the first release that ships `/status`)
   and the hub 6.6 package: migration without noise, reason filter and recovery switch checked.
 - Module status sources (#1, stage 3b-4): one source (one wizard scenario) per kind of problem instead of one per
@@ -11,9 +22,7 @@
   hand their enabled switch to the new sources of the same module; the new sources start with a silent baseline
   (no events and no recoveries for problems that exist at the update). Event types are unchanged, so existing
   rules keep matching.
-- AI Supervisor source reads only `/status` (needs ModuleAISupervisor 1.186.6; older versions show «update the
-  module to 1.186.6»). The `/workers` fallback, the capability cache and the `/workers` path in the hub key are
-  removed; dedupe keys and cursors are unchanged.
+- AI Supervisor source (3b-4) read only `/status`; superseded by the entry above (reads `/workers` again).
 
 ### Fixed
 - Stage 3b-3 (station acceptance): the notifications list shows the `api_incompatible` source state

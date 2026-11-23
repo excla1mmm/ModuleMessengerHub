@@ -34,8 +34,8 @@ The shared `mikopbx/.github-workflows/extension-publish.yml` used by MIKO module
 - [ ] `SECURITY.md` naming the support e-mail (recommended).
 - [ ] README lists every outbound connection (SEC-004): api.telegram.org, platform-api2.max.ru, the optional proxy,
       local REST on 127.0.0.1; the bundled Russian Trusted Root CA (source, fingerprint, used only for MAX).
-- [ ] SEC-005 "writes only to its own dir and DB": the hub creates its own read-only Core API key — explain why
-      (pull model) and **delete the key record on uninstall** (`HubApiKey::remove()` is not called from `Setup` yet).
+- [ ] SEC-005 "writes only to its own dir and DB": the hub creates its own restricted Core API key (localhost-bound, `read`, `admin` only on two Local STT paths) — explain why
+      (pull model, Plan/07) and **delete the key record on uninstall** (`HubApiKey::remove()` is not called from `Setup` yet).
 - [ ] Workers survive the no-network test without uncaught exceptions.
 - [ ] Declare only the architectures we test; note the container tests the current PBX image only.
 - [ ] Version format `X.Y[.Z]` growing between uploads.

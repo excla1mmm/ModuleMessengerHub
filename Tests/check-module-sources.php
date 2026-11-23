@@ -150,10 +150,11 @@ foreach ($moduleIds as $mid) {
 check($registry->apiReadPaths(array_merge(['core.advice'], $moduleIds)) === [
     '/api/v3/advice',
     '/api/v3/module-ai-supervisor/calls',
-    '/api/v3/module-ai-supervisor/status',
-    '/api/v3/module-cloud-ai-supervisor/status',
+    '/api/v3/module-ai-supervisor/workers',
+    '/api/v3/module-cloud-ai-supervisor/runtime',
     '/api/v3/module-cloud-speech-to-text/status',
-    '/api/v3/module-local-speech-to-text/status',
+    '/api/v3/module-local-speech-to-text/jobs',
+    '/api/v3/module-local-speech-to-text/workers',
     '/api/v3/module-voice-agent/callbacks',
     '/api/v3/module-voice-agent/runtime',
 ], 'registry: apiReadPaths union (all read-only)');

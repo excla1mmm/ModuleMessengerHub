@@ -276,8 +276,8 @@ at-most-once для текста и кэшем на событие, удален
 `cloud_stt.paused`, `cloud_ai.paused/resumed`.
 
 Критерии:
-- [x] Ключ хаба во всех путях только `read` (проверено на станции, 3b-3).
-- [x] Модули-источники ничего не отправляют и не знают о хабе (хаб только читает их `/status`, `/workers`).
+- [x] Ключ хаба во всех путях `read` (проверено на станции, 3b-3); с 3b-5 — `admin` ровно на двух путях Local STT и привязка к localhost (Plan/07).
+- [x] Модули-источники ничего не отправляют и не знают о хабе (хаб только читает их `/status` (Cloud STT), `/workers`, `/jobs`, `/runtime`).
 
 **3b-1 (адаптер, события, ключ; без UI) — 22.11.2026, без станции.** Один
 `Lib/Sources/Modules/ModuleStatusSource`, профиль на модуль в `ModuleStatusSource::PROFILES`
@@ -303,6 +303,19 @@ recovery только после объявленного инцидента. П
 читает только `/status` (минимальная версия 1.186.6), запасной `/workers`, `AiWorkerStateSource`,
 `StatusCapabilityStore` и `/workers` в ключе удалены (TODO(#1) закрыт). Выпускать после релиза
 ModuleAISupervisor 1.186.6 со `/status`. Приёмка на станции — 3b-4 (ниже).
+
+**3b-5 (источник данных: `/status` только у Cloud STT) — 23.11.2026, без станции.** Решение пользователя: ModuleAISupervisor,
+ModuleCloudAISupervisor и ModuleLocalSpeechToText `/status` не выпускают. Читатели: ИИ Супервайзер — `/workers`
+(`read`, `AiWorkerStateSource`), Cloud AI — `/runtime` (`read`, `CloudAiRuntimeSnapshot`: `pause.paused`,
+`pause.pause_reason`, `pause.paused_at`, `summary.analysis_pending`), Local STT — `/workers` и `/jobs`
+(`admin` ровно на эти два пути, `LocalSttSnapshot`; ждущие задачи — `status=pending&limit=1`, число из
+`pagination.total_items`, самая старая — `offset=total-1`; `/jobs` читается только пока нет онлайн-воркеров),
+Cloud STT — по-прежнему `/status` (1.120). Сценарии, условия, миграция, эпизоды и ключи дедупликации прежние; курсоры
+эпохи `/status` не алертят повторно (тесты `compat /status era`). Ключ хаба привязан к localhost
+(`networkfilterid = 'localhost'`, `KeyPermissions`), `verify()` чинит иной фильтр и уровни на месте. Минимальная
+версия (`update_to`) осталась только у Cloud STT. Приёмка на станции — 3b-6 (проверить: ключ `admin` на двух путях и
+localhost-фильтр в `m_ApiKeys`, чтение `/workers` и `/jobs` Local STT, `/runtime` Cloud AI, отсутствие повторных
+событий после обновления, `api_forbidden` при отказе модуля).
 
 **3b-3 (приёмка на станции) — 23.11.2026.** «Живое» = реальные модули и бот-чаты станции; «проба» = событие
 реального формата с `probe=true`, поставленное в журнал; «синтетика» = логика адаптера на подставных снимках

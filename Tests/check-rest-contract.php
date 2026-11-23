@@ -253,8 +253,12 @@ use Modules\ModuleMessengerHub\Lib\Sources\SourceCatalog;
         'speech group follows the AI Supervisor group'
     );
     check($byId['local_stt.workers']['group_name'] !== $byId['local_stt.workers']['group_key'], 'speech group name is translated');
-    check($byId['local_stt.workers']['update_to'] === '1.154' && $byId['cloud_ai.paused']['update_to'] === '1.46', 'update_to carries the minimal version');
-    check($byId['ai_supervisor.workers']['update_to'] === '1.186.6', 'AI Supervisor needs 1.186.6 for /status');
+    check($byId['cloud_stt.incidents']['update_to'] === '1.120' && $byId['cloud_stt.paused']['update_to'] === '1.120', 'update_to carries the Cloud STT /status minimal version');
+    check(
+        $byId['local_stt.workers']['update_to'] === '' && $byId['local_stt.backlog']['update_to'] === ''
+        && $byId['cloud_ai.paused']['update_to'] === '' && $byId['ai_supervisor.workers']['update_to'] === '',
+        'sources that read existing resources have no minimal version'
+    );
     check($byId['core.advice']['mode'] === 'poll' && $byId['core.advice']['poll_interval_sec'] > 0, 'poll metadata');
     check($byId['core.pbx_started']['mode'] === 'push', 'push metadata');
     assertNoSecret($result, 'settings getSources');
