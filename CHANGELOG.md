@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Changed
+- Module status sources (#1, stage 3b-4): one source (one wizard scenario) per kind of problem instead of one per
+  module: `local_stt.workers`, `local_stt.backlog`, `cloud_stt.incidents`, `cloud_stt.paused`, `cloud_ai.paused`
+  (`ai_supervisor.workers` unchanged). The retired `local_stt.status`, `cloud_stt.status` and `cloud_ai.status`
+  hand their enabled switch to the new sources of the same module; the new sources start with a silent baseline
+  (no events and no recoveries for problems that exist at the update). Event types are unchanged, so existing
+  rules keep matching.
+- AI Supervisor source reads only `/status` (needs ModuleAISupervisor 1.186.5; older versions show «update the
+  module to 1.186.5»). The `/workers` fallback, the capability cache and the `/workers` path in the hub key are
+  removed; dedupe keys and cursors are unchanged.
+
 ### Fixed
 - Stage 3b-3 (station acceptance): the notifications list shows the `api_incompatible` source state
   («update the module») as a yellow informational label, not red. The collector drops Core's token cache once
@@ -20,6 +31,10 @@
   scratch files only when they exist (no `SHUTDOWN-ERROR` with a temp path when a worker is stopped).
 
 ### Added
+- Conditions of status scenarios (step 2 of the wizard): «Notify on recovery» (the recovery event type in the
+  rule's event types), minimal importance for Cloud STT incidents (`min_severity`; the recovery of an incident follows
+  the importance of the incident), and pause reasons of Cloud AI by group (`filters.reasons`, validated by the Rules
+  REST, applied to `subject.module_status.ref`).
 - Stage 3b-2 — UI for module status sources: scenario category «Распознавание речи и облачный ИИ»
   (`speech_ai`, after the AI Supervisor group) in the wizard, the notifications list and the journal type
   filter; informational source states without buttons, including «update the module to version N»;

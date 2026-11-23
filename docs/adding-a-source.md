@@ -44,7 +44,7 @@ issue #1) needs no adapter class: add one entry to `ModuleStatusSource::PROFILES
 `Lib/Sources/Modules/ModuleStatusSource.php`:
 
 ```php
-'my_stt.status' => [
+'my_stt.workers' => [
     'module' => 'ModuleMyStt',                 // moduleUniqueID for availability
     'slug' => 'module-my-stt',                 // REST path segment
     'min_version' => '1.20',                   // shown as "update the module to N" on 404
@@ -66,7 +66,10 @@ the payload, `api_incompatible` on a 404, and a `read`-only grant on `/status`. 
 3. fixtures with the real (anonymised) `/status` answers in `Tests/fixtures/modules-status/` and checks
    in `Tests/check-status-sources.php`.
 
-A module whose `/status` is not released yet may set `fallback_slug` to read the module's `/workers`
-resource until `/status` answers; the fallback path then stays in the hub key only while it is in use.
-Keep the ref and `since` computation identical in both readers so a switch never re-alerts. Remove the
-fallback (and its key path) once the release exists.
+One source is one wizard scenario, so a module with several kinds of problems gets several entries that
+poll the same `/status` and list only their own codes (see the table in Plan/02: `local_stt.workers` and
+`local_stt.backlog`). Keep a problem and its recovery in one entry. A module without `/status` is not
+supported: the source reports `api_incompatible` with the `min_version` ("update the module to N"); do not
+add a reader for another administrative path (the hub key must stay `/status` only). When you rename or split
+a source id, add the old id to `SourceIdMigration::LEGACY_SOURCES` so the enabled switch carries over and the
+new sources baseline silently.
