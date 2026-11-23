@@ -100,10 +100,10 @@ interface SourceInterface
 | ModuleAISupervisor | `ai_supervisor.attention_call` | `GET /pbxcore/api/v3/module-ai-supervisor/calls?attention=1&period=…&limit=…` (фильтр `attention` — `Lib/RestAPI/Calls/DataStructure.php:193`); запись — публичный `GET /pbxcore/api/v3/cdr/{id}` / `?linkedid=…` (read) | ✅ `read`, звонки и CDR видны | скользящее окно по дате + `ref_id`; `ai_attention:{ref_id}` | 1 ✅ (1.3); вложение — 3a |
 | ModuleAISupervisor | `ai_supervisor.worker_offline` (+ `…_online`) | `GET …/module-ai-supervisor/status` (stage 3b-1); пока версия без `/status` — запасной `GET …/module-ai-supervisor/workers` | ✅ `read` на `/status`; `/workers` добавляется в ключ, только пока обнаружен запасной путь (TODO(#1)) | `<source>:worker_offline:<ref>:<since>`, одинаковый у обоих читателей | 1 ✅ (1.3), 3b-1 ✅ |
 | ModuleAISupervisor | `ai_supervisor.call_assigned` | `GET …/calls` с полями workflow — проверить фильтр по изменению | ✅ `read` (тот же ресурс) | `ai_assign:{ref_id}:{assignee}:{ts}` | 4 |
-| ModuleCloudAISupervisor | `cloud_ai.paused` / `cloud_ai.resumed` | `GET …/module-cloud-ai-supervisor/status` (с 1.46), `issues[]` с `code = processing_paused` и `ref` = причина | ✅ `read` только на `/status` | `<source>:processing_paused:<reason>:<issue.since>` | 3b-1 ✅ |
-| ModuleLocalSpeechToText | `local_stt.worker_offline` (+ `…_online`) | `GET …/module-local-speech-to-text/status` (с 1.154), `issues[]` с `code = worker_offline` | ✅ `read` только на `/status` | `<source>:worker_offline:<ref>:<issue.since>` | 3b-1 ✅ |
-| ModuleLocalSpeechToText | `local_stt.backlog_no_workers` (+ `…_resolved`) | тот же `/status`, `code = backlog_no_workers`, `ref = queue` | ✅ `read` только на `/status` | `<source>:backlog_no_workers:queue:<issue.since>` | 3b-1 ✅ |
-| ModuleCloudSpeechToText | `cloud_stt.incident` (+ `…_resolved`), `cloud_stt.paused` / `cloud_stt.resumed` | `GET …/module-cloud-speech-to-text/status` (с 1.120): `incident_open` (ref = публичный id инцидента) и `processing_paused` (ref `user`/`maintenance`) | ✅ `read` только на `/status` | `<source>:<code>:<ref>:<issue.since>`, подтверждённый инцидент не алертит повторно | 3b-1 ✅ |
+| ModuleCloudAISupervisor | `cloud_ai.paused` / `cloud_ai.resumed` | `GET …/module-cloud-ai-supervisor/status` (с 1.46), `issues[]` с `code = processing_paused` и `ref` = причина | ✅ `read` только на `/status` | `<source>:processing_paused:<reason>:<episode since>` | 3b-1 ✅ |
+| ModuleLocalSpeechToText | `local_stt.worker_offline` (+ `…_online`) | `GET …/module-local-speech-to-text/status` (с 1.154), `issues[]` с `code = worker_offline` | ✅ `read` только на `/status` | `<source>:worker_offline:<ref>:<episode since>` | 3b-1 ✅ |
+| ModuleLocalSpeechToText | `local_stt.backlog_no_workers` (+ `…_resolved`) | тот же `/status`, `code = backlog_no_workers`, `ref = queue` | ✅ `read` только на `/status` | `<source>:backlog_no_workers:queue:<episode since>` | 3b-1 ✅ |
+| ModuleCloudSpeechToText | `cloud_stt.incident` (+ `…_resolved`), `cloud_stt.paused` / `cloud_stt.resumed` | `GET …/module-cloud-speech-to-text/status` (с 1.120): `incident_open` (ref = публичный id инцидента) и `processing_paused` (ref `user`/`maintenance`) | ✅ `read` только на `/status` | `<source>:<code>:<ref>:<episode since>`, подтверждённый инцидент не алертит повторно | 3b-1 ✅ |
 | ModuleVoiceAgent | `voice_agent.callback_request` | `GET /pbxcore/api/v3/module-voice-agent/callbacks` — новые заявки на перезвон | ✅ `read` | `va_callback:{id}` | 1 ✅ (1.3) |
 | ModuleVoiceAgent | `voice_agent.runtime_down/up` | `GET …/module-voice-agent/runtime` (`health`, `agents`) | ✅ `read` | `va_runtime:{state}:{since}` | 1 ✅ (1.3) |
 
@@ -195,9 +195,15 @@ slug, source id, минимальная версия, правила `code → �
 - **Debounce**: пара должна наблюдаться ≥ N с (в профиле: 120 с для `worker_offline`, 0 для
   `backlog_no_workers`, инцидентов и пауз). Пока пара не подтверждена, она хранится `pending`;
   исчезновение до подтверждения не даёт «восстановления». Рестарт воркера таймер не сбрасывает.
-- **dedupe_key** `<source>:<code>:<ref>:<issue.since>`, у recovery — тот же ключ с суффиксом
+- **dedupe_key** `<source>:<code>:<ref>:<episode since>`, у recovery — тот же ключ с суффиксом
   `:recovered`. Подтверждённый инцидент Cloud STT остаётся открытым с тем же `ref`/`since`, поэтому
-  повторно не алертит; новый эпизод с другим `since` — новое событие.
+  повторно не алертит. Пока пара (`code`, `ref`) непрерывно присутствует в ответе, это один инцидент:
+  смена `since` (Cloud STT `maintenance`, Local STT `backlog_no_workers`) обновляет курсор без события и без
+  нового debounce. Новый эпизод — только если пары не было в предыдущем опросе; `<episode since>` — `since`
+  при первом наблюдении эпизода (стабилен при рестарте). Вернувшаяся пара с тем же `since` после
+  объявленного эпизода получает суффикс `:<время первого наблюдения хабом>`, чтобы dedupe её не проглотил.
+  Recovery — только для объявленного инцидента (флаг `announced` в курсоре): пары из baseline и пары, не
+  прошедшие debounce, исчезают молча; записи курсора без флага считаются не объявленными.
 - **Cloud AI `not_configured`** не даёт событий вообще и не попадает в курсор (постоянное состояние
   не настроенной облачной АТС). `manual` — `info`, `license_missing` / `auth_invalid` /
   `model_unavailable` / `daily_limit_reached` / `source_unavailable` — `warning`, `insufficient_funds` /

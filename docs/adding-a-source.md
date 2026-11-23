@@ -56,7 +56,7 @@ issue #1) needs no adapter class: add one entry to `ModuleStatusSource::PROFILES
 ```
 
 The generic adapter already gives you: baseline on enable and after an unavailable module, diff by
-(`code`, `ref`), debounce, dedupe `<source>:<code>:<ref>:<issue.since>`, recovery events, counters in
+(`code`, `ref`), debounce, dedupe `<source>:<code>:<ref>:<episode since>`, recovery events, counters in
 the payload, `api_incompatible` on a 404, and a `read`-only grant on `/status`. What you still add:
 
 1. event type names in `SourceCatalog` (group, source name, event type keys) and `Messages/*.php`

@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Fixed
+- Module status sources (#1, review): a `since` that moves while a (`code`, `ref`) pair stays present in the
+  `/status` answer is one incident (no new event, no new debounce); a new episode starts only when the pair was
+  absent in the previous poll. The dedupe key uses the `since` of the first observation of the episode; a pair that
+  returns with the same module `since` after an announced episode gets the hub first-seen time as a key suffix.
+  Recovery events are sent only for announced incidents (baseline-known pairs and pairs that never passed the
+  debounce disappear silently); cursors without the `announced` flag count as not announced.
 - Stage 3a-3 (station acceptance): MAX `POST /uploads` returns a CDN host (`*.okcdn.ru`, cert `*.mycdn.me`);
   the upload-host check now accepts `*.max.ru`, `*.okcdn.ru` and `*.mycdn.me`, the bot token is still sent
   only to the API host / `*.max.ru`. A probe source inside the module temp tree is no longer deleted after

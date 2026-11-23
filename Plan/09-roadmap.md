@@ -283,7 +283,7 @@ at-most-once для текста и кэшем на событие, удален
 `Lib/Sources/Modules/ModuleStatusSource`, профиль на модуль в `ModuleStatusSource::PROFILES`
 (`local_stt.status`, `cloud_stt.status`, `cloud_ai.status`, `ai_supervisor.workers`); baseline,
 diff по (`code`, `ref`), debounce (120 с для `worker_offline`, 0 для остальных), dedupe
-`<source>:<code>:<ref>:<issue.since>`, recovery-события, `not_configured` без событий; 404 →
+`<source>:<code>:<ref>:<episode since>`, recovery-события, `not_configured` без событий; 404 →
 `api_incompatible` + `update_to`; ИИ Супервайзер предпочитает `/status` и падает на `/workers` с
 кэшем возможности в настройках (TODO(#1)); ключ хаба — только `read`, `/workers` только пока
 запасной путь в ходу. Шаблоны и переводы (29 локалей), `Tests/check-status-sources.php`.

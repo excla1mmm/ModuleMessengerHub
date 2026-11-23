@@ -19,8 +19,10 @@ use Modules\ModuleMessengerHub\Lib\Sources\SourceInterface;
  *  - appearance -> event, disappearance -> recovery event where the profile defines one;
  *  - baseline on enable and on the first successful poll after the module becomes available:
  *    issues already present are recorded as known and never broadcast (history is not broadcast);
- *  - dedupe key `<source>:<code>:<ref>:<issue.since>` (never the top-level `since`), so a restart,
- *    a re-poll or an acknowledged Cloud STT incident never re-alerts;
+ *  - dedupe key `<source>:<code>:<ref>:<episode since>` (never the top-level `since`), so a restart,
+ *    a re-poll or an acknowledged Cloud STT incident never re-alerts; a `since` that moves while the
+ *    pair stays present is one incident (no event, no new debounce); a pair absent in the previous
+ *    poll starts a new episode; recovery is sent only for an announced incident;
  *  - debounce: an issue must be observed for N seconds before the event (per code, e.g. 120 s for
  *    worker_offline, 0 for billing), which suppresses a worker blinking offline/online;
  *  - a 404 on `/status` means the installed module version is older than the contract: availability
@@ -308,13 +310,14 @@ final class ModuleStatusSource implements SourceInterface
         if ($cursor === [] || !array_key_exists('issues', $cursor)) {
             $issues = [];
             foreach ($current as $key => $issue) {
-                $issues[$key] = $issue + ['first_seen' => $now, 'last_seen' => $now, 'pending' => false];
+                $issues[$key] = self::startEpisode($issue, $now, false, '');
             }
 
-            return SourceBatch::baseline(self::nextCursor($issues, $snapshot, $cursor));
+            return SourceBatch::baseline(self::nextCursor($issues, [], $snapshot, $cursor));
         }
 
         $known = is_array($cursor['issues'] ?? null) ? $cursor['issues'] : [];
+        $closed = is_array($cursor['closed'] ?? null) ? $cursor['closed'] : [];
         $events = [];
         $issues = [];
 
@@ -325,31 +328,52 @@ final class ModuleStatusSource implements SourceInterface
                 continue;
             }
 
-            if ($previous === null || (int)($previous['since'] ?? -1) !== $issue['since']) {
-                // a new pair, or the module reported a new episode start for the same pair
-                $pending = $rule->debounceSec > 0;
-                if (!$pending) {
-                    $events[] = self::event($profile, $issue, $rule, $snapshot, $now, false);
+            if ($previous === null) {
+                // the pair was absent in the previous poll: a new episode. If an announced episode of
+                // this pair already used the same module `since`, the key gets the hub's first-seen
+                // time so the dedupe table does not swallow the new announcement.
+                $tag = array_key_exists($key, $closed) && (int)$closed[$key] === $issue['since']
+                    ? (string)$now
+                    : '';
+                $entry = self::startEpisode($issue, $now, false, $tag);
+                if ($rule->debounceSec > 0) {
+                    $entry['pending'] = true;
+                } else {
+                    $events[] = self::event($profile, $entry, $rule, $snapshot, $now, false);
+                    $entry['announced'] = true;
                 }
-                $issues[$key] = $issue + ['first_seen' => $now, 'last_seen' => $now, 'pending' => $pending];
+                $issues[$key] = $entry;
                 continue;
             }
 
-            $firstSeen = (int)($previous['first_seen'] ?? $now);
-            $pending = (bool)($previous['pending'] ?? false);
-            if ($pending && $now - $firstSeen >= $rule->debounceSec) {
-                $events[] = self::event($profile, $issue, $rule, $snapshot, $now, false);
-                $pending = false;
+            // continuously present: one incident even when the module moves `since` (Cloud STT
+            // maintenance, Local STT backlog); keep the episode identity, refresh the observed fields
+            $entry = $previous;
+            $entry['episode_since'] = (int)($previous['episode_since'] ?? $previous['since'] ?? $issue['since']);
+            $entry['episode_tag'] = (string)($previous['episode_tag'] ?? '');
+            $entry['severity'] = $issue['severity'];
+            $entry['since'] = $issue['since'];
+            $entry['last_seen'] = $now;
+            $entry['first_seen'] = (int)($previous['first_seen'] ?? $now);
+            $entry['pending'] = (bool)($previous['pending'] ?? false);
+            $entry['announced'] = (bool)($previous['announced'] ?? false);
+            if ($entry['pending'] && $now - $entry['first_seen'] >= $rule->debounceSec) {
+                $events[] = self::event($profile, $entry, $rule, $snapshot, $now, false);
+                $entry['pending'] = false;
+                $entry['announced'] = true;
             }
-            $issues[$key] = $issue + ['first_seen' => $firstSeen, 'last_seen' => $now, 'pending' => $pending];
+            $issues[$key] = $entry;
         }
 
         foreach ($known as $key => $previous) {
             if (isset($current[$key]) || !is_array($previous)) {
                 continue; // still present, or a cursor entry we cannot read
             }
-            if (!(bool)($previous['pending'] ?? false) && (string)($previous['code'] ?? '') !== '') {
+            // recovery only for an incident that was announced; baseline-known pairs and pairs that
+            // never passed debounce disappear silently
+            if ((bool)($previous['announced'] ?? false) && (string)($previous['code'] ?? '') !== '') {
                 $rule = $profile->rule((string)$previous['code']);
+                $episodeSince = (int)($previous['episode_since'] ?? $previous['since'] ?? 0);
                 if ($rule !== null && $rule->recoveryEventType !== null) {
                     $events[] = self::event(
                         $profile,
@@ -358,6 +382,8 @@ final class ModuleStatusSource implements SourceInterface
                             'ref' => (string)$previous['ref'],
                             'severity' => (string)($previous['severity'] ?? $rule->severity),
                             'since' => max(0, (int)($previous['since'] ?? 0)),
+                            'episode_since' => $episodeSince,
+                            'episode_tag' => (string)($previous['episode_tag'] ?? ''),
                         ],
                         $rule,
                         $snapshot,
@@ -365,11 +391,29 @@ final class ModuleStatusSource implements SourceInterface
                         true
                     );
                 }
+                $closed[$key] = $episodeSince;
             }
-            // a pair that never made it through debounce is dropped without a "recovered" message
         }
 
-        return new SourceBatch($events, self::nextCursor($issues, $snapshot, $cursor));
+        return new SourceBatch($events, self::nextCursor($issues, $closed, $snapshot, $cursor));
+    }
+
+    /**
+     * @param array<string, mixed> $issue
+     * @return array<string, mixed>
+     */
+    private static function startEpisode(array $issue, int $now, bool $announced, string $tag): array
+    {
+        return $issue + [
+            'first_seen' => $now,
+            'last_seen' => $now,
+            'pending' => false,
+            'announced' => $announced,
+            // the module `since` at the first observation and the tag form the dedupe identity of
+            // the episode; later `since` moves do not change it
+            'episode_since' => $issue['since'],
+            'episode_tag' => $tag,
+        ];
     }
 
     /**
@@ -460,7 +504,12 @@ final class ModuleStatusSource implements SourceInterface
         $code = (string)$issue['code'];
         $ref = (string)$issue['ref'];
         $since = max(0, (int)$issue['since']);
-        $dedupe = $profile->sourceId . ':' . $code . ':' . $ref . ':' . $since;
+        $episodeSince = max(0, (int)($issue['episode_since'] ?? $since));
+        $tag = (string)($issue['episode_tag'] ?? '');
+        $dedupe = $profile->sourceId . ':' . $code . ':' . $ref . ':' . $episodeSince;
+        if ($tag !== '') {
+            $dedupe .= ':' . $tag;
+        }
         if ($recovered) {
             $dedupe .= ':recovered';
         }
@@ -498,15 +547,17 @@ final class ModuleStatusSource implements SourceInterface
 
     /**
      * @param array<string, array<string, mixed>> $issues
+     * @param array<string, int> $closed tombstones: pair => episode since of the last announced, ended episode
      * @param array{state: string, since: int, issues: list<array<string, mixed>>, counters: array<string, int>} $snapshot
      * @param array<string, mixed> $cursor
      * @return array<string, mixed>
      */
-    private static function nextCursor(array $issues, array $snapshot, array $cursor): array
+    private static function nextCursor(array $issues, array $closed, array $snapshot, array $cursor): array
     {
         $issues = self::capIssues($issues);
         $next = [
             'issues' => $issues,
+            'closed' => array_slice($closed, -self::MAX_TRACKED_ISSUES, null, true),
             'state' => $snapshot['state'],
             'counters' => $snapshot['counters'],
         ];

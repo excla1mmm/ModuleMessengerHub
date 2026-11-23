@@ -243,22 +243,25 @@ $now += 60;
 statusPass([$local], new StatusPathReader([$statusPath => statusFixture('local-stt-down')]), $states, $events, $now);
 check(statusRows($h) === [], 'local STT: repeated poll does not duplicate');
 
-// backlog resolves while one worker stays offline
+// baseline-known pairs that disappear produce no recovery (they were never announced)
 $now += 60;
 statusPass([$local], new StatusPathReader([$statusPath => statusFixture('local-stt-worker-offline')]), $states, $events, $now);
-$row = onlyEvent(statusRows($h));
-check(($row['event_type'] ?? '') === 'local_stt.backlog_resolved', 'local STT: a disappearing pair emits the recovery type');
+check(statusRows($h) === [], 'local STT: a baseline-known pair disappearing is silent (no recovery without an announcement)');
+$now += 60;
+statusPass([$local], new StatusPathReader([$statusPath => statusFixture('local-stt-ok')]), $states, $events, $now);
+check(statusRows($h) === [], 'local STT: all baseline pairs gone, still silent');
+
+// a backlog appears (debounce 0), is announced, then resolves: the recovery follows the announcement
+$now += 60;
+statusPass([$local], new StatusPathReader([$statusPath => statusFixture('local-stt-down')]), $states, $events, $now);
+check(array_column(statusRows($h), 'event_type') === ['local_stt.backlog_no_workers'], 'local STT: backlog announced after the baseline');
+$now += 60;
+statusPass([$local], new StatusPathReader([$statusPath => statusFixture('local-stt-worker-offline')]), $states, $events, $now);
+$row = statusRows($h)[1] ?? [];
+check(($row['event_type'] ?? '') === 'local_stt.backlog_resolved', 'local STT: a disappearing announced pair emits the recovery type');
 check(($row['severity'] ?? '') === HubEvent::SEVERITY_INFO, 'local STT: recovery is info');
 check(($row['dedupe_key'] ?? '') === 'local_stt.status:backlog_no_workers:queue:1795153998:recovered', 'local STT: recovery key is stable');
 check(($row['payload']['subject']['module_status']['counters']['workers_total'] ?? 0) === 3, 'local STT: recovery carries the counters snapshot');
-
-// the worker comes back: recovery for a baseline-known pair
-$now += 60;
-statusPass([$local], new StatusPathReader([$statusPath => statusFixture('local-stt-ok')]), $states, $events, $now);
-check(count(statusRows($h)) === 2, 'local STT: second recovery emitted');
-$last = statusRows($h)[1];
-check(($last['event_type'] ?? '') === 'local_stt.worker_online', 'local STT: worker recovery type');
-check(!str_contains((string)($last['dedupe_key'] ?? ''), '1795153998'), 'local STT: the top-level since is never in a key');
 
 // debounce: a worker must be observed for 120 s before the event
 $h2 = hubTestDatabase();
@@ -410,11 +413,12 @@ check(($row['event_type'] ?? '') === 'cloud_ai.resumed' && ($row['severity'] ?? 
 $hb = hubTestDatabase();
 $bs = new SourceStateRepository($hb);
 $be = new EventStore($hb);
-statusPass([$cloudAi], new StatusPathReader([$cloudAiPath => statusFixture('cloud-ai-source-unavailable')]), $bs, $be, $t);
-statusPass([$cloudAi], new StatusPathReader([$cloudAiPath => statusFixture('cloud-ai-billing')]), $bs, $be, $t + 60);
+statusPass([$cloudAi], new StatusPathReader([$cloudAiPath => statusFixture('cloud-ai-not-configured')]), $bs, $be, $t);
+statusPass([$cloudAi], new StatusPathReader([$cloudAiPath => statusFixture('cloud-ai-source-unavailable')]), $bs, $be, $t + 60);
+statusPass([$cloudAi], new StatusPathReader([$cloudAiPath => statusFixture('cloud-ai-billing')]), $bs, $be, $t + 120);
 $stored = statusRows($hb);
-check(count($stored) === 2, 'cloud AI: one resume and one billing pause');
-$byType = array_column($stored, null, 'event_type');
+check(count($stored) === 3, 'cloud AI: source_unavailable pause, then one resume and one billing pause');
+$byType = array_column(array_slice($stored, 1), null, 'event_type');
 check(isset($byType['cloud_ai.resumed']) && isset($byType['cloud_ai.paused']), 'cloud AI: resume and pause both emitted');
 check(($byType['cloud_ai.paused']['severity'] ?? '') === HubEvent::SEVERITY_CRITICAL, 'cloud AI: insufficient funds is critical');
 check(str_contains((string)($byType['cloud_ai.paused']['dedupe_key'] ?? ''), ':insufficient_funds:'), 'cloud AI: billing key uses the reason ref');
@@ -452,7 +456,7 @@ check(($cursor['issues']['worker_offline|87355afe8690']['since'] ?? 0) === $t - 
 $workersOnline = $workersFixture;
 $workersOnline['items'][1]['status'] = 'online';
 statusPass([$aiSource], new StatusPathReader([$aiStatusPath => static fn (): array => throw new SourceException('api_not_found'), $aiWorkersPath => $workersOnline]), $is, $ie, $t + 60);
-check((statusRows($hi)[0]['event_type'] ?? '') === 'ai_supervisor.worker_online', 'AI fallback: worker recovery keeps the old event type');
+check(statusRows($hi) === [], 'AI fallback: recovery of a baseline-known worker is silent');
 
 $newOfflineSince = $t + 1000;
 $workersOfflineAgain = $workersFixture;
@@ -460,11 +464,11 @@ $workersOfflineAgain['items'][1]['last_seen'] = $newOfflineSince;
 $fallbackRoutes = [$aiStatusPath => static fn (): array => throw new SourceException('api_not_found'), $aiWorkersPath => $workersOfflineAgain];
 statusPass([$aiSource], new StatusPathReader($fallbackRoutes), $is, $ie, $t + 120);
 statusPass([$aiSource], new StatusPathReader($fallbackRoutes), $is, $ie, $t + 180);
-check(count(statusRows($hi)) === 1, 'AI fallback: debounce suppresses the first two observations');
+check(count(statusRows($hi)) === 0, 'AI fallback: debounce suppresses the first two observations');
 statusPass([$aiSource], new StatusPathReader($fallbackRoutes), $is, $ie, $t + 240);
 $stored = statusRows($hi);
-check(count($stored) === 2, 'AI fallback: the second failure is announced once after the debounce');
-check(($stored[1]['dedupe_key'] ?? '') === 'ai_supervisor.workers:worker_offline:87355afe8690:' . $newOfflineSince, 'AI fallback: dedupe <source>:<code>:<ref>:<since>');
+check(count($stored) === 1, 'AI fallback: the second failure is announced once after the debounce');
+check(($stored[0]['dedupe_key'] ?? '') === 'ai_supervisor.workers:worker_offline:87355afe8690:' . $newOfflineSince, 'AI fallback: dedupe <source>:<code>:<ref>:<since>');
 
 // the module is updated: /status now answers with the same pair — no duplicate, no gap
 $statusSame = statusFixture('ai-supervisor-status');
@@ -472,7 +476,7 @@ $statusSame['issues'][0]['since'] = $newOfflineSince;
 $aiCap->remember(ModuleStatusSource::SOURCE_AI_SUPERVISOR, StatusCapability::missing(0)); // re-check is due
 $report = statusPass([$aiSource], new StatusPathReader([$aiStatusPath => $statusSame, $aiWorkersPath => $workersOfflineAgain]), $is, $ie, $t + 300);
 check(($report[ModuleStatusSource::SOURCE_AI_SUPERVISOR]['status'] ?? '') === SourceAvailability::AVAILABLE, 'AI switch: /status pass ok');
-check(count(statusRows($hi)) === 2, 'AI switch: same worker pair does not alert again');
+check(count(statusRows($hi)) === 1, 'AI switch: same worker pair does not alert again');
 check($aiCap->get(ModuleStatusSource::SOURCE_AI_SUPERVISOR)->statusPathAvailable === true, 'AI switch: capability flipped to /status');
 check(($is->get(ModuleStatusSource::SOURCE_AI_SUPERVISOR)['cursor']['reader'] ?? '') === 'status', 'AI switch: reader is status');
 check($aiSource->apiReadPaths() === [$aiApiStatusPath], 'AI switch: /workers leaves the key');
@@ -480,8 +484,14 @@ check($aiSource->apiReadPaths() === [$aiApiStatusPath], 'AI switch: /workers lea
 // a downgrade (404 again) falls back in the same poll without events
 $report = statusPass([$aiSource], new StatusPathReader([$aiStatusPath => static fn (): array => throw new SourceException('api_not_found'), $aiWorkersPath => $workersOfflineAgain]), $is, $ie, $t + 360);
 check(($report[ModuleStatusSource::SOURCE_AI_SUPERVISOR]['status'] ?? '') === SourceAvailability::AVAILABLE, 'AI downgrade: fallback works');
-check(count(statusRows($hi)) === 2, 'AI downgrade: no event on the reader switch');
+check(count(statusRows($hi)) === 1, 'AI downgrade: no event on the reader switch');
 check($aiSource->apiReadPaths() === [$aiApiStatusPath, '/api/v3/module-ai-supervisor/workers'], 'AI downgrade: /workers returns to the key');
+
+// the announced worker recovers: the old event type and the recovery key of the episode
+statusPass([$aiSource], new StatusPathReader([$aiStatusPath => static fn (): array => throw new SourceException('api_not_found'), $aiWorkersPath => $workersOnline]), $is, $ie, $t + 420);
+$stored = statusRows($hi);
+check(count($stored) === 2 && ($stored[1]['event_type'] ?? '') === 'ai_supervisor.worker_online', 'AI fallback: an announced worker recovery keeps the old event type');
+check(($stored[1]['dedupe_key'] ?? '') === 'ai_supervisor.workers:worker_offline:87355afe8690:' . $newOfflineSince . ':recovered', 'AI fallback: recovery key');
 
 // the same snapshot gives the same dedupe key from both readers
 $statusSnapshot = ModuleStatusSource::snapshot($statusSame);
@@ -523,6 +533,93 @@ $legacySource = statusSource(ModuleStatusSource::SOURCE_AI_SUPERVISOR, new InMem
 statusPass([$legacySource], new StatusPathReader([$aiStatusPath => $statusSame, $aiWorkersPath => $workersFixture]), $ls, $le, $t);
 check(statusRows($hl) === [], 'legacy cursor: an offline worker is not re-alerted on upgrade');
 check(isset($ls->get(ModuleStatusSource::SOURCE_AI_SUPERVISOR)['cursor']['issues']), 'legacy cursor: replaced by the status cursor');
+
+// ======================= episodes: moving `since`, returning pairs, restarts, announced recovery =======================
+$he = hubTestDatabase();
+$es = new SourceStateRepository($he);
+$ee = new EventStore($he);
+$cloudSttE = statusSource(ModuleStatusSource::SOURCE_CLOUD_STT);
+$te = 1795700000;
+$pauseAt = static function (int $since): array {
+    $data = statusFixture('cloud-stt-ok');
+    $data['state'] = 'paused';
+    $data['issues'] = [['code' => 'processing_paused', 'ref' => 'maintenance', 'severity' => 'warning', 'since' => $since]];
+
+    return $data;
+};
+statusPass([$cloudSttE], new StatusPathReader([$cloudSttPath => statusFixture('cloud-stt-ok')]), $es, $ee, $te);
+statusPass([$cloudSttE], new StatusPathReader([$cloudSttPath => $pauseAt(1793100000)]), $es, $ee, $te + 60);
+check(count(statusRows($he)) === 1, 'episode: the pause is announced');
+$firstKey = (string)(statusRows($he)[0]['dedupe_key'] ?? '');
+check($firstKey === 'cloud_stt.status:processing_paused:maintenance:1793100000', 'episode: key uses the since of the first observation');
+
+// the module moves `since` during one continuous pause: same incident, no event
+statusPass([$cloudSttE], new StatusPathReader([$cloudSttPath => $pauseAt(1793100500)]), $es, $ee, $te + 120);
+statusPass([$cloudSttE], new StatusPathReader([$cloudSttPath => $pauseAt(1793101000)]), $es, $ee, $te + 180);
+check(count(statusRows($he)) === 1, 'episode: a moving since of a continuous issue does not alert again');
+$entry = $es->get(ModuleStatusSource::SOURCE_CLOUD_STT)['cursor']['issues']['processing_paused|maintenance'] ?? [];
+check(($entry['since'] ?? 0) === 1793101000 && ($entry['episode_since'] ?? 0) === 1793100000, 'episode: since refreshed, episode identity kept');
+
+// a restart (cursor reload through a new repository) mid-episode keeps the key and does not duplicate
+$restartStates = new SourceStateRepository($he);
+statusPass([statusSource(ModuleStatusSource::SOURCE_CLOUD_STT)], new StatusPathReader([$cloudSttPath => $pauseAt(1793101500)]), $restartStates, new EventStore($he), $te + 240);
+check(count(statusRows($he)) === 1, 'episode: a restart mid-episode does not duplicate');
+
+// it resolves with the key of the episode start
+statusPass([$cloudSttE], new StatusPathReader([$cloudSttPath => statusFixture('cloud-stt-ok')]), $es, $ee, $te + 300);
+check(($rows = statusRows($he)) && count($rows) === 2 && ($rows[1]['dedupe_key'] ?? '') === $firstKey . ':recovered', 'episode: recovery uses the episode key');
+
+// the pair returns with the SAME module since: a new episode, not swallowed by the dedupe table
+statusPass([$cloudSttE], new StatusPathReader([$cloudSttPath => $pauseAt(1793100000)]), $es, $ee, $te + 360);
+$rows = statusRows($he);
+check(count($rows) === 3 && ($rows[2]['event_type'] ?? '') === 'cloud_stt.paused', 'episode: a returning pair with the same since is a new event');
+check(($rows[2]['dedupe_key'] ?? '') === $firstKey . ':' . ($te + 360), 'episode: the repeated episode key carries the first-seen time');
+statusPass([$cloudSttE], new StatusPathReader([$cloudSttPath => $pauseAt(1793100000)]), $es, $ee, $te + 420);
+check(count(statusRows($he)) === 3, 'episode: the repeated episode is announced once');
+statusPass([$cloudSttE], new StatusPathReader([$cloudSttPath => statusFixture('cloud-stt-ok')]), $es, $ee, $te + 480);
+check(count(statusRows($he)) === 4, 'episode: and recovers once');
+
+// a pair that never passed debounce produces no recovery
+$hd = hubTestDatabase();
+$ds = new SourceStateRepository($hd);
+$de = new EventStore($hd);
+$td = 1795800000;
+statusPass([$local], new StatusPathReader([$statusPath => statusFixture('local-stt-ok')]), $ds, $de, $td);
+statusPass([$local], new StatusPathReader([$statusPath => statusFixture('local-stt-worker-offline')]), $ds, $de, $td + 60);
+statusPass([$local], new StatusPathReader([$statusPath => statusFixture('local-stt-ok')]), $ds, $de, $td + 90);
+check(statusRows($hd) === [], 'announced: a blink shorter than the debounce has neither event nor recovery');
+$cursorD = $ds->get(ModuleStatusSource::SOURCE_LOCAL_STT)['cursor'];
+check(($cursorD['closed'] ?? []) === [], 'announced: no tombstone for a never-announced pair');
+
+// cursors written before the flag existed count as not announced: no recovery, no crash
+$legacyEpisode = [
+    'issues' => ['backlog_no_workers|queue' => [
+        'code' => 'backlog_no_workers', 'ref' => 'queue', 'severity' => 'critical', 'since' => 1795153998,
+        'first_seen' => $td, 'last_seen' => $td, 'pending' => false,
+    ]],
+    'state' => 'down',
+    'counters' => [],
+];
+$profileLocal = ModuleStatusSource::profileFor(ModuleStatusSource::SOURCE_LOCAL_STT);
+$migrated = $profileLocal === null ? null : ModuleStatusSource::buildBatch(
+    $profileLocal,
+    ModuleStatusSource::snapshot(statusFixture('local-stt-ok')),
+    $legacyEpisode,
+    $td + 60
+);
+check($migrated !== null && $migrated->events === [], 'migration: a flagless cursor entry disappears silently');
+$stillThere = $profileLocal === null ? null : ModuleStatusSource::buildBatch(
+    $profileLocal,
+    ModuleStatusSource::snapshot(statusFixture('local-stt-down')),
+    $legacyEpisode,
+    $td + 60
+);
+check(
+    $stillThere !== null && $stillThere->events === []
+    && ($stillThere->cursor['issues']['backlog_no_workers|queue']['announced'] ?? null) === false
+    && ($stillThere->cursor['issues']['backlog_no_workers|queue']['episode_since'] ?? 0) === 1795153998,
+    'migration: a flagless entry keeps working and is normalised'
+);
 
 // ======================= templates =======================
 $texts = hubTestTexts();
