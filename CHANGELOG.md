@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Changed
+- Stage 3b-4 accepted on the test station with ModuleAISupervisor 1.186.6 (the first release that ships `/status`)
+  and the hub 6.6 package: migration without noise, reason filter and recovery switch checked.
 - Module status sources (#1, stage 3b-4): one source (one wizard scenario) per kind of problem instead of one per
   module: `local_stt.workers`, `local_stt.backlog`, `cloud_stt.incidents`, `cloud_stt.paused`, `cloud_ai.paused`
   (`ai_supervisor.workers` unchanged). The retired `local_stt.status`, `cloud_stt.status` and `cloud_ai.status`
