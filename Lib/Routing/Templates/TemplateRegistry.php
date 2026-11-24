@@ -21,6 +21,9 @@ final class TemplateRegistry
         $this->templates = $templates ?? [
             'core.missed_call' => new MissedCallTemplate(),
             'core.voicemail' => new VoicemailTemplate(),
+            'core.queue_abandoned' => new QueueAbandonTemplate(),
+            'core.call_out_of_hours' => new CallOutOfHoursTemplate(),
+            'core.park_timeout' => new ParkTimeoutTemplate(),
             'core.provider_down' => new ProviderStatusTemplate(),
             'core.provider_up' => new ProviderStatusTemplate(),
             'core.advice' => new AdviceTemplate(),
