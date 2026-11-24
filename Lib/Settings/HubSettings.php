@@ -208,12 +208,13 @@ final class HubSettings
         return implode(',', array_slice(array_values(array_unique($days)), 0, self::LICENSE_WARN_MAX_BUCKETS));
     }
 
+    /** Keeps a stored number inside its bounds; a zero/garbage value (empty string, text) means the default. */
     private static function clamp(int $value, int $min, int $max, int $fallback): int
     {
-        if ($value < $min || $value > $max) {
+        if ($value <= 0) {
             return $fallback;
         }
 
-        return $value;
+        return max($min, min($max, $value));
     }
 }

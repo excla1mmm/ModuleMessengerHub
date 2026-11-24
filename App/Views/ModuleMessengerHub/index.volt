@@ -208,6 +208,26 @@
                     <input id="mh-max-ca-input" class="mh-input-s mh-mono" type="text" autocomplete="off" spellcheck="false" placeholder="{{ t._('module_messenger_hub_SettingsMaxCaNone') }}">
                     <span class="mh-help" id="mh-max-ca-help">{{ t._('module_messenger_hub_SettingsMaxCaHelp') }}</span>
                 </div>
+                <div class="field" id="mh-config-quiet-field">
+                    <label for="mh-config-quiet-input">{{ t._('module_messenger_hub_SettingsConfigQuiet') }}</label>
+                    <input id="mh-config-quiet-input" class="mh-input-xs" type="number" min="10" max="3600" step="1" value="60">
+                    <span class="mh-help" id="mh-config-quiet-help"></span>
+                </div>
+                <div class="field" id="mh-external-ip-field">
+                    <label for="mh-external-ip-input">{{ t._('module_messenger_hub_SettingsExternalIpMin') }}</label>
+                    <input id="mh-external-ip-input" class="mh-input-xs" type="number" min="5" max="1440" step="1" value="15">
+                    <span class="mh-help" id="mh-external-ip-help"></span>
+                </div>
+                <div class="field" id="mh-license-hours-field">
+                    <label for="mh-license-hours-input">{{ t._('module_messenger_hub_SettingsLicenseHours') }}</label>
+                    <input id="mh-license-hours-input" class="mh-input-xs" type="number" min="1" max="168" step="1" value="6">
+                    <span class="mh-help" id="mh-license-hours-help"></span>
+                </div>
+                <div class="field" id="mh-license-days-field">
+                    <label for="mh-license-days-input">{{ t._('module_messenger_hub_SettingsLicenseDays') }}</label>
+                    <input id="mh-license-days-input" class="mh-input-s mh-mono" type="text" autocomplete="off" spellcheck="false" placeholder="14,7,1">
+                    <span class="mh-help" id="mh-license-days-help"></span>
+                </div>
             </form>
             <span class="mh-meta">{{ t._('module_messenger_hub_SettingsPrivacy') }}</span>
         </section>

@@ -115,7 +115,7 @@ use Modules\ModuleMessengerHub\Lib\Sources\SourceCatalog;
     $state = dataOf($result);
     check($state['hub_enabled'] === false, 'hub_enabled defaults to false');
     check($state['events_retention_days'] === 30, 'retention defaults to 30');
-    check(count($state['sources']) === 14, 'fourteen registered sources in the map');
+    check(count($state['sources']) === 17, 'seventeen registered sources in the map');
     check(!isset($state['hub_api_key']), 'getList exposes no secrets');
     assertNoSecret($result, 'settings getList');
 
@@ -182,13 +182,17 @@ use Modules\ModuleMessengerHub\Lib\Sources\SourceCatalog;
         'mask_phone_default' => false,
         'proxy_url' => '',
         'max_ca_bundle_path' => '',
+        'config_change_quiet_sec' => 90,
+        'external_ip_poll_min' => 30,
+        'license_poll_hours' => 12,
+        'license_warn_days' => '30,7,1',
     ]]);
     check($result->success, 'PUT with a complete payload succeeds');
     $state = dataOf($result);
     check($state['hub_enabled'] === true, 'hub_enabled stored');
     check($state['events_retention_days'] === 90, 'retention stored');
     check($state['sources']['core.missed_call'] === false, 'sources replaced wholesale by PUT');
-    check(count($state['sources']) === 14, 'PUT still knows all sources');
+    check(count($state['sources']) === 17, 'PUT still knows all sources');
     assertNoSecret($result, 'settings update');
 
     // ---------- settings: stage-2 fields ----------
@@ -217,6 +221,41 @@ use Modules\ModuleMessengerHub\Lib\Sources\SourceCatalog;
     check($state['pbx_public_url'] === 'https://pbx.example.ru', 'public URL persisted');
     check($state['mask_phone_default'] === true, 'masking default persisted');
 
+    // ---------- settings: stage 4s-C thresholds ----------
+
+    $db2 = freshDb();
+    $thresholds = settingsProcessor($db2);
+    $fresh = dataOf($thresholds->process(['action' => 'getList']));
+    check($fresh['config_change_quiet_sec'] === 60, 'quiet window defaults to 60 s');
+    check($fresh['external_ip_poll_min'] === 15, 'external IP check defaults to 15 minutes');
+    check($fresh['license_poll_hours'] === 6, 'license check defaults to 6 hours');
+    check($fresh['license_warn_days'] === '14,7,1', 'license buckets default to 14,7,1');
+
+    $result = $thresholds->process(['action' => 'patch', 'data' => ['config_change_quiet_sec' => '120']]);
+    check($result->success && dataOf($result)['config_change_quiet_sec'] === 120, 'quiet window accepts a numeric string');
+    check(dataOf($result)['license_warn_days'] === '14,7,1', 'other thresholds keep their defaults');
+
+    foreach ([9, 3601, 'abc', ''] as $bad) {
+        $result = $thresholds->process(['action' => 'patch', 'data' => ['config_change_quiet_sec' => $bad]]);
+        check(!$result->success && $result->httpCode === 422, 'quiet window out of 10..3600 is rejected: ' . json_encode($bad));
+        check((dataOf($result)['field'] ?? '') === 'config_change_quiet_sec', 'quiet window validation names the field');
+    }
+    foreach ([[4, 'external_ip_poll_min'], [1441, 'external_ip_poll_min'], [0, 'license_poll_hours'], [169, 'license_poll_hours']] as $bad) {
+        $result = $thresholds->process(['action' => 'patch', 'data' => [$bad[1] => $bad[0]]]);
+        check(!$result->success && $result->httpCode === 422 && (dataOf($result)['field'] ?? '') === $bad[1], 'out-of-range ' . $bad[1] . ' is rejected');
+    }
+
+    $result = $thresholds->process(['action' => 'patch', 'data' => ['license_warn_days' => '7, 30, 7,1']]);
+    check($result->success && dataOf($result)['license_warn_days'] === '30,7,1', 'license buckets are unique and newest first');
+    check(in_array('license_warn_days', dataOf($result)['changed'], true), 'license buckets reported as changed');
+    foreach (['', '0', '400', '14,7,1,3,2,1', 'abc', '14,a,7'] as $bad) {
+        $result = $thresholds->process(['action' => 'patch', 'data' => ['license_warn_days' => $bad]]);
+        check(!$result->success && $result->httpCode === 422, 'a bad bucket list is rejected: ' . json_encode($bad));
+        check((dataOf($result)['field'] ?? '') === 'license_warn_days', 'bucket list validation names the field');
+    }
+    $result = $thresholds->process(['action' => 'patch', 'data' => ['license_warn_days' => [30, 1]]]);
+    check($result->success && dataOf($result)['license_warn_days'] === '30,1', 'an array of days is accepted');
+
     // ---------- settings: getSources ----------
 
     $db = freshDb();
@@ -228,7 +267,7 @@ use Modules\ModuleMessengerHub\Lib\Sources\SourceCatalog;
     $result = $processor->process(['action' => 'getSources']);
     check($result->success && $result->httpCode === 200, 'getSources succeeds');
     $items = dataOf($result)['items'];
-    check(count($items) === 14, 'getSources lists fourteen sources');
+    check(count($items) === 17, 'getSources lists seventeen sources');
     $byId = [];
     foreach ($items as $item) {
         $byId[$item['id']] = $item;

@@ -551,13 +551,13 @@ check($settings->licensePollHours() === 6, 'settings: the license check defaults
 check($settings->licenseWarnDays() === [14, 7, 1], 'settings: the licence buckets default to 14,7,1');
 
 $settings->set(HubSettings::CONFIG_CHANGE_QUIET_SEC, '5');
-check($settings->configChangeQuietSec() === 60, 'settings: a value below the minimum falls back to the default');
+check($settings->configChangeQuietSec() === HubSettings::CONFIG_QUIET_MIN_SEC, 'settings: a value below the minimum is clamped');
 $settings->set(HubSettings::CONFIG_CHANGE_QUIET_SEC, '120');
 check($settings->configChangeQuietSec() === 120, 'settings: a stored value inside the range is used');
 $settings->set(HubSettings::EXTERNAL_IP_POLL_MIN, 'abc');
 check($settings->externalIpPollMin() === 15, 'settings: garbage falls back to the default');
 $settings->set(HubSettings::LICENSE_POLL_HOURS, '9999');
-check($settings->licensePollHours() === 6, 'settings: an out-of-range interval falls back to the default');
+check($settings->licensePollHours() === HubSettings::LICENSE_POLL_HOURS_MAX, 'settings: an out-of-range interval is clamped');
 
 $settings->set(HubSettings::LICENSE_WARN_DAYS, '30, 30,3');
 check($settings->licenseWarnDays() === [30, 3], 'settings: buckets are unique and newest first');

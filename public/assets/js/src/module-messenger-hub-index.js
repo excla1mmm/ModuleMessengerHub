@@ -657,6 +657,24 @@
 
     // ---------- journal: rows ----------
 
+    // Area code of a configuration-change event => its catalog key (same map as ConfigChangeTemplate).
+    var CONFIG_AREA_KEYS = {
+        routing: 'ConfigAreaRouting',
+        providers: 'ConfigAreaProviders',
+        extensions: 'ConfigAreaExtensions',
+        employees: 'ConfigAreaEmployees',
+        services: 'ConfigAreaServices',
+        media: 'ConfigAreaMedia',
+        schedule: 'ConfigAreaSchedule',
+        network: 'ConfigAreaNetwork',
+        firewall: 'ConfigAreaFirewall',
+        storage: 'ConfigAreaStorage',
+        api_keys: 'ConfigAreaApiKeys',
+        modules: 'ConfigAreaModules',
+        settings: 'ConfigAreaSettings',
+        other: 'ConfigAreaOther'
+    };
+
     function briefFor(item) {
         var subject = item.payload && item.payload.subject ? item.payload.subject : {};
         var facts = item.payload && item.payload.facts ? item.payload.facts : {};
@@ -680,6 +698,21 @@
                 return provider.username ? 'SIP «' + provider.username + '»' : (provider.host || provider.id || '');
             case 'core.advice':
                 return facts.summary || adviceText(subject.advice || {});
+            case 'core.config_changed':
+                var config = subject.config || {};
+                var areaNames = (config.areas || []).map(function (area) {
+                    return t('module_messenger_hub_' + (CONFIG_AREA_KEYS[area.area] || 'ConfigAreaOther'));
+                });
+                if (areaNames.length > 3) {
+                    areaNames = areaNames.slice(0, 3).concat(['…']);
+                }
+                return areaNames.join(', ');
+            case 'core.external_ip_changed':
+                var ipChange = subject.external_ip || {};
+                return ipChange.new ? (ipChange.old ? ipChange.old + ' → ' : '') + ipChange.new : '';
+            case 'core.license_expiring':
+                var license = subject.license || {};
+                return (license.product || '') + (license.expiry ? ' · ' + license.expiry : '');
             case 'hub.test':
                 var testSystem = subject.system || {};
                 return testSystem.bot_title || '';
@@ -1993,7 +2026,15 @@
             $('#mh-public-url-input').val(data.pbx_public_url || '');
             $('#mh-proxy-input').val(data.proxy_url || '');
             $('#mh-max-ca-input').val(data.max_ca_bundle_path || '');
+            $('#mh-config-quiet-input').val(data.config_change_quiet_sec);
+            $('#mh-external-ip-input').val(data.external_ip_poll_min);
+            $('#mh-license-hours-input').val(data.license_poll_hours);
+            $('#mh-license-days-input').val(data.license_warn_days || '');
             clearFieldError('#mh-max-ca-field');
+            clearFieldError('#mh-config-quiet-field');
+            clearFieldError('#mh-external-ip-field');
+            clearFieldError('#mh-license-hours-field');
+            clearFieldError('#mh-license-days-field');
             $('#mh-mask-default').toggleClass('checked', data.mask_phone_default === true);
             $('#mh-mask-default input').prop('checked', data.mask_phone_default === true);
             clearFieldError('#mh-public-url-field');
@@ -2066,6 +2107,53 @@
             $('#mh-mask-default input').prop('checked', !checked);
             $('#mh-mask-default').toggleClass('checked', !checked);
             showToast(t('module_messenger_hub_CommonSaveFailed'));
+        });
+    }
+
+    // Stage 4s-C numeric thresholds: config-change quiet window, external-IP and license poll intervals.
+    function saveNumberSetting(payloadKey, inputSelector, fieldSelector, min, max) {
+        var raw = String($(inputSelector).val() || '').trim();
+        var value = /^\d+$/.test(raw) ? parseInt(raw, 10) : -1;
+        if (value < min || value > max) {
+            markFieldError(fieldSelector, t('module_messenger_hub_SettingsNumberError'));
+            return;
+        }
+        clearFieldError(fieldSelector);
+        var payload = {};
+        payload[payloadKey] = value;
+        apiPatch('/settings', payload, function (data) {
+            state.settings = data;
+            showToast(t('module_messenger_hub_CommonSaved'));
+        }, function (failure) {
+            markFieldError(fieldSelector, failureText(failure));
+            $(inputSelector).val(state.settings ? state.settings[payloadKey] : '');
+        });
+    }
+
+    // "14,7,1": days separated by commas, 1..365, at most five values, never empty.
+    function saveLicenseWarnDays() {
+        var raw = String($('#mh-license-days-input').val() || '').trim();
+        var parts = raw === '' ? [] : raw.split(/[\s,;]+/);
+        var days = [];
+        var valid = parts.length > 0 && parts.length <= 5;
+        parts.forEach(function (part) {
+            var day = /^\d+$/.test(part) ? parseInt(part, 10) : -1;
+            if (day < 1 || day > 365 || days.indexOf(day) >= 0) { valid = false; return; }
+            days.push(day);
+        });
+        if (!valid || days.length === 0) {
+            markFieldError('#mh-license-days-field', t('module_messenger_hub_SettingsLicenseDaysError'));
+            return;
+        }
+        days.sort(function (a, b) { return b - a; });
+        clearFieldError('#mh-license-days-field');
+        apiPatch('/settings', { license_warn_days: days.join(',') }, function (data) {
+            state.settings = data;
+            $('#mh-license-days-input').val(data.license_warn_days || '');
+            showToast(t('module_messenger_hub_CommonSaved'));
+        }, function (failure) {
+            markFieldError('#mh-license-days-field', failureText(failure));
+            $('#mh-license-days-input').val(state.settings ? state.settings.license_warn_days : '');
         });
     }
 
@@ -2606,7 +2694,10 @@
         robot: '<rect x="3" y="5" width="10" height="8" rx="2"/><path d="M8 2.5V5M6 9h.01M10 9h.01"/>',
         server: '<rect x="2.5" y="3" width="11" height="4" rx="1"/><rect x="2.5" y="9" width="11" height="4" rx="1"/><path d="M5 5h.01M5 11h.01"/>',
         warning: '<path d="M8 2.5l6 10.5H2z"/><path d="M8 6.5v3M8 11.2v.1"/>',
-        bolt: '<path d="M9 1.5L3.5 9H8l-1 5.5L12.5 7H8z"/>'
+        bolt: '<path d="M9 1.5L3.5 9H8l-1 5.5L12.5 7H8z"/>',
+        gear: '<circle cx="8" cy="8" r="2.2"/><path d="M8 1.8v1.7M8 12.5v1.7M1.8 8h1.7M12.5 8h1.7M3.6 3.6l1.2 1.2M11.2 11.2l1.2 1.2M3.6 12.4l1.2-1.2M11.2 4.8l1.2-1.2"/>',
+        globe: '<circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2c1.7 1.8 2.6 3.8 2.6 6S9.7 12.2 8 14c-1.7-1.8-2.6-3.8-2.6-6S6.3 3.8 8 2z"/>',
+        key: '<circle cx="5.5" cy="8" r="2.5"/><path d="M8 8h6M12 8v2.5M10 8v2"/>'
     };
     var SCENARIO_ICON_BY_SOURCE = {
         'core.missed_call': 'phone',
@@ -2622,7 +2713,10 @@
         'voice_agent.runtime': 'robot',
         'core.provider_status': 'server',
         'core.advice': 'warning',
-        'core.pbx_started': 'bolt'
+        'core.pbx_started': 'bolt',
+        'core.config_changed': 'gear',
+        'core.external_ip_changed': 'globe',
+        'core.license_expiring': 'key'
     };
 
     function scenarioIcon(sourceId) {
@@ -3142,6 +3236,24 @@
             case 'core.advice':
                 lines.push(esc('Свободно 8 % на разделе /storage'));
                 break;
+            case 'core.config_changed':
+                lines.push(esc(tf('module_messenger_hub_MessageConfigArea', {
+                    area: t('module_messenger_hub_ConfigAreaProviders'), count: 2
+                })));
+                lines.push(esc(tf('module_messenger_hub_MessageConfigArea', {
+                    area: t('module_messenger_hub_ConfigAreaRouting'), count: 1
+                })));
+                notes.push('02.10.2026 15:41');
+                break;
+            case 'core.external_ip_changed':
+                lines.push('203.0.113.5 → 203.0.113.9');
+                notes.push(esc(tf('module_messenger_hub_MessageExternalIpSeenAt', { time: '02.10.2026 15:41' })));
+                break;
+            case 'core.license_expiring':
+                lines.push('MikoPBX');
+                lines.push(esc(tf('module_messenger_hub_MessageLicenseExpiresOn', { date: '31.12.2026' })));
+                notes.push(esc(tf('module_messenger_hub_MessageLicenseDaysLeft', { days: 7 })));
+                break;
             case 'core.pbx_started':
                 lines.push('02.10.2026 03:10');
                 break;
@@ -3189,6 +3301,9 @@
         if (STATUS_RECOVERY_KEYS[type] || type === 'core.provider_up' || type === 'voice_agent.runtime_up') { return '✅'; }
         if (type === 'ai_supervisor.worker_offline' || type === 'local_stt.worker_offline') { return '🔌'; }
         if (type === 'core.pbx_started') { return '🔄'; }
+        if (type === 'core.config_changed') { return '🛠'; }
+        if (type === 'core.external_ip_changed') { return '🌐'; }
+        if (type === 'core.license_expiring') { return '⚠️'; }
         return '⚠️';
     }
 
@@ -3446,6 +3561,16 @@
         $('#mh-public-url-input').on('change', savePublicUrl);
         $('#mh-proxy-input').on('change', saveProxy);
         $('#mh-max-ca-input').on('change', saveMaxCaBundle);
+        $('#mh-config-quiet-input').on('change', function () {
+            saveNumberSetting('config_change_quiet_sec', '#mh-config-quiet-input', '#mh-config-quiet-field', 10, 3600);
+        });
+        $('#mh-external-ip-input').on('change', function () {
+            saveNumberSetting('external_ip_poll_min', '#mh-external-ip-input', '#mh-external-ip-field', 5, 1440);
+        });
+        $('#mh-license-hours-input').on('change', function () {
+            saveNumberSetting('license_poll_hours', '#mh-license-hours-input', '#mh-license-hours-field', 1, 168);
+        });
+        $('#mh-license-days-input').on('change', saveLicenseWarnDays);
         $('#mh-mask-default input').on('change', saveMaskDefault);
 
         bindBotsContainer();
