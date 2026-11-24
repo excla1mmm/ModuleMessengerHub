@@ -460,6 +460,9 @@ check(\Modules\ModuleMessengerHub\Lib\Attachments\AttachmentMode::fromOptions(['
 $spy->calls = [];
 $db4 = hubTestDatabase();
 seedRuleWorld($db4);
+// the toll-fraud source also holds /api/v3/cdr: switch it off here so this block measures the
+// rule-driven grant alone (the "either needs it" union is checked in check-key-sync.php)
+(new \Modules\ModuleMessengerHub\Lib\Sources\SourceStateRepository($db4))->setEnabled('core.toll_fraud', false, 1);
 $spy4 = new RulesSpyKeySync();
 $p4 = new RulesProcessor($db4, $spy4, new RulesAvailableProbe());
 $result = $p4->process(['action' => 'create', 'data' => $base + [

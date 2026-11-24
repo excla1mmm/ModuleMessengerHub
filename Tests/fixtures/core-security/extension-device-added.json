@@ -1,0 +1,37 @@
+{
+    "changes": [
+        {
+            "extension": "203",
+            "callerid": "Ivanov I. <203>",
+            "userid": "12",
+            "old_status": "Unavailable",
+            "new_status": "Available",
+            "ip_address": "198.51.100.20",
+            "user_agent": "Yealink SIP-T46S 66.85.0.5",
+            "rtt": 12,
+            "timestamp": 1791000600,
+            "details": "New device registered from 198.51.100.20:5060 (Yealink SIP-T46S 66.85.0.5, RTT: 12ms)",
+            "event_type": "device_added",
+            "devices": [
+                {
+                    "id": "SIP-PHONE-203-abcd1234",
+                    "state": "ok",
+                    "ip": "198.51.100.20",
+                    "port": "5060",
+                    "user_agent": "Yealink SIP-T46S 66.85.0.5",
+                    "rtt": 12
+                },
+                {
+                    "id": "SIP-PHONE-203-ef567890",
+                    "state": "ok",
+                    "ip": "192.0.2.10",
+                    "port": "5060",
+                    "user_agent": "Mozilla/5.0 (MikoPBX WebRTC)",
+                    "rtt": 40
+                }
+            ]
+        }
+    ],
+    "timestamp": 1791000601,
+    "source": "GetAllStatusesAction"
+}
