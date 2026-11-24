@@ -99,7 +99,7 @@ interface SourceInterface
 
 **AMI-пользователь.** Воркер `WorkerMessengerHubAmi` подключается через `Util::getAstManager()` — это
 учётная запись ядра `phpagi` (`read=all`, `permit=127.0.0.1`,
-`src/Core/Asterisk/Configs/ManagerConf.php:219-233`), подписка — AMI-действием
+`src/Core/Asterisk/Configs/ManagerConf.php:233-244`), подписка — AMI-действием
 `Filter: UserEvent: CdrConnector`. Пользователи менеджера, заводимые в интерфейсе, получают
 `eventfilter=!UserEvent: CdrConnector` (`ManagerConf.php:210`) и эти события не получают; своей учётки
 хаб не создаёт (решение Q2), поэтому смена источника AMI в ядре сломала бы все четыре CdrConnector-источника
