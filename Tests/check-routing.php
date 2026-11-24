@@ -272,6 +272,9 @@ $catalog = [
     'voice_agent.callback_request' => ['subject' => ['call' => null, 'client_number' => '79689689444', 'employees' => [], 'callback' => ['id' => 1, 'name' => 'Пётр', 'phone' => '79689689444', 'topic' => 'Возврат', 'agent_name' => 'Агент', 'missed_name' => 'Иванов И.', 'missed_extension' => '233', 'call_id' => 'va-1']]],
     'voice_agent.runtime_down' => ['subject' => ['call' => null, 'client_number' => '', 'employees' => [], 'runtime' => ['error' => 'connection refused', 'latency_ms' => 1200]]],
     'voice_agent.runtime_up' => ['subject' => ['call' => null, 'client_number' => '', 'employees' => [], 'runtime' => ['latency_ms' => 80]]],
+    'core.queue_abandoned' => ['subject' => ['call' => ['linkedid' => 'q-1', 'started_at' => 1790944000, 'waited_sec' => 150, 'queue_number' => '800', 'queue_name' => 'Продажи', 'reason' => 'abandoned'], 'client_number' => '79689689444', 'employees' => []]],
+    'core.call_out_of_hours' => ['subject' => ['call' => ['linkedid' => 'o-1', 'started_at' => 1790944000, 'did' => '74950000000'], 'client_number' => '79689689444', 'employees' => []]],
+    'core.park_timeout' => ['subject' => ['call' => ['linkedid' => 'p-1', 'started_at' => 1790944000, 'park_slot' => '701', 'parked_by' => '233', 'parked_sec' => 45], 'client_number' => '79689689444', 'employees' => []]],
 ];
 foreach ($catalog as $type => $payload) {
     $template = $registry->forEvent($type);

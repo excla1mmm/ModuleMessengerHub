@@ -115,7 +115,7 @@ use Modules\ModuleMessengerHub\Lib\Sources\SourceCatalog;
     $state = dataOf($result);
     check($state['hub_enabled'] === false, 'hub_enabled defaults to false');
     check($state['events_retention_days'] === 30, 'retention defaults to 30');
-    check(count($state['sources']) === 14, 'fourteen registered sources in the map');
+    check(count($state['sources']) === 17, 'seventeen registered sources in the map');
     check(!isset($state['hub_api_key']), 'getList exposes no secrets');
     assertNoSecret($result, 'settings getList');
 
@@ -188,7 +188,7 @@ use Modules\ModuleMessengerHub\Lib\Sources\SourceCatalog;
     check($state['hub_enabled'] === true, 'hub_enabled stored');
     check($state['events_retention_days'] === 90, 'retention stored');
     check($state['sources']['core.missed_call'] === false, 'sources replaced wholesale by PUT');
-    check(count($state['sources']) === 14, 'PUT still knows all sources');
+    check(count($state['sources']) === 17, 'PUT still knows all sources');
     assertNoSecret($result, 'settings update');
 
     // ---------- settings: stage-2 fields ----------
@@ -217,6 +217,27 @@ use Modules\ModuleMessengerHub\Lib\Sources\SourceCatalog;
     check($state['pbx_public_url'] === 'https://pbx.example.ru', 'public URL persisted');
     check($state['mask_phone_default'] === true, 'masking default persisted');
 
+    // ---------- settings: stage 4s-B queue wait thresholds ----------
+
+    check($state['queue_abandon_min_wait_sec'] === 0 && $state['queue_long_wait_sec'] === 0, 'queue wait thresholds default to 0 (off)');
+
+    $result = $processor->process(['action' => 'patch', 'data' => ['queue_abandon_min_wait_sec' => 15]]);
+    check($result->success && dataOf($result)['queue_abandon_min_wait_sec'] === 15, 'minimum queue wait stored');
+    check(in_array('queue_abandon_min_wait_sec', dataOf($result)['changed'], true), 'minimum queue wait reported as changed');
+
+    $result = $processor->process(['action' => 'patch', 'data' => ['queue_long_wait_sec' => '120']]);
+    check($result->success && dataOf($result)['queue_long_wait_sec'] === 120, 'long queue wait accepts a numeric string');
+
+    foreach ([-1, 3601, 'abc', '', true] as $bad) {
+        $result = $processor->process(['action' => 'patch', 'data' => ['queue_long_wait_sec' => $bad]]);
+        check(!$result->success && $result->httpCode === 422, 'queue wait outside 0..3600 is rejected: ' . json_encode($bad));
+        check((dataOf($result)['field'] ?? '') === 'queue_long_wait_sec', 'queue wait validation names the field');
+    }
+    $state = dataOf($processor->process(['action' => 'getList']));
+    check($state['queue_abandon_min_wait_sec'] === 15 && $state['queue_long_wait_sec'] === 120, 'queue waits persisted');
+    check((new \Modules\ModuleMessengerHub\Lib\Settings\HubSettings($db))->queueLongWaitSec() === 120, 'the source reads the stored threshold');
+    assertNoSecret($processor->process(['action' => 'getList']), 'settings with queue waits');
+
     // ---------- settings: getSources ----------
 
     $db = freshDb();
@@ -228,7 +249,7 @@ use Modules\ModuleMessengerHub\Lib\Sources\SourceCatalog;
     $result = $processor->process(['action' => 'getSources']);
     check($result->success && $result->httpCode === 200, 'getSources succeeds');
     $items = dataOf($result)['items'];
-    check(count($items) === 14, 'getSources lists fourteen sources');
+    check(count($items) === 17, 'getSources lists seventeen sources');
     $byId = [];
     foreach ($items as $item) {
         $byId[$item['id']] = $item;

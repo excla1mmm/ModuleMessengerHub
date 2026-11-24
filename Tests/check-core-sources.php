@@ -111,7 +111,7 @@ final class PushHarness
 
 // ======================= registry =======================
 $registry = SourceRegistry::default();
-check(count($registry->all()) === 14, 'registry: 5 core + 9 module sources');
+check(count($registry->all()) === 17, 'registry: 8 core + 9 module sources');
 check($registry->find(MissedCallSource::ID) instanceof MissedCallSource, 'registry: missed_call');
 check($registry->find(VoicemailSource::ID) instanceof VoicemailSource, 'registry: voicemail');
 check($registry->find(ProviderStatusSource::ID) instanceof ProviderStatusSource, 'registry: provider_status');
@@ -120,7 +120,7 @@ check($registry->find(AdviceSource::ID) instanceof AdviceSource, 'registry: advi
 check($registry->apiReadPaths([AdviceSource::ID]) === ['/api/v3/advice'], 'registry: advice contributes its path');
 check($registry->apiReadPaths([MissedCallSource::ID, ProviderStatusSource::ID]) === [], 'registry: push sources need no paths');
 check(count($registry->pollSources()) === 10, 'registry: advice plus the nine module sources are polled');
-check(count($registry->amiSources()) === 2, 'registry: two AMI sources');
+check(count($registry->amiSources()) === 5, 'registry: five AMI sources');
 
 // ======================= AgiDataDecoder =======================
 $incomingMissed = fixture('core-missed-call/incoming-missed.json');

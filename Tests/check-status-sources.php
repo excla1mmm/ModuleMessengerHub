@@ -274,7 +274,7 @@ foreach ($statusIds as $id) {
     check($source?->mode() === SourceInterface::MODE_POLL && $source->pollIntervalSec() === 60, "registry: $id polls every 60 s");
     check($source?->requiredModule() !== null, "registry: $id has requiredModule");
 }
-check(count($registry->all()) === 14, 'registry: fourteen sources after the per-problem split');
+check(count($registry->all()) === 17, 'registry: seventeen sources after the per-problem split');
 foreach (['local_stt.status', 'cloud_stt.status', 'cloud_ai.status'] as $retired) {
     check($registry->find($retired) === null, "registry: $retired is retired");
 }
