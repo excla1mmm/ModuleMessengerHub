@@ -32,8 +32,9 @@ final class SourceRegistry
 
     /**
      * Production registry. Stage 1.2/1.3 adapters are added here.
-     * The employee-map provider is the only Core glue (Lib/Support/InternalNumbersLoader, Plan/11 Q12);
-     * it runs lazily at poll time inside the collector worker.
+     * Core glue is lazy and read-only (Lib/Support/*): the internal-number map (Q12), the SIP extension
+     * list of the auth-failure source and the settings snapshot of the security thresholds; all three run
+     * only inside the collector worker at poll time, never in a Core hook.
      *
      * Stage 4s-B: three more CdrConnector users (queue abandonment, out-of-work-time call, park timeout)
      * next to missed calls; their queue names and the wait thresholds are injected by the AMI worker.
@@ -41,12 +42,24 @@ final class SourceRegistry
      * Stage 3b: one ModuleStatusSource per kind of problem (a wizard scenario); all read `/status` only.
      * Stage 4s-C: the PBX configuration, external IP and license sources take their thresholds from the
      * hub settings through lazy closures (Lib/Settings/HubSettings).
+     * Stage 4s-A: the security sources (toll fraud, new device, SIP auth failures).
      */
     public static function default(): self
     {
-        // stage 4s-C thresholds live in HubSettings; the closures are resolved lazily at poll/tick time
+        // thresholds live in HubSettings; the closures are resolved lazily at poll/tick time
         // so the registry itself stays Core-free and instantiable in unit checks
         $settings = static fn (): HubSettings => new HubSettings(new PhalconHubDatabase());
+        $settingsValues = static function () use ($settings): array {
+            $hub = $settings();
+            $values = [];
+            foreach (array_keys(HubSettings::DEFAULTS) as $key) {
+                $values[(string)$key] = $hub->get((string)$key);
+            }
+
+            return $values;
+        };
+        $internalMap = static fn (): array => \Modules\ModuleMessengerHub\Lib\Support\InternalNumbersLoader::load();
+
         $sources = [
             new Core\MissedCallSource(),
             new Core\VoicemailSource(),
@@ -62,9 +75,16 @@ final class SourceRegistry
                 static fn (): int => $settings()->licensePollHours(),
                 static fn (): array => $settings()->licenseWarnDays()
             ),
-            new Modules\AiAttentionCallSource(
-                static fn (): array => \Modules\ModuleMessengerHub\Lib\Support\InternalNumbersLoader::load()
+            new Core\TollFraudSource(
+                static fn (): Core\TollFraudPolicy => Core\TollFraudPolicy::fromHubSettingsValues($settingsValues()),
+                $internalMap
             ),
+            new Core\ExtensionNewDeviceSource(),
+            new Core\SipAuthFailureSource(
+                static fn (): array => \Modules\ModuleMessengerHub\Lib\Support\AuthFailureTargetsLoader::load(),
+                $settingsValues
+            ),
+            new Modules\AiAttentionCallSource($internalMap),
             new Modules\VaCallbackSource(),
             new Modules\VaRuntimeSource(),
         ];

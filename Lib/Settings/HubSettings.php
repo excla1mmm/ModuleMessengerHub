@@ -38,6 +38,22 @@ final class HubSettings
     public const string LICENSE_POLL_HOURS = 'license_poll_hours';
     public const string LICENSE_WARN_DAYS = 'license_warn_days';
 
+    /**
+     * Stage 4s-A security sources (Plan/02-sources.md): toll-fraud rules of core.toll_fraud and the
+     * brute-force rule of core.sip_auth_failures. Lists are comma-separated dialled prefixes.
+     */
+    public const string TOLL_FRAUD_PREFIXES = 'toll_fraud_prefixes';
+    public const string TOLL_FRAUD_HOME_PREFIXES = 'toll_fraud_home_prefixes';
+    public const string TOLL_FRAUD_BURST_CALLS = 'toll_fraud_burst_calls';
+    public const string TOLL_FRAUD_BURST_WINDOW_MIN = 'toll_fraud_burst_window_min';
+    public const string TOLL_FRAUD_OFFHOURS_ENABLED = 'toll_fraud_offhours_enabled';
+    public const string TOLL_FRAUD_OFFHOURS_FROM = 'toll_fraud_offhours_from';
+    public const string TOLL_FRAUD_OFFHOURS_TO = 'toll_fraud_offhours_to';
+    public const string SIP_AUTHFAIL_THRESHOLD = 'sip_authfail_threshold';
+    public const string SIP_AUTHFAIL_WINDOW_MIN = 'sip_authfail_window_min';
+    public const string SIP_AUTHFAIL_QUIET_MIN = 'sip_authfail_quiet_min';
+    public const string SIP_AUTHFAIL_EXTENSIONS_PER_POLL = 'sip_authfail_extensions_per_poll';
+
     public const array SECRET_KEYS = [self::HUB_API_KEY];
 
     public const array DEFAULTS = [
@@ -53,6 +69,20 @@ final class HubSettings
         self::EXTERNAL_IP_POLL_MIN => '15',
         self::LICENSE_POLL_HOURS => '6',
         self::LICENSE_WARN_DAYS => '14,7,1',
+        // international access prefixes; the home-country prefixes below are not dangerous
+        self::TOLL_FRAUD_PREFIXES => '810,00,+',
+        // the module's primary locale is Russia: a domestic +7 / 8-10-7 / 00-7 call is not a toll-fraud
+        // signal; for another country the administrator edits this list (Core exposes no country code)
+        self::TOLL_FRAUD_HOME_PREFIXES => '+7,8107,007',
+        self::TOLL_FRAUD_BURST_CALLS => '20',
+        self::TOLL_FRAUD_BURST_WINDOW_MIN => '10',
+        self::TOLL_FRAUD_OFFHOURS_ENABLED => '0',
+        self::TOLL_FRAUD_OFFHOURS_FROM => '22:00',
+        self::TOLL_FRAUD_OFFHOURS_TO => '07:00',
+        self::SIP_AUTHFAIL_THRESHOLD => '10',
+        self::SIP_AUTHFAIL_WINDOW_MIN => '10',
+        self::SIP_AUTHFAIL_QUIET_MIN => '30',
+        self::SIP_AUTHFAIL_EXTENSIONS_PER_POLL => '25',
     ];
 
     /** Agreed bounds of the journal retention (Plan/06, settings resource). */
@@ -78,6 +108,18 @@ final class HubSettings
     public const int LICENSE_WARN_MAX_BUCKETS = 5;
     public const int LICENSE_WARN_MIN_DAYS = 1;
     public const int LICENSE_WARN_MAX_DAYS = 365;
+
+    /** Bounds of the security thresholds (Plan/02-sources.md, section 4s-A). */
+    public const int PREFIX_LIST_MAX_ITEMS = 20;
+    public const int BURST_CALLS_MIN = 2;
+    public const int BURST_CALLS_MAX = 1000;
+    public const int WINDOW_MIN_MIN = 1;
+    public const int WINDOW_MIN_MAX = 1440;
+    public const int AUTHFAIL_THRESHOLD_MIN = 1;
+    public const int AUTHFAIL_THRESHOLD_MAX = 1000;
+    public const int AUTHFAIL_QUIET_MIN = 5;
+    public const int AUTHFAIL_EXTENSIONS_MIN = 5;
+    public const int AUTHFAIL_EXTENSIONS_MAX = 200;
 
     public function __construct(private readonly HubDatabase $db)
     {
@@ -245,5 +287,114 @@ final class HubSettings
         }
 
         return max($min, min($max, $value));
+    }
+
+    /**
+     * Dangerous dialled prefixes of the toll-fraud rule (international access codes by default).
+     * An empty list switches the "dangerous destination" rule of `core.toll_fraud` off.
+     *
+     * @return list<string>
+     */
+    public function tollFraudPrefixes(): array
+    {
+        return self::prefixList((string)$this->get(self::TOLL_FRAUD_PREFIXES));
+    }
+
+    /**
+     * Prefixes excluded from the dangerous list: the home-country dialling forms of the PBX.
+     *
+     * @return list<string>
+     */
+    public function tollFraudHomePrefixes(): array
+    {
+        return self::prefixList((string)$this->get(self::TOLL_FRAUD_HOME_PREFIXES));
+    }
+
+    public function tollFraudBurstCalls(): int
+    {
+        return self::clampInt((string)$this->get(self::TOLL_FRAUD_BURST_CALLS), (int)self::DEFAULTS[self::TOLL_FRAUD_BURST_CALLS], self::BURST_CALLS_MIN, self::BURST_CALLS_MAX);
+    }
+
+    public function tollFraudBurstWindowMin(): int
+    {
+        return self::clampInt((string)$this->get(self::TOLL_FRAUD_BURST_WINDOW_MIN), (int)self::DEFAULTS[self::TOLL_FRAUD_BURST_WINDOW_MIN], self::WINDOW_MIN_MIN, self::WINDOW_MIN_MAX);
+    }
+
+    public function tollFraudOffHoursEnabled(): bool
+    {
+        return $this->get(self::TOLL_FRAUD_OFFHOURS_ENABLED) === '1';
+    }
+
+    public function tollFraudOffHoursFrom(): string
+    {
+        return self::timeOfDay((string)$this->get(self::TOLL_FRAUD_OFFHOURS_FROM), (string)self::DEFAULTS[self::TOLL_FRAUD_OFFHOURS_FROM]);
+    }
+
+    public function tollFraudOffHoursTo(): string
+    {
+        return self::timeOfDay((string)$this->get(self::TOLL_FRAUD_OFFHOURS_TO), (string)self::DEFAULTS[self::TOLL_FRAUD_OFFHOURS_TO]);
+    }
+
+    /** Failures an extension must gain inside the growth window before `core.sip_auth_failures` alerts. */
+    public function sipAuthFailThreshold(): int
+    {
+        return self::clampInt((string)$this->get(self::SIP_AUTHFAIL_THRESHOLD), (int)self::DEFAULTS[self::SIP_AUTHFAIL_THRESHOLD], self::AUTHFAIL_THRESHOLD_MIN, self::AUTHFAIL_THRESHOLD_MAX);
+    }
+
+    public function sipAuthFailWindowMin(): int
+    {
+        return self::clampInt((string)$this->get(self::SIP_AUTHFAIL_WINDOW_MIN), (int)self::DEFAULTS[self::SIP_AUTHFAIL_WINDOW_MIN], self::WINDOW_MIN_MIN, self::WINDOW_MIN_MAX);
+    }
+
+    /** An episode ends after this long without a new failed attempt. */
+    public function sipAuthFailQuietMin(): int
+    {
+        return self::clampInt((string)$this->get(self::SIP_AUTHFAIL_QUIET_MIN), (int)self::DEFAULTS[self::SIP_AUTHFAIL_QUIET_MIN], self::AUTHFAIL_QUIET_MIN, self::WINDOW_MIN_MAX);
+    }
+
+    /** Extensions with a stats request per poll (the rest wait for the next rotation). */
+    public function sipAuthFailExtensionsPerPoll(): int
+    {
+        return self::clampInt(
+            (string)$this->get(self::SIP_AUTHFAIL_EXTENSIONS_PER_POLL),
+            (int)self::DEFAULTS[self::SIP_AUTHFAIL_EXTENSIONS_PER_POLL],
+            self::AUTHFAIL_EXTENSIONS_MIN,
+            self::AUTHFAIL_EXTENSIONS_MAX
+        );
+    }
+
+    /**
+     * Comma-separated prefix list -> unique, validated entries (digits with an optional leading "+").
+     *
+     * @return list<string>
+     */
+    public static function prefixList(string $value): array
+    {
+        $list = [];
+        foreach (explode(',', $value) as $item) {
+            $item = trim($item);
+            if ($item !== '' && preg_match('/^\+?\d{0,8}$/', $item) === 1 && $item !== '' && !in_array($item, $list, true)) {
+                $list[] = $item;
+            }
+            if (count($list) >= self::PREFIX_LIST_MAX_ITEMS) {
+                break;
+            }
+        }
+
+        return $list;
+    }
+
+    private static function clampInt(string $value, int $fallback, int $min, int $max): int
+    {
+        if (preg_match('/^\d+$/', $value) !== 1) {
+            return $fallback;
+        }
+
+        return max($min, min($max, (int)$value));
+    }
+
+    private static function timeOfDay(string $value, string $fallback): string
+    {
+        return preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $value) === 1 ? $value : $fallback;
     }
 }

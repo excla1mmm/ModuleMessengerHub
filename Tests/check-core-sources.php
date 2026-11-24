@@ -111,7 +111,7 @@ final class PushHarness
 
 // ======================= registry =======================
 $registry = SourceRegistry::default();
-check(count($registry->all()) === 20, 'registry: 8 core + 9 module sources');
+check(count($registry->all()) === 23, 'registry: 8 core + 9 module sources');
 check($registry->find(MissedCallSource::ID) instanceof MissedCallSource, 'registry: missed_call');
 check($registry->find(VoicemailSource::ID) instanceof VoicemailSource, 'registry: voicemail');
 check($registry->find(ProviderStatusSource::ID) instanceof ProviderStatusSource, 'registry: provider_status');
@@ -119,7 +119,7 @@ check($registry->find(PbxStartedSource::ID) instanceof PbxStartedSource, 'regist
 check($registry->find(AdviceSource::ID) instanceof AdviceSource, 'registry: advice');
 check($registry->apiReadPaths([AdviceSource::ID]) === ['/api/v3/advice'], 'registry: advice contributes its path');
 check($registry->apiReadPaths([MissedCallSource::ID, ProviderStatusSource::ID]) === [], 'registry: push sources need no paths');
-check(count($registry->pollSources()) === 12, 'registry: advice, external IP, license plus the nine module sources are polled');
+check(count($registry->pollSources()) === 14, 'registry: advice, external IP, license, toll fraud, SIP auth failures and the nine module sources are polled');
 check(count($registry->amiSources()) === 5, 'registry: five AMI sources');
 
 // ======================= AgiDataDecoder =======================

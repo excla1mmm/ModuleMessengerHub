@@ -115,7 +115,7 @@ use Modules\ModuleMessengerHub\Lib\Sources\SourceCatalog;
     $state = dataOf($result);
     check($state['hub_enabled'] === false, 'hub_enabled defaults to false');
     check($state['events_retention_days'] === 30, 'retention defaults to 30');
-    check(count($state['sources']) === 20, 'seventeen registered sources in the map');
+    check(count($state['sources']) === 23, 'all registered sources in the map');
     check(!isset($state['hub_api_key']), 'getList exposes no secrets');
     assertNoSecret($result, 'settings getList');
 
@@ -192,7 +192,7 @@ use Modules\ModuleMessengerHub\Lib\Sources\SourceCatalog;
     check($state['hub_enabled'] === true, 'hub_enabled stored');
     check($state['events_retention_days'] === 90, 'retention stored');
     check($state['sources']['core.missed_call'] === false, 'sources replaced wholesale by PUT');
-    check(count($state['sources']) === 20, 'PUT still knows all sources');
+    check(count($state['sources']) === 23, 'PUT still knows all sources');
     assertNoSecret($result, 'settings update');
 
     // ---------- settings: stage-2 fields ----------
@@ -287,7 +287,7 @@ use Modules\ModuleMessengerHub\Lib\Sources\SourceCatalog;
     $result = $processor->process(['action' => 'getSources']);
     check($result->success && $result->httpCode === 200, 'getSources succeeds');
     $items = dataOf($result)['items'];
-    check(count($items) === 20, 'getSources lists seventeen sources');
+    check(count($items) === 23, 'getSources lists all sources');
     $byId = [];
     foreach ($items as $item) {
         $byId[$item['id']] = $item;

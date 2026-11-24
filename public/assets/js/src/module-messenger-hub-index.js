@@ -8,7 +8,7 @@
     var API_BASE = '/pbxcore/api/v3/module-messenger-hub';
     var PAGE_LIMIT = 50;
     var REFRESH_SEC = 30;
-    var GROUP_ORDER = ['calls', 'ai_supervisor', 'speech_ai', 'voice_agent', 'pbx'];
+    var GROUP_ORDER = ['calls', 'ai_supervisor', 'speech_ai', 'voice_agent', 'pbx', 'security'];
 
     var ICON_ERROR = '<svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/></svg>';
     var ICON_CHEVRON = '<svg class="mh-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg>';
@@ -251,7 +251,8 @@
             ai_supervisor: 'module_messenger_hub_GroupAiSupervisor',
             speech_ai: 'module_messenger_hub_GroupSpeechAi',
             voice_agent: 'module_messenger_hub_GroupVoiceAgent',
-            pbx: 'module_messenger_hub_GroupPbx'
+            pbx: 'module_messenger_hub_GroupPbx',
+            security: 'module_messenger_hub_GroupSecurity'
         }[group] || group;
         return t(key);
     }
@@ -2064,6 +2065,7 @@
             clearFieldError('#mh-public-url-field');
             clearFieldError('#mh-proxy-field');
             clearRetentionError();
+            loadSecuritySettings(data);
         }, function (failure) {
             markRetentionError(tf('module_messenger_hub_CommonLoadError', {
                 what: t('module_messenger_hub_LoadWhatSettings'),
@@ -2204,6 +2206,77 @@
         }, function (failure) {
             markFieldError('#mh-license-days-field', failureText(failure));
             $('#mh-license-days-input').val(state.settings ? state.settings.license_warn_days : '');
+        });
+    }
+
+    // ---------- security settings (stage 4s-A): toll-fraud rules and SIP brute force ----------
+
+    function loadSecuritySettings(data) {
+        $('#mh-toll-prefixes-input').val(data.toll_fraud_prefixes || '');
+        $('#mh-toll-home-input').val(data.toll_fraud_home_prefixes || '');
+        $('#mh-toll-burst-input').val(data.toll_fraud_burst_calls);
+        $('#mh-toll-window-input').val(data.toll_fraud_burst_window_min);
+        $('#mh-toll-from-input').val(data.toll_fraud_offhours_from || '');
+        $('#mh-toll-to-input').val(data.toll_fraud_offhours_to || '');
+        $('#mh-toll-offhours').toggleClass('checked', data.toll_fraud_offhours_enabled === true);
+        $('#mh-toll-offhours input').prop('checked', data.toll_fraud_offhours_enabled === true);
+        $('#mh-authfail-threshold-input').val(data.sip_authfail_threshold);
+        $('#mh-authfail-window-input').val(data.sip_authfail_window_min);
+        $('#mh-authfail-quiet-input').val(data.sip_authfail_quiet_min);
+        $('#mh-authfail-perpoll-input').val(data.sip_authfail_extensions_per_poll);
+        clearFieldError('#mh-toll-prefixes-field');
+        clearFieldError('#mh-toll-home-field');
+        clearFieldError('#mh-toll-burst-field');
+        clearFieldError('#mh-toll-window-field');
+        clearFieldError('#mh-toll-from-field');
+        clearFieldError('#mh-toll-to-field');
+        clearFieldError('#mh-authfail-threshold-field');
+        clearFieldError('#mh-authfail-window-field');
+        clearFieldError('#mh-authfail-quiet-field');
+        clearFieldError('#mh-authfail-perpoll-field');
+    }
+
+    function securityInvalid(fieldSelector) {
+        markFieldError(fieldSelector, t('module_messenger_hub_SettingsSecurityInvalid'));
+    }
+
+    function saveSecurityInt(selector, fieldSelector, field, min, max) {
+        var raw = String($(selector).val() || '').trim();
+        var value = /^\d+$/.test(raw) ? parseInt(raw, 10) : -1;
+        if (value < min || value > max) { securityInvalid(fieldSelector); return; }
+        var payload = {};
+        payload[field] = value;
+        var previous = state.settings ? state.settings[field] : value;
+        saveSetting(payload, fieldSelector, function () { $(selector).val(previous); });
+    }
+
+    function saveSecurityPrefixes(selector, fieldSelector, field) {
+        var value = String($(selector).val() || '').trim();
+        if (value !== '' && !/^\+?\d{0,8}(\s*,\s*\+?\d{0,8})*$/.test(value)) {
+            securityInvalid(fieldSelector);
+            return;
+        }
+        var payload = {};
+        payload[field] = value.replace(/\s+/g, '');
+        var previous = state.settings ? state.settings[field] : '';
+        saveSetting(payload, fieldSelector, function () { $(selector).val(previous); });
+    }
+
+    function saveSecurityTime(selector, fieldSelector, field) {
+        var value = String($(selector).val() || '').trim();
+        if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) { securityInvalid(fieldSelector); return; }
+        var payload = {};
+        payload[field] = value;
+        var previous = state.settings ? state.settings[field] : value;
+        saveSetting(payload, fieldSelector, function () { $(selector).val(previous); });
+    }
+
+    function saveTollOffHours() {
+        var checked = $('#mh-toll-offhours input').prop('checked');
+        saveSetting({ toll_fraud_offhours_enabled: checked }, null, function () {
+            $('#mh-toll-offhours input').prop('checked', !checked);
+            $('#mh-toll-offhours').toggleClass('checked', !checked);
+            showToast(t('module_messenger_hub_CommonSaveFailed'));
         });
     }
 
@@ -2747,7 +2820,8 @@
         bolt: '<path d="M9 1.5L3.5 9H8l-1 5.5L12.5 7H8z"/>',
         gear: '<circle cx="8" cy="8" r="2.2"/><path d="M8 1.8v1.7M8 12.5v1.7M1.8 8h1.7M12.5 8h1.7M3.6 3.6l1.2 1.2M11.2 11.2l1.2 1.2M3.6 12.4l1.2-1.2M11.2 4.8l1.2-1.2"/>',
         globe: '<circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2c1.7 1.8 2.6 3.8 2.6 6S9.7 12.2 8 14c-1.7-1.8-2.6-3.8-2.6-6S6.3 3.8 8 2z"/>',
-        key: '<circle cx="5.5" cy="8" r="2.5"/><path d="M8 8h6M12 8v2.5M10 8v2"/>'
+        key: '<circle cx="5.5" cy="8" r="2.5"/><path d="M8 8h6M12 8v2.5M10 8v2"/>',
+        shield: '<path d="M8 2l5 2v4c0 3-2.3 5-5 6-2.7-1-5-3-5-6V4z"/><path d="M6.2 8l1.3 1.3L10 6.8"/>'
     };
     var SCENARIO_ICON_BY_SOURCE = {
         'core.missed_call': 'phone',
@@ -2769,7 +2843,10 @@
         'core.pbx_started': 'bolt',
         'core.config_changed': 'gear',
         'core.external_ip_changed': 'globe',
-        'core.license_expiring': 'key'
+        'core.license_expiring': 'key',
+        'core.toll_fraud': 'warning',
+        'core.extension_new_device': 'shield',
+        'core.sip_auth_failures': 'shield'
     };
 
     function scenarioIcon(sourceId) {
@@ -3627,6 +3704,37 @@
         $('#mh-mask-default input').on('change', saveMaskDefault);
         $('#mh-queue-min-wait-input').on('change', saveQueueMinWait);
         $('#mh-queue-long-wait-input').on('change', saveQueueLongWait);
+        $('#mh-toll-prefixes-input').on('change', function () {
+            saveSecurityPrefixes('#mh-toll-prefixes-input', '#mh-toll-prefixes-field', 'toll_fraud_prefixes');
+        });
+        $('#mh-toll-home-input').on('change', function () {
+            saveSecurityPrefixes('#mh-toll-home-input', '#mh-toll-home-field', 'toll_fraud_home_prefixes');
+        });
+        $('#mh-toll-burst-input').on('change', function () {
+            saveSecurityInt('#mh-toll-burst-input', '#mh-toll-burst-field', 'toll_fraud_burst_calls', 2, 1000);
+        });
+        $('#mh-toll-window-input').on('change', function () {
+            saveSecurityInt('#mh-toll-window-input', '#mh-toll-window-field', 'toll_fraud_burst_window_min', 1, 1440);
+        });
+        $('#mh-toll-from-input').on('change', function () {
+            saveSecurityTime('#mh-toll-from-input', '#mh-toll-from-field', 'toll_fraud_offhours_from');
+        });
+        $('#mh-toll-to-input').on('change', function () {
+            saveSecurityTime('#mh-toll-to-input', '#mh-toll-to-field', 'toll_fraud_offhours_to');
+        });
+        $('#mh-toll-offhours input').on('change', saveTollOffHours);
+        $('#mh-authfail-threshold-input').on('change', function () {
+            saveSecurityInt('#mh-authfail-threshold-input', '#mh-authfail-threshold-field', 'sip_authfail_threshold', 1, 1000);
+        });
+        $('#mh-authfail-window-input').on('change', function () {
+            saveSecurityInt('#mh-authfail-window-input', '#mh-authfail-window-field', 'sip_authfail_window_min', 1, 1440);
+        });
+        $('#mh-authfail-quiet-input').on('change', function () {
+            saveSecurityInt('#mh-authfail-quiet-input', '#mh-authfail-quiet-field', 'sip_authfail_quiet_min', 5, 1440);
+        });
+        $('#mh-authfail-perpoll-input').on('change', function () {
+            saveSecurityInt('#mh-authfail-perpoll-input', '#mh-authfail-perpoll-field', 'sip_authfail_extensions_per_poll', 5, 200);
+        });
 
         bindBotsContainer();
         bindChatFound();

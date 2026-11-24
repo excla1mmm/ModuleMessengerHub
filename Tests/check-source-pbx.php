@@ -150,11 +150,11 @@ function coreModelChange(string $model, string $action = 'afterSave', mixed $rec
 
 // ======================= registry and catalog =======================
 $registry = SourceRegistry::default();
-check(count($registry->all()) === 20, 'registry: fourteen sources plus the three 4s-C ones');
+check(count($registry->all()) === 23, 'registry: fourteen sources plus the three 4s-C ones');
 check($registry->find(ConfigChangeSource::ID) instanceof ConfigChangeSource, 'registry: config_changed');
 check($registry->find(ExternalIpSource::ID) instanceof ExternalIpSource, 'registry: external_ip_changed');
 check($registry->find(LicenseExpirySource::ID) instanceof LicenseExpirySource, 'registry: license_expiring');
-check(count($registry->pollSources()) === 12, 'registry: two more poll sources');
+check(count($registry->pollSources()) === 14, 'registry: two 4s-C plus two 4s-A poll sources');
 check(count($registry->amiSources()) === 5, 'registry: AMI sources: core two plus the three 4s-B ones');
 check($registry->apiReadPaths([ExternalIpSource::ID]) === ['/api/v3/sysinfo'], 'registry: external IP reads sysinfo');
 check($registry->apiReadPaths([LicenseExpirySource::ID]) === ['/api/v3/license'], 'registry: license reads the license resource');

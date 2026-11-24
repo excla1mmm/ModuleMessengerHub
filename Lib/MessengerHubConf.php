@@ -16,6 +16,7 @@ use Modules\ModuleMessengerHub\Lib\Events\EventStore;
 use Modules\ModuleMessengerHub\Lib\Settings\HubSettings;
 use Modules\ModuleMessengerHub\Lib\Sources\Core\ConfigChangeSource;
 use Modules\ModuleMessengerHub\Lib\Sources\Core\ExternalIpSource;
+use Modules\ModuleMessengerHub\Lib\Sources\Core\ExtensionNewDeviceSource;
 use Modules\ModuleMessengerHub\Lib\Sources\Core\PbxStartedSource;
 use Modules\ModuleMessengerHub\Lib\Sources\Core\ProviderStatusSource;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceRecorder;
@@ -89,6 +90,41 @@ class MessengerHubConf extends ConfigClass
             HubLogger::event('hook', 'provider_status_conflict', [], LOG_WARNING);
         } catch (Throwable $exception) {
             HubLogger::event('hook', 'provider_status_failed', ['error' => $exception::class], LOG_ERR);
+        }
+    }
+
+    /**
+     * Extension status changes -> raw device facts queued in the source cursor. The collector worker
+     * folds them and records `core.extension_new_device` events (Plan/02-sources.md, 4s-A). Only
+     * device_added / status_change entries carry a device list; a couple of local SQLite statements
+     * and no network here, exactly like the provider hook above.
+     *
+     * @param array<string, mixed> $changeData {changes: [...], timestamp: int, source: string}
+     */
+    public function onExtensionStatusChange(array $changeData): void
+    {
+        try {
+            $changes = $changeData['changes'] ?? [];
+            if (!is_array($changes) || $changes === []) {
+                return;
+            }
+            [, $states] = $this->recorder();
+            for ($attempt = 0; $attempt < 3; $attempt++) {
+                $state = $states->get(ExtensionNewDeviceSource::ID);
+                if (!$state['enabled']) {
+                    return;
+                }
+                $cursor = $state['cursor'];
+                $pending = is_array($cursor['pending'] ?? null) ? $cursor['pending'] : [];
+                $new = ExtensionNewDeviceSource::queueChanges($changes, $pending, time());
+                if ($new === $pending
+                    || $states->compareAndSaveCursor(ExtensionNewDeviceSource::ID, $cursor, ['pending' => $new] + $cursor)) {
+                    return;
+                }
+            }
+            HubLogger::event('hook', 'extension_device_conflict', [], LOG_WARNING);
+        } catch (Throwable $exception) {
+            HubLogger::event('hook', 'extension_device_failed', ['error' => $exception::class], LOG_ERR);
         }
     }
 

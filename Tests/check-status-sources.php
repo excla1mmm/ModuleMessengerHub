@@ -274,7 +274,7 @@ foreach ($statusIds as $id) {
     check($source?->mode() === SourceInterface::MODE_POLL && $source->pollIntervalSec() === 60, "registry: $id polls every 60 s");
     check($source?->requiredModule() !== null, "registry: $id has requiredModule");
 }
-check(count($registry->all()) === 20, 'registry: seventeen sources after the per-problem split');
+check(count($registry->all()) === 23, 'registry: all sources after the per-problem split');
 foreach (['local_stt.status', 'cloud_stt.status', 'cloud_ai.status'] as $retired) {
     check($registry->find($retired) === null, "registry: $retired is retired");
 }
@@ -341,6 +341,7 @@ $available = static fn (string $module): string => SourceAvailability::AVAILABLE
 $allPaths = ApiKeyPaths::compute(SourceRegistry::default()->pollSources(), static fn (string $id): bool => true, $available);
 check($allPaths === [
     '/api/v3/advice',
+    '/api/v3/cdr',
     '/api/v3/license',
     '/api/v3/module-ai-supervisor/calls',
     '/api/v3/module-ai-supervisor/workers',
@@ -350,6 +351,7 @@ check($allPaths === [
     '/api/v3/module-local-speech-to-text/workers',
     '/api/v3/module-voice-agent/callbacks',
     '/api/v3/module-voice-agent/runtime',
+    '/api/v3/sip',
     '/api/v3/sysinfo',
 ], 'key: exact path set');
 // only the workers source enabled: /jobs is not asked for

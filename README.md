@@ -18,7 +18,9 @@ notifications to **Telegram** and **MAX**.
   system warnings, voicemail; a caller who gave up in a queue, a call outside working hours, a parked
   call nobody picked up; call needing attention (AI Supervisor), callback request and offline
   workers (VoiceAgent); module status changes (speech recognition workers and queue, cloud speech
-  incidents, cloud AI pauses).
+  incidents, cloud AI pauses); security events — a suspected fraudulent call (dangerous international
+  destination, a burst of outgoing external calls, a call outside working hours), a new device on an
+  extension and SIP password guessing (brute force).
 - **PBX configuration and infrastructure events**: configuration changes (one message naming the areas
   that changed — routing, providers, numbers, firewall, API keys, modules and so on, never field values),
   an external IP address change, and license expiry reminders 14/7/1 days before and once after the end

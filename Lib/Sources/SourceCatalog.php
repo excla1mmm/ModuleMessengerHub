@@ -11,7 +11,8 @@ use Modules\ModuleMessengerHub\Lib\Sources\Modules\ModuleStatusSource;
  *
  * Pure data so the REST layer stays Core-free and testable (Plan/06, getSources).
  * Group order is the fixed order of the approved design: Calls → AI Supervisor → Speech recognition and cloud AI → Voice agent → PBX
- * (the speech/cloud-AI group sits next to the AI Supervisor: the same audience, the same AI pipeline).
+ * → Security (the speech/cloud-AI group sits next to the AI Supervisor: the same audience, the same AI pipeline;
+ * the security group closes the list: fraud, new devices and brute force).
  */
 final class SourceCatalog
 {
@@ -20,6 +21,7 @@ final class SourceCatalog
     public const string GROUP_SPEECH_AI = 'speech_ai';
     public const string GROUP_VOICE_AGENT = 'voice_agent';
     public const string GROUP_PBX = 'pbx';
+    public const string GROUP_SECURITY = 'security';
 
     /** @var list<string> */
     public const array GROUP_ORDER = [
@@ -28,6 +30,7 @@ final class SourceCatalog
         self::GROUP_SPEECH_AI,
         self::GROUP_VOICE_AGENT,
         self::GROUP_PBX,
+        self::GROUP_SECURITY,
     ];
 
     private const string KEY_PREFIX = 'module_messenger_hub_';
@@ -54,6 +57,9 @@ final class SourceCatalog
         'core.config_changed' => self::GROUP_PBX,
         'core.external_ip_changed' => self::GROUP_PBX,
         'core.license_expiring' => self::GROUP_PBX,
+        'core.toll_fraud' => self::GROUP_SECURITY,
+        'core.extension_new_device' => self::GROUP_SECURITY,
+        'core.sip_auth_failures' => self::GROUP_SECURITY,
     ];
 
     /** event type → translation key suffix */
@@ -87,6 +93,9 @@ final class SourceCatalog
         'voice_agent.callback_request' => 'EventTypeCallbackRequest',
         'voice_agent.runtime_down' => 'EventTypeRuntimeDown',
         'voice_agent.runtime_up' => 'EventTypeRuntimeUp',
+        'core.toll_fraud_suspected' => 'EventTypeTollFraud',
+        'core.extension_new_device' => 'EventTypeExtensionNewDevice',
+        'core.sip_auth_failures' => 'EventTypeSipAuthFailures',
     ];
 
     /** moduleUniqueID → translation key suffix */
@@ -135,6 +144,9 @@ final class SourceCatalog
         'cloud_ai.paused' => 'SourceCloudAiPaused',
         'voice_agent.callbacks' => 'SourceVaCallbacks',
         'voice_agent.runtime' => 'SourceVaRuntime',
+        'core.toll_fraud' => 'SourceTollFraud',
+        'core.extension_new_device' => 'SourceExtensionNewDevice',
+        'core.sip_auth_failures' => 'SourceSipAuthFailures',
     ];
 
     /** Translation key of the source display name. */
@@ -204,6 +216,7 @@ final class SourceCatalog
             self::GROUP_AI_SUPERVISOR => 'GroupAiSupervisor',
             self::GROUP_SPEECH_AI => 'GroupSpeechAi',
             self::GROUP_VOICE_AGENT => 'GroupVoiceAgent',
+            self::GROUP_SECURITY => 'GroupSecurity',
             default => 'GroupPbx',
         };
     }
@@ -249,6 +262,9 @@ final class SourceCatalog
             'cloud_ai.paused' => ['cloud_ai.paused', 'cloud_ai.resumed'],
             'voice_agent.callbacks' => ['voice_agent.callback_request'],
             'voice_agent.runtime' => ['voice_agent.runtime_down', 'voice_agent.runtime_up'],
+            'core.toll_fraud' => ['core.toll_fraud_suspected'],
+            'core.extension_new_device' => ['core.extension_new_device'],
+            'core.sip_auth_failures' => ['core.sip_auth_failures'],
             default => [],
         };
     }

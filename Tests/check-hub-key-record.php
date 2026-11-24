@@ -100,6 +100,7 @@ $allPaths = ApiKeyPaths::compute(
 $map = KeyPermissions::map($allPaths);
 check($map === [
     '/api/v3/advice' => 'read',
+    '/api/v3/cdr' => 'read',
     '/api/v3/license' => 'read',
     '/api/v3/module-ai-supervisor/calls' => 'read',
     '/api/v3/module-ai-supervisor/workers' => 'read',
@@ -109,6 +110,7 @@ check($map === [
     '/api/v3/module-local-speech-to-text/workers' => 'admin',
     '/api/v3/module-voice-agent/callbacks' => 'read',
     '/api/v3/module-voice-agent/runtime' => 'read',
+    '/api/v3/sip' => 'read',
     '/api/v3/sysinfo' => 'read',
 ], 'key: exact path -> level map (admin only on the two Local STT paths)');
 $withCdr = KeyPermissions::map(ApiKeyPaths::attentionCdr($allPaths, true));

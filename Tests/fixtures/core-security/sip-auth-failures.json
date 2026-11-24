@@ -1,0 +1,22 @@
+{
+    "203.0.113.10": {
+        "count": 42,
+        "last_attempt": 1791001200,
+        "remote_address": "IPV4/UDP/203.0.113.10/5060"
+    },
+    "203.0.113.11": {
+        "count": 8,
+        "last_attempt": 1791001100,
+        "remote_address": "IPV4/UDP/203.0.113.11/5061"
+    },
+    "203.0.113.12": {
+        "count": 3,
+        "last_attempt": 1791001000,
+        "remote_address": "IPV4/UDP/203.0.113.12/5062"
+    },
+    "203.0.113.13": {
+        "count": 1,
+        "last_attempt": 1791000900,
+        "remote_address": "IPV6/UDP/2001:db8::13/5063"
+    }
+}

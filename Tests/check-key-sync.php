@@ -100,6 +100,7 @@ check(
 
 const ALL_POLL_PATHS = [
     '/api/v3/advice',
+    '/api/v3/cdr',
     '/api/v3/license',
     '/api/v3/module-ai-supervisor/calls',
     '/api/v3/module-ai-supervisor/workers',
@@ -109,6 +110,7 @@ const ALL_POLL_PATHS = [
     '/api/v3/module-local-speech-to-text/workers',
     '/api/v3/module-voice-agent/callbacks',
     '/api/v3/module-voice-agent/runtime',
+    '/api/v3/sip',
     '/api/v3/sysinfo',
 ];
 
@@ -127,6 +129,7 @@ $processor = new SettingsProcessor(
 $result = $processor->process(['action' => 'patch', 'data' => ['sources' => ['core.advice' => false]]]);
 check($result->success, 'patch disables core.advice');
 check($spy->calls === [[
+    '/api/v3/cdr',
     '/api/v3/license',
     '/api/v3/module-ai-supervisor/calls',
     '/api/v3/module-ai-supervisor/workers',
@@ -136,6 +139,7 @@ check($spy->calls === [[
     '/api/v3/module-local-speech-to-text/workers',
     '/api/v3/module-voice-agent/callbacks',
     '/api/v3/module-voice-agent/runtime',
+    '/api/v3/sip',
     '/api/v3/sysinfo',
 ]], 'disabling a source syncs the key without its path');
 
@@ -168,6 +172,7 @@ $paths = ApiKeyPaths::compute(
 );
 check($paths === [
     '/api/v3/advice',
+    '/api/v3/cdr',
     '/api/v3/license',
     '/api/v3/module-ai-supervisor/calls',
     '/api/v3/module-ai-supervisor/workers',
@@ -175,6 +180,7 @@ check($paths === [
     '/api/v3/module-cloud-speech-to-text/status',
     '/api/v3/module-local-speech-to-text/jobs',
     '/api/v3/module-local-speech-to-text/workers',
+    '/api/v3/sip',
     '/api/v3/sysinfo',
 ], 'PATCH-time compute matches the collector compute (module off -> paths out)');
 
@@ -192,10 +198,22 @@ check(in_array('/api/v3/cdr', $spy->calls[0] ?? [], true), 'an enabled attention
 $spy->calls = [];
 $db->execute("UPDATE m_MessengerHubRules SET enabled = '0'");
 $processor->process(['action' => 'patch', 'data' => ['sources' => ['core.advice' => true]]]);
-check(!in_array('/api/v3/cdr', $spy->calls[0] ?? [], true), 'disabling the rule removes the CDR read path');
+check(in_array('/api/v3/cdr', $spy->calls[0] ?? [], true), 'the enabled toll-fraud source keeps the CDR read path after the rule is gone');
+
+// the path is present only while either the attention-audio rule or the toll-fraud source needs it
+$spy->calls = [];
+$processor->process(['action' => 'patch', 'data' => ['sources' => ['core.toll_fraud' => false]]]);
+check(!in_array('/api/v3/cdr', $spy->calls[0] ?? [], true), 'disabling the toll-fraud source removes the CDR read path too');
+$spy->calls = [];
+$processor->process(['action' => 'patch', 'data' => ['sources' => ['core.toll_fraud' => true]]]);
+check(in_array('/api/v3/cdr', $spy->calls[0] ?? [], true), 're-enabling the toll-fraud source returns the CDR read path');
 check(
     ApiKeyPaths::attentionCdr(['/api/v3/advice'], true) === ['/api/v3/advice'],
     'the CDR path is never added without the AI calls path'
+);
+check(
+    ApiKeyPaths::attentionCdr(['/api/v3/advice', '/api/v3/cdr'], true) === ['/api/v3/advice', '/api/v3/cdr'],
+    'the CDR path is not duplicated when the toll-fraud source already contributes it'
 );
 
 finish('key sync OK');

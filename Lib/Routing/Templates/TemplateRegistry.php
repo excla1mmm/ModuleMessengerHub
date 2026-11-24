@@ -47,6 +47,9 @@ final class TemplateRegistry
             'voice_agent.callback_request' => new CallbackRequestTemplate(),
             'voice_agent.runtime_down' => new RuntimeTemplate(),
             'voice_agent.runtime_up' => new RuntimeTemplate(),
+            'core.toll_fraud_suspected' => new TollFraudTemplate(),
+            'core.extension_new_device' => new NewDeviceTemplate(),
+            'core.sip_auth_failures' => new SipAuthFailureTemplate(),
             'hub.test' => new TestTemplate(),
         ];
     }
