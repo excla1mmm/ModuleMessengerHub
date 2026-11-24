@@ -15,7 +15,8 @@ notifications to **Telegram** and **MAX**.
 - **Connect a Telegram or MAX bot** by token, check the token, find chats ("Connect chat"), send a
   test message through the same queue as real notifications.
 - **Collect events** from the PBX and from installed MIKO modules: missed call, provider down/up,
-  system warnings, voicemail; call needing attention (AI Supervisor), callback request and offline
+  system warnings, voicemail; a caller who gave up in a queue, a call outside working hours, a parked
+  call nobody picked up; call needing attention (AI Supervisor), callback request and offline
   workers (VoiceAgent); module status changes (speech recognition workers and queue, cloud speech
   incidents, cloud AI pauses).
 - **Rules ("Уведомления")**: choose a scenario (event type), conditions (employees, call direction,

@@ -32,6 +32,9 @@ interface SourceInterface
 | Провайдер упал / восстановился | `core.provider_down`, `core.provider_up` | хук `onProviderStatusChange` (`changes[]: provider_id, type, old_state, new_state, host, timestamp`) | `provider:{id}:{down\|up}:{ts смены}` + debounce 120 с | 1 ✅ (1.2) |
 | Системное предупреждение | `core.advice` | опрос `GET /pbxcore/api/v3/advice:getList` (как `WorkerNotifyAdministrator`), сравнение с прошлым снимком; событие на появление предупреждения | `advice:{messageTpl}:{hash(params)}` | 1 ✅ (1.2) |
 | Голосовая почта | `core.voicemail` | AMI `UserEvent: voicemail_end` (`linkedid`, `vm-recordingfile`). Приходит, только если в ядре настроена почта для голосовых | `voicemail:{linkedid}` | 1 ✅ (1.2) |
+| Очередь: клиент не дождался | `core.queue_abandoned` | AMI `UserEvent: CdrConnector`, три факта одного плеча очереди: `queue_start` / `queue_answer` / `queue_end` (`lua/extensions.lua:1582-1723`), корреляция по `linkedid` + id плеча, вердикт через 3 с тишины после `queue_end`; имя очереди — чтение Core `CallQueues` | `queue_abandon:{linkedid}:{queue}` | 4s |
+| Звонок в нерабочее время | `core.call_out_of_hours` | AMI `UserEvent: CdrConnector`, action `dial_outworktimes` (`lua/extensions.lua:1845-1867`, `ExtensionsOutWorkTimeConf.php:161-163`); один факт на звонок | `ooh:{linkedid}` | 4s |
+| Звонок вернулся с парковки | `core.park_timeout` | AMI `UserEvent: CdrConnector`, action `unpark_call_timeout` (`lua/extensions.lua:1954-1994`, `ResParkingConf.php:188-194`) | `park_timeout:{linkedid}` | 4s |
 | АТС запущена | `core.pbx_started` | хук `onAfterPbxStarted` | `pbx_started:{boot_time}` | 1 ✅ (1.2) |
 | Сотрудник онлайн/офлайн | `core.extension_status` | хук `onExtensionStatusChange` | `ext:{number}:{state}:{ts}` | 4 (шумно, только по правилу) |
 | Вход в веб-интерфейс | `core.admin_login` | без правки ядра: (а) хук `onAfterExecuteRestAPIRoute` — проверить, виден ли маршрут `auth:login` и результат; (б) чтение syslog строки `Successful login: User=… From=…` (`LoginAction.php:227`) с курсором по смещению | `login:{user}:{ip}:{ts}` | 5 |
@@ -86,6 +89,88 @@ interface SourceInterface
 (б) страхующий опрос `cdr_general` (колонка таблицы выше) пока не нужен: событие приходит по AMI,
 опрос добавим, только если на станции будут пропуски; (в) переводы названий типов событий добавляются
 в этапе 1.4 вместе с интерфейсом (в 1.2 текстов событий нигде не показывается).
+
+### Реализация 4s-B (24.11.2026, без станции)
+
+Три push-источника на том же AMI-потоке `UserEvent: CdrConnector`, что и пропущенные звонки.
+Логика без ядра — `Lib/Sources/Core/QueueAbandonSource`, `CallOutOfHoursSource`, `ParkTimeoutSource`;
+классы без ядра проверяются `Tests/check-source-calls.php` (фикстуры `Tests/fixtures/core-call-events/`,
+включая `GZ:`-вариант).
+
+**AMI-пользователь.** Воркер `WorkerMessengerHubAmi` подключается через `Util::getAstManager()` — это
+учётная запись ядра `phpagi` (`read=all`, `permit=127.0.0.1`,
+`src/Core/Asterisk/Configs/ManagerConf.php:219-233`), подписка — AMI-действием
+`Filter: UserEvent: CdrConnector`. Пользователи менеджера, заводимые в интерфейсе, получают
+`eventfilter=!UserEvent: CdrConnector` (`ManagerConf.php:210`) и эти события не получают; своей учётки
+хаб не создаёт (решение Q2), поэтому смена источника AMI в ядре сломала бы все четыре CdrConnector-источника
+сразу — это записано как риск приёмки на станции.
+
+**`core.queue_abandoned`** (`QueueAbandonSource`). Факты одного плеча очереди ядро публикует тремя
+событиями с одного и того же потока (`src/Core/Asterisk/Configs/lua/extensions.lua:1582-1723`;
+`queue_end` выполняется сразу после `Queue()`, `src/Core/Asterisk/Configs/QueueConf.php:232`):
+
+| action | поля, которые использует хаб |
+|---|---|
+| `queue_start` | `dst_num` (номер очереди), `src_num` (клиент), `did`, `UNIQUEID` (id плеча очереди), `start` |
+| `queue_answer` | `id` (= `UNIQUEID` плеча), `answer` — агент снял трубку |
+| `queue_end` | `id`, `end`, `dialstatus` (= `QUEUESTATUS`) |
+
+- Корреляция — по (`linkedid`, id плеча) с откатом «единственное открытое плечо этого `linkedid`», если
+  факт пришёл без id: `queue_start` при переводе/обновлении строки может не нести `start`, а `id` в
+  `queue_answer`/`queue_end` берётся из переменной канала.
+- Вердикт — не в момент `queue_end`, а через `SETTLE_SEC = 3` с тишины: `queue_answer`, пришедший после
+  `queue_end` (порядок доставки AMI не гарантирован), ещё отменяет «не дождался». Факты, пришедшие
+  раньше `queue_start`, буферизуются и дополняются стартом; если старт так и не пришёл, события нет —
+  половина звонка не факт (рестарт воркера, включение источника посреди разговора).
+- Событие: `queue_start` был, и либо плечо закончилось без `queue_answer` и ожидание ≥
+  `queue_abandon_min_wait_sec` (default `0` — любой отказ), либо ожидание ≥ `queue_long_wait_sec`
+  (default `0` — выключено; тогда событие возможно и для отвеченного звонка). `reason` в payload —
+  `abandoned` (severity `warning`) или `long_wait` (severity `info`).
+- Payload: `subject.call` = `linkedid`, `direction` (`internal`, если клиент — внутренний номер по карте
+  Q12, иначе `incoming`), `started_at`, `waited_sec`, `queue_number`, `queue_name`, `reason`;
+  `subject.client_number` — номер клиента полностью (маскирование — на шаблоне). Имя очереди — тонкое
+  чтение модели ядра `CallQueues` (`Lib/Support/QueueNamesLoader`), обновляется воркером AMI раз в 5 минут;
+  сбой чтения имён не мешает классификации звонков.
+- `dedupe_key = queue_abandon:{linkedid}:{queue}`. Буфер ограничен 200 плечами и 6 часами: `queue_end`,
+  который так и не пришёл, не копит память (запись просто выбрасывается).
+- **Связь с `core.missed_call`.** Оба источника срабатывают на один и тот же `linkedid` независимо
+  (у них разные ключи дедупликации) — это осознанно: правило выбирает сценарий. `linkedid` есть в payload
+  обоих, поэтому будущая дедупликация на уровне маршрутизатора возможна без изменения источников.
+- Известные ограничения: (а) повторный заход в **ту же** очередь в рамках одного `linkedid` даёт тот же
+  `dedupe_key` и второе сообщение не уходит (ключ согласован в ТЗ); (б) отвеченный звонок, который ядро
+  увело из очереди по `timeout_extension` (без `queue_answer`), выглядит как отказ от ожидания —
+  проверить на станции (Q18).
+
+**`core.call_out_of_hours`** (`CallOutOfHoursSource`). Правило нерабочего времени ядра уводит входящий
+звонок в контекст `[playback-exit]`, который выполняет `Gosub(dial_outworktimes,...)` один раз на звонок
+(`src/Core/Asterisk/Configs/ExtensionsOutWorkTimeConf.php:161-163`); lua публикует факт с полями
+`event_dial()` (`src/Core/Asterisk/Configs/lua/extensions.lua:1845-1867`): `src_num` (клиент), `did`
+(`FROM_DID`), `start`, `linkedid`, `UNIQUEID`. Payload: `subject.call` = `linkedid`, `direction` =
+`incoming`, `started_at`, `did`, `rule_id = null`, `rule_name = ''`; `subject.client_number` — клиент.
+`dedupe_key = ooh:{linkedid}`, severity `warning`. Правило нерабочего времени в событии не передаётся
+(ядро не кладёт id правила в dialplan-вызов) — не выдумываем, вопрос Q17. Пропущенный звонок за тот же
+`linkedid` (если после сообщения вызов завершился) приходит отдельным событием — это допустимо.
+
+**`core.park_timeout`** (`ParkTimeoutSource`). Контекст таймаута парковки выполняет
+`Gosub(unpark_call_timeout,...)` (`src/Core/Asterisk/Configs/ResParkingConf.php:188-194`); lua публикует
+`src_num` (клиент), `dst_num` (место парковки), `start`/`endtime` (start = «сейчас минус длительность
+парковки»), `did`, `linkedid`, `PARKER` (канал того, кто парковал) — `lua/extensions.lua:1954-1994`.
+`PARKER` — имя канала, а не номер: внутренний номер извлекается тем же правилом, что и в ядре
+(`CUT(PARKER,/,2)`, `ResParkingConf.php:193`, плюс отсечение `@`-домена и `-суффикса` канала как в
+`getAccountName()`, `extensions.lua:233-257`). Payload: `subject.call` = `linkedid`, `direction` =
+`incoming`, `started_at`, `park_slot`, `parked_by`, `parked_sec`, `did`; `subject.client_number` —
+клиент. `dedupe_key = park_timeout:{linkedid}`, severity `warning`. Ограничение: повторная парковка того
+же `linkedid` после таймаута даст тот же ключ и не оповестит второй раз (ключ согласован в ТЗ).
+
+**Настройки.** `HubSettings::QUEUE_ABANDON_MIN_WAIT_SEC` (`queue_abandon_min_wait_sec`) и
+`HubSettings::QUEUE_LONG_WAIT_SEC` (`queue_long_wait_sec`), 0…3600 с, default `0`; отдаются в
+`settings` (DataStructure + `Messages/*` + вкладка «Настройки»), читаются воркером AMI раз в минуту и
+клампятся ещё раз в источнике. В PUT новые поля необязательны (старые клиенты PUT не ломаются).
+
+**Шаблоны и тексты.** `Lib/Routing/Templates/QueueAbandonTemplate`, `CallOutOfHoursTemplate`,
+`ParkTimeoutTemplate` (номер клиента — через `MessageFormat::phone`, маскирование по правилу/настройке;
+кнопка «Открыть звонок» — журнал звонков ядра через `LinkBuilder`). Тексты — `Messages/*` (ru первым,
+затем 28 локалей, блок `4s-B`), тип события и имя источника — в `SourceCatalog` (группа `calls`).
 
 ## Модули MIKO (только их публичный REST API v3)
 
