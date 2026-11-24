@@ -100,6 +100,7 @@ check(
 
 const ALL_POLL_PATHS = [
     '/api/v3/advice',
+    '/api/v3/license',
     '/api/v3/module-ai-supervisor/calls',
     '/api/v3/module-ai-supervisor/workers',
     '/api/v3/module-cloud-ai-supervisor/runtime',
@@ -108,6 +109,7 @@ const ALL_POLL_PATHS = [
     '/api/v3/module-local-speech-to-text/workers',
     '/api/v3/module-voice-agent/callbacks',
     '/api/v3/module-voice-agent/runtime',
+    '/api/v3/sysinfo',
 ];
 
 $spy = new SpyKeySync();
@@ -125,6 +127,7 @@ $processor = new SettingsProcessor(
 $result = $processor->process(['action' => 'patch', 'data' => ['sources' => ['core.advice' => false]]]);
 check($result->success, 'patch disables core.advice');
 check($spy->calls === [[
+    '/api/v3/license',
     '/api/v3/module-ai-supervisor/calls',
     '/api/v3/module-ai-supervisor/workers',
     '/api/v3/module-cloud-ai-supervisor/runtime',
@@ -133,6 +136,7 @@ check($spy->calls === [[
     '/api/v3/module-local-speech-to-text/workers',
     '/api/v3/module-voice-agent/callbacks',
     '/api/v3/module-voice-agent/runtime',
+    '/api/v3/sysinfo',
 ]], 'disabling a source syncs the key without its path');
 
 // a foreign record at the stored id would make the real HubApiKey create a new key instead of updating
@@ -164,12 +168,14 @@ $paths = ApiKeyPaths::compute(
 );
 check($paths === [
     '/api/v3/advice',
+    '/api/v3/license',
     '/api/v3/module-ai-supervisor/calls',
     '/api/v3/module-ai-supervisor/workers',
     '/api/v3/module-cloud-ai-supervisor/runtime',
     '/api/v3/module-cloud-speech-to-text/status',
     '/api/v3/module-local-speech-to-text/jobs',
     '/api/v3/module-local-speech-to-text/workers',
+    '/api/v3/sysinfo',
 ], 'PATCH-time compute matches the collector compute (module off -> paths out)');
 
 // /api/v3/cdr follows enabled attachment rules, not the AI source alone (stage 3a-1)
