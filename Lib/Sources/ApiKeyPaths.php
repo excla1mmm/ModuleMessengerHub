@@ -46,8 +46,11 @@ final class ApiKeyPaths
     }
 
     /**
-     * `/api/v3/cdr` is needed only when an enabled rule can attach the attention-call recording.
-     * It is added only together with the AI Supervisor calls path (source enabled and module available).
+     * `/api/v3/cdr` is needed for the attention-call recording while an enabled rule can attach it.
+     * That grant is added only together with the AI Supervisor calls path (source enabled and module
+     * available). The same path also comes from the enabled `core.toll_fraud` source
+     * (`TollFraudSource::apiReadPaths`), so the key holds it while either of the two needs it — the
+     * union of both contributions, with no duplicate.
      *
      * @param list<string> $paths
      * @return list<string>
