@@ -36,6 +36,18 @@ final class QueueAbandonSource implements SourceInterface, AmiEventSource
     public const string ACTION_START = 'queue_start';
     public const string ACTION_ANSWER = 'queue_answer';
     public const string ACTION_END = 'queue_end';
+    /**
+     * End-of-wait signals when the caller hangs up while waiting. Core's queue dialplan calls
+     * Gosub(queue_end) only AFTER Queue() returns (QueueConf.php:169-232: start, Queue(), end), so a caller who
+     * gives up never produces queue_end — station check 24.11.2026. The hangup handler set before Queue()
+     * publishes hangup_chan with agi_channel = the hung-up channel (lua/extensions.lua:1509-1545); it is
+     * matched against the caller channel queue_start carries (src_chan = QUEUE_SRC_CHAN), so ring-cycle
+     * hangups of member channels do not close the wait. hangup_update_cdr is sent per row once the whole
+     * call is finished (Workers/Libs/WorkerCallEvents/UpdateDataInDB.php:105-124): it closes whatever is
+     * still open for that linkedid (a transfer start carries no src_chan).
+     */
+    public const string ACTION_HANGUP_CHAN = 'hangup_chan';
+    public const string ACTION_HANGUP_UPDATE_CDR = 'hangup_update_cdr';
 
     /** "The caller left without an answer" — the primary trigger (wait >= the configured minimum). */
     public const string REASON_ABANDONED = 'abandoned';
@@ -159,6 +171,11 @@ final class QueueAbandonSource implements SourceInterface, AmiEventSource
 
             return;
         }
+        if ($action === self::ACTION_HANGUP_CHAN || $action === self::ACTION_HANGUP_UPDATE_CDR) {
+            $this->onCallerGone($action, $linkedid, $data, $now);
+
+            return;
+        }
         if ($action !== self::ACTION_ANSWER && $action !== self::ACTION_END) {
             return;
         }
@@ -203,6 +220,31 @@ final class QueueAbandonSource implements SourceInterface, AmiEventSource
         }
     }
 
+    /**
+     * The caller left (hangup_chan of the caller channel) or the call is finished (hangup_update_cdr):
+     * close the open waits of that call. A leg that is already answered or ended is left as it is.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function onCallerGone(string $action, string $linkedid, array $data, int $now): void
+    {
+        $channel = trim((string)($data['agi_channel'] ?? ''));
+        $endField = $action === self::ACTION_HANGUP_CHAN ? 'end' : 'endtime';
+        $endedAt = MissedCallSource::strToTs((string)($data[$endField] ?? '')) ?: $now;
+        foreach (array_keys($this->buffer) as $key) {
+            $entry = $this->buffer[$key];
+            if ($entry['linkedid'] !== $linkedid || $entry['ended'] || !$entry['seen_start']) {
+                continue;
+            }
+            if ($action === self::ACTION_HANGUP_CHAN && ($channel === '' || $entry['src_chan'] !== $channel)) {
+                continue; // a member channel or another leg of the call: the caller is still waiting
+            }
+            $this->buffer[$key]['ended'] = true;
+            $this->buffer[$key]['ended_at'] = $endedAt;
+            $this->touch($key, $now);
+        }
+    }
+
     /** @param array<string, mixed> $data */
     private function onStart(string $linkedid, string $legId, array $data, int $now): void
     {
@@ -232,6 +274,9 @@ final class QueueAbandonSource implements SourceInterface, AmiEventSource
             'did' => trim((string)($data['did'] ?? '')) !== ''
                 ? trim((string)$data['did'])
                 : (string)($existing['did'] ?? ''),
+            'src_chan' => trim((string)($data['src_chan'] ?? '')) !== ''
+                ? trim((string)$data['src_chan'])
+                : (string)($existing['src_chan'] ?? ''),
             'started_at' => $startedAt > 0 ? $startedAt : (int)($existing['started_at'] ?? 0),
             'first_seen' => (int)($existing['first_seen'] ?? $now),
             'answered_at' => (int)($existing['answered_at'] ?? 0),
@@ -244,7 +289,7 @@ final class QueueAbandonSource implements SourceInterface, AmiEventSource
     }
 
     /**
-     * @return array{linkedid: string, id: string, queue: string, caller: string, did: string, started_at: int,
+     * @return array{linkedid: string, id: string, queue: string, caller: string, did: string, src_chan: string, started_at: int,
      *     first_seen: int, answered_at: int, ended_at: int, ended: bool, seen_start: bool, last_seen: int}
      */
     private static function emptyEntry(string $linkedid, string $legId, int $now): array
@@ -255,6 +300,7 @@ final class QueueAbandonSource implements SourceInterface, AmiEventSource
             'queue' => '',
             'caller' => '',
             'did' => '',
+            'src_chan' => '',
             'started_at' => 0,
             'first_seen' => $now,
             'answered_at' => 0,
@@ -317,7 +363,7 @@ final class QueueAbandonSource implements SourceInterface, AmiEventSource
     }
 
     /**
-     * @param array{linkedid: string, id: string, queue: string, caller: string, did: string, started_at: int,
+     * @param array{linkedid: string, id: string, queue: string, caller: string, did: string, src_chan: string, started_at: int,
      *     first_seen: int, answered_at: int, ended_at: int, ended: bool, seen_start: bool, last_seen: int} $entry
      */
     private function reasonFor(array $entry): ?string
@@ -352,7 +398,7 @@ final class QueueAbandonSource implements SourceInterface, AmiEventSource
      * Builds the normalised event. A queue call is inbound unless the caller is an internal number
      * (the map is the Core Extensions/Users map, Plan/11 Q12); without the map the caller counts as external.
      *
-     * @param array{linkedid: string, id: string, queue: string, caller: string, did: string, started_at: int,
+     * @param array{linkedid: string, id: string, queue: string, caller: string, did: string, src_chan: string, started_at: int,
      *     first_seen: int, answered_at: int, ended_at: int, ended: bool, seen_start: bool, last_seen: int} $entry
      * @param array<string, array{user_id: ?int, name: string}>|null $internalMap
      * @param array<string, string> $queueNames

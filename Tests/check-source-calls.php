@@ -204,6 +204,60 @@ $queue2->onAmiEvent(fixture('queue-end-abandoned.json'), $h2->recorder, $t0 + 14
 $queue2->tick($h2->recorder, $t0 + 150);
 check($h2->count() === 1, 'queue: a repeated queue_end is one event');
 
+// ======================= queue: caller hangs up while waiting (no queue_end) =======================
+// Core runs Gosub(queue_end) only after Queue() returns, so a caller who gives up sends no queue_end
+// (station check 24.11.2026: only queue_start arrived). hangup_chan of the caller channel closes the wait.
+$hangLinked = 'mikopbx-1795511221.7';
+$hangStart = cdrEvent([
+    'action' => 'queue_start', 'dst_num' => '800', 'dst_chan' => 'Queue:800', 'did' => '4990000001', 'is_app' => '1',
+    'UNIQUEID' => 'mikopbx-1795511221.8_269QI6', 'linkedid' => $hangLinked, 'src_chan' => 'PJSIP/SIP-trunk-00000031',
+    'src_num' => '79000000031', 'start' => '2026-11-18 10:00:00', 'transfer' => '0',
+]);
+[$hh, $hq] = queueHarness(names: $queueNames);
+$hq->onAmiEvent($hangStart, $hh->recorder, $t0);
+// a member channel stops ringing (ring cycle): the caller is still waiting
+$hq->onAmiEvent(cdrEvent(['action' => 'hangup_chan', 'linkedid' => $hangLinked, 'agi_channel' => 'Local/298@internal-0000001a;2',
+    'end' => '2026-11-18 10:00:10']), $hh->recorder, $t0 + 10);
+$hq->tick($hh->recorder, $t0 + 30);
+check($hh->count() === 0, 'queue hangup: a member channel hangup does not close the wait');
+// the caller hangs up
+$hq->onAmiEvent(cdrEvent(['action' => 'hangup_chan', 'linkedid' => $hangLinked, 'agi_channel' => 'PJSIP/SIP-trunk-00000031',
+    'end' => '2026-11-18 10:00:42']), $hh->recorder, $t0 + 42);
+$hq->tick($hh->recorder, $t0 + 46);
+check($hh->count() === 1, 'queue hangup: the caller hangup without queue_end gives one abandonment');
+$hp = $hh->payload(0)['subject']['call'] ?? [];
+check(($hp['waited_sec'] ?? null) === 42 && ($hp['reason'] ?? '') === QueueAbandonSource::REASON_ABANDONED, 'queue hangup: wait counted to the caller hangup');
+// the call finishes: hangup_update_cdr rows and a late hangup_chan change nothing
+$hq->onAmiEvent(cdrEvent(['action' => 'hangup_update_cdr', 'linkedid' => $hangLinked, 'dst_num' => '800',
+    'endtime' => '2026-11-18 10:00:42', 'GLOBAL_STATUS' => 'NOANSWER']), $hh->recorder, $t0 + 50);
+$hq->tick($hh->recorder, $t0 + 60);
+check($hh->count() === 1, 'queue hangup: the final CDR update does not duplicate');
+
+// answered by an agent, then the caller hangs up: not an abandonment
+[$ha, $qa] = queueHarness(names: $queueNames);
+$qa->onAmiEvent($hangStart, $ha->recorder, $t0);
+$qa->onAmiEvent(cdrEvent(['action' => 'queue_answer', 'linkedid' => $hangLinked, 'id' => 'mikopbx-1795511221.8_269QI6',
+    'answer' => '2026-11-18 10:00:20']), $ha->recorder, $t0 + 20);
+$qa->onAmiEvent(cdrEvent(['action' => 'hangup_chan', 'linkedid' => $hangLinked, 'agi_channel' => 'PJSIP/SIP-trunk-00000031',
+    'end' => '2026-11-18 10:03:00']), $ha->recorder, $t0 + 180);
+$qa->tick($ha->recorder, $t0 + 190);
+check($ha->count() === 0, 'queue hangup: an answered call that ends is not an abandonment');
+
+// a transferred start carries no src_chan: the finished-call CDR update closes the wait
+[$ht, $qt] = queueHarness(names: $queueNames);
+$qt->onAmiEvent(cdrEvent([
+    'action' => 'queue_start', 'dst_num' => '800', 'is_app' => '1', 'UNIQUEID' => 'mikopbx-1795511300.2_AAAAAA',
+    'linkedid' => 'mikopbx-1795511300.1', 'start' => '2026-11-18 10:00:00', 'transfer' => '1',
+]), $ht->recorder, $t0);
+$qt->onAmiEvent(cdrEvent(['action' => 'hangup_chan', 'linkedid' => 'mikopbx-1795511300.1', 'agi_channel' => 'PJSIP/201-00000040',
+    'end' => '2026-11-18 10:00:30']), $ht->recorder, $t0 + 30);
+$qt->tick($ht->recorder, $t0 + 40);
+check($ht->count() === 0, 'queue hangup: without src_chan a channel hangup is not matched');
+$qt->onAmiEvent(cdrEvent(['action' => 'hangup_update_cdr', 'linkedid' => 'mikopbx-1795511300.1', 'dst_num' => '800',
+    'endtime' => '2026-11-18 10:00:31', 'GLOBAL_STATUS' => 'NOANSWER']), $ht->recorder, $t0 + 41);
+$qt->tick($ht->recorder, $t0 + 45);
+check($ht->count() === 1, 'queue hangup: hangup_update_cdr of the finished call closes the open wait');
+
 // ======================= queue: answered =======================
 [$h3, $queue3] = queueHarness(names: $queueNames);
 $queue3->onAmiEvent(fixture('queue-start.json'), $h3->recorder, $t0);

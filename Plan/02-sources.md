@@ -113,13 +113,23 @@ interface SourceInterface
 
 **`core.queue_abandoned`** (`QueueAbandonSource`). Факты одного плеча очереди ядро публикует тремя
 событиями с одного и того же потока (`src/Core/Asterisk/Configs/lua/extensions.lua:1582-1723`;
-`queue_end` выполняется сразу после `Queue()`, `src/Core/Asterisk/Configs/QueueConf.php:232`):
+`queue_end` выполняется после возврата из `Queue()`, `src/Core/Asterisk/Configs/QueueConf.php:232`).
+**Проверено на станции 24.11.2026:** если клиент кладёт трубку, ожидая в очереди, dialplan прерывается и
+`queue_end` **не приходит** — пришёл только `queue_start` (с `linkedid` и `src_chan`). Поэтому конец
+ожидания закрывают ещё два факта того же потока: `hangup_chan`, у которого `agi_channel` совпадает с
+каналом клиента из `queue_start` (`src_chan` = `QUEUE_SRC_CHAN`; обработчик сброса ставится до `Queue()`,
+`lua/extensions.lua:1509-1545`), и — страховка, например для старта после перевода без `src_chan` —
+`hangup_update_cdr` по тому же `linkedid` после завершения всего звонка
+(`Workers/Libs/WorkerCallEvents/UpdateDataInDB.php:105-124`). Сбросы каналов участников очереди
+(циклы обзвона) ожидание не закрывают — у них другой канал.
 
 | action | поля, которые использует хаб |
 |---|---|
 | `queue_start` | `dst_num` (номер очереди), `src_num` (клиент), `did`, `UNIQUEID` (id плеча очереди), `start` |
 | `queue_answer` | `id` (= `UNIQUEID` плеча), `answer` — агент снял трубку |
-| `queue_end` | `id`, `end`, `dialstatus` (= `QUEUESTATUS`) |
+| `queue_end` | `id`, `end`, `dialstatus` (= `QUEUESTATUS`) — только если `Queue()` вернула управление (таймаут, пустая очередь) |
+| `hangup_chan` | `agi_channel`, `end` — клиент положил трубку, пока ждал |
+| `hangup_update_cdr` | `linkedid`, `endtime` — звонок завершён целиком |
 
 - Корреляция — по (`linkedid`, id плеча) с откатом «единственное открытое плечо этого `linkedid`», если
   факт пришёл без id: `queue_start` при переводе/обновлении строки может не нести `start`, а `id` в
@@ -137,8 +147,8 @@ interface SourceInterface
   `subject.client_number` — номер клиента полностью (маскирование — на шаблоне). Имя очереди — тонкое
   чтение модели ядра `CallQueues` (`Lib/Support/QueueNamesLoader`), обновляется воркером AMI раз в 5 минут;
   сбой чтения имён не мешает классификации звонков.
-- `dedupe_key = queue_abandon:{linkedid}:{queue}`. Буфер ограничен 200 плечами и 6 часами: `queue_end`,
-  который так и не пришёл, не копит память (запись просто выбрасывается).
+- `dedupe_key = queue_abandon:{linkedid}:{queue}`. Буфер ограничен 200 плечами и 6 часами: конец
+  ожидания, который так и не пришёл, не копит память (запись просто выбрасывается).
 - **Связь с `core.missed_call`.** Оба источника срабатывают на один и тот же `linkedid` независимо
   (у них разные ключи дедупликации) — это осознанно: правило выбирает сценарий. `linkedid` есть в payload
   обоих, поэтому будущая дедупликация на уровне маршрутизатора возможна без изменения источников.
