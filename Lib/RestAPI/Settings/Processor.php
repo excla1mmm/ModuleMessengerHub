@@ -110,6 +110,17 @@ final class Processor
             'mask_phone_default' => $this->settings()->maskPhoneDefault(),
             'proxy_url' => $this->settings()->proxyUrl(),
             'max_ca_bundle_path' => $this->settings()->maxCaBundlePath(),
+            'toll_fraud_prefixes' => implode(',', $this->settings()->tollFraudPrefixes()),
+            'toll_fraud_home_prefixes' => implode(',', $this->settings()->tollFraudHomePrefixes()),
+            'toll_fraud_burst_calls' => $this->settings()->tollFraudBurstCalls(),
+            'toll_fraud_burst_window_min' => $this->settings()->tollFraudBurstWindowMin(),
+            'toll_fraud_offhours_enabled' => $this->settings()->tollFraudOffHoursEnabled(),
+            'toll_fraud_offhours_from' => $this->settings()->tollFraudOffHoursFrom(),
+            'toll_fraud_offhours_to' => $this->settings()->tollFraudOffHoursTo(),
+            'sip_authfail_threshold' => $this->settings()->sipAuthFailThreshold(),
+            'sip_authfail_window_min' => $this->settings()->sipAuthFailWindowMin(),
+            'sip_authfail_quiet_min' => $this->settings()->sipAuthFailQuietMin(),
+            'sip_authfail_extensions_per_poll' => $this->settings()->sipAuthFailExtensionsPerPoll(),
         ];
     }
 
@@ -129,6 +140,17 @@ final class Processor
             'mask_phone_default' => HubSettings::DEFAULTS[HubSettings::MASK_PHONE_DEFAULT] === '1',
             'proxy_url' => (string)HubSettings::DEFAULTS[HubSettings::PROXY_URL],
             'max_ca_bundle_path' => (string)HubSettings::DEFAULTS[HubSettings::MAX_CA_BUNDLE_PATH],
+            'toll_fraud_prefixes' => (string)HubSettings::DEFAULTS[HubSettings::TOLL_FRAUD_PREFIXES],
+            'toll_fraud_home_prefixes' => (string)HubSettings::DEFAULTS[HubSettings::TOLL_FRAUD_HOME_PREFIXES],
+            'toll_fraud_burst_calls' => (int)HubSettings::DEFAULTS[HubSettings::TOLL_FRAUD_BURST_CALLS],
+            'toll_fraud_burst_window_min' => (int)HubSettings::DEFAULTS[HubSettings::TOLL_FRAUD_BURST_WINDOW_MIN],
+            'toll_fraud_offhours_enabled' => HubSettings::DEFAULTS[HubSettings::TOLL_FRAUD_OFFHOURS_ENABLED] === '1',
+            'toll_fraud_offhours_from' => (string)HubSettings::DEFAULTS[HubSettings::TOLL_FRAUD_OFFHOURS_FROM],
+            'toll_fraud_offhours_to' => (string)HubSettings::DEFAULTS[HubSettings::TOLL_FRAUD_OFFHOURS_TO],
+            'sip_authfail_threshold' => (int)HubSettings::DEFAULTS[HubSettings::SIP_AUTHFAIL_THRESHOLD],
+            'sip_authfail_window_min' => (int)HubSettings::DEFAULTS[HubSettings::SIP_AUTHFAIL_WINDOW_MIN],
+            'sip_authfail_quiet_min' => (int)HubSettings::DEFAULTS[HubSettings::SIP_AUTHFAIL_QUIET_MIN],
+            'sip_authfail_extensions_per_poll' => (int)HubSettings::DEFAULTS[HubSettings::SIP_AUTHFAIL_EXTENSIONS_PER_POLL],
         ];
     }
 
@@ -209,6 +231,83 @@ final class Processor
             throw new ValidationException('max_ca_bundle_path_required', 'max_ca_bundle_path');
         }
 
+        // Stage 4s-A security thresholds. They are optional in PUT as well: an older client that
+        // replaces the settings wholesale must not be forced to know them (they keep their values).
+        $tollPrefixes = null;
+        if (array_key_exists('toll_fraud_prefixes', $data)) {
+            $tollPrefixes = $this->prefixListValue($data['toll_fraud_prefixes'], 'toll_fraud_prefixes');
+        }
+        $tollHomePrefixes = null;
+        if (array_key_exists('toll_fraud_home_prefixes', $data)) {
+            $tollHomePrefixes = $this->prefixListValue($data['toll_fraud_home_prefixes'], 'toll_fraud_home_prefixes');
+        }
+        $burstCalls = null;
+        if (array_key_exists('toll_fraud_burst_calls', $data)) {
+            $burstCalls = $this->boundedIntValue(
+                $data['toll_fraud_burst_calls'],
+                'toll_fraud_burst_calls',
+                HubSettings::BURST_CALLS_MIN,
+                HubSettings::BURST_CALLS_MAX
+            );
+        }
+        $burstWindow = null;
+        if (array_key_exists('toll_fraud_burst_window_min', $data)) {
+            $burstWindow = $this->boundedIntValue(
+                $data['toll_fraud_burst_window_min'],
+                'toll_fraud_burst_window_min',
+                HubSettings::WINDOW_MIN_MIN,
+                HubSettings::WINDOW_MIN_MAX
+            );
+        }
+        $offHours = null;
+        if (array_key_exists('toll_fraud_offhours_enabled', $data)) {
+            $offHours = $this->boolValue($data['toll_fraud_offhours_enabled'], 'toll_fraud_offhours_enabled');
+        }
+        $offHoursFrom = null;
+        if (array_key_exists('toll_fraud_offhours_from', $data)) {
+            $offHoursFrom = $this->timeOfDayValue($data['toll_fraud_offhours_from'], 'toll_fraud_offhours_from');
+        }
+        $offHoursTo = null;
+        if (array_key_exists('toll_fraud_offhours_to', $data)) {
+            $offHoursTo = $this->timeOfDayValue($data['toll_fraud_offhours_to'], 'toll_fraud_offhours_to');
+        }
+        $authThreshold = null;
+        if (array_key_exists('sip_authfail_threshold', $data)) {
+            $authThreshold = $this->boundedIntValue(
+                $data['sip_authfail_threshold'],
+                'sip_authfail_threshold',
+                HubSettings::AUTHFAIL_THRESHOLD_MIN,
+                HubSettings::AUTHFAIL_THRESHOLD_MAX
+            );
+        }
+        $authWindow = null;
+        if (array_key_exists('sip_authfail_window_min', $data)) {
+            $authWindow = $this->boundedIntValue(
+                $data['sip_authfail_window_min'],
+                'sip_authfail_window_min',
+                HubSettings::WINDOW_MIN_MIN,
+                HubSettings::WINDOW_MIN_MAX
+            );
+        }
+        $authQuiet = null;
+        if (array_key_exists('sip_authfail_quiet_min', $data)) {
+            $authQuiet = $this->boundedIntValue(
+                $data['sip_authfail_quiet_min'],
+                'sip_authfail_quiet_min',
+                HubSettings::AUTHFAIL_QUIET_MIN,
+                HubSettings::WINDOW_MIN_MAX
+            );
+        }
+        $authPerPoll = null;
+        if (array_key_exists('sip_authfail_extensions_per_poll', $data)) {
+            $authPerPoll = $this->boundedIntValue(
+                $data['sip_authfail_extensions_per_poll'],
+                'sip_authfail_extensions_per_poll',
+                HubSettings::AUTHFAIL_EXTENSIONS_MIN,
+                HubSettings::AUTHFAIL_EXTENSIONS_MAX
+            );
+        }
+
         $now = time();
         $sourcesChanged = false;
         foreach ($updates as $sourceId => $enabled) {
@@ -242,6 +341,29 @@ final class Processor
         if ($caBundle !== null && $current['max_ca_bundle_path'] !== $caBundle) {
             $this->settings()->set(HubSettings::MAX_CA_BUNDLE_PATH, $caBundle);
             $changed[] = 'max_ca_bundle_path';
+        }
+        foreach ([
+            HubSettings::TOLL_FRAUD_PREFIXES => ['value' => $tollPrefixes, 'field' => 'toll_fraud_prefixes'],
+            HubSettings::TOLL_FRAUD_HOME_PREFIXES => ['value' => $tollHomePrefixes, 'field' => 'toll_fraud_home_prefixes'],
+            HubSettings::TOLL_FRAUD_BURST_CALLS => ['value' => $burstCalls, 'field' => 'toll_fraud_burst_calls'],
+            HubSettings::TOLL_FRAUD_BURST_WINDOW_MIN => ['value' => $burstWindow, 'field' => 'toll_fraud_burst_window_min'],
+            HubSettings::TOLL_FRAUD_OFFHOURS_ENABLED => ['value' => $offHours, 'field' => 'toll_fraud_offhours_enabled'],
+            HubSettings::TOLL_FRAUD_OFFHOURS_FROM => ['value' => $offHoursFrom, 'field' => 'toll_fraud_offhours_from'],
+            HubSettings::TOLL_FRAUD_OFFHOURS_TO => ['value' => $offHoursTo, 'field' => 'toll_fraud_offhours_to'],
+            HubSettings::SIP_AUTHFAIL_THRESHOLD => ['value' => $authThreshold, 'field' => 'sip_authfail_threshold'],
+            HubSettings::SIP_AUTHFAIL_WINDOW_MIN => ['value' => $authWindow, 'field' => 'sip_authfail_window_min'],
+            HubSettings::SIP_AUTHFAIL_QUIET_MIN => ['value' => $authQuiet, 'field' => 'sip_authfail_quiet_min'],
+            HubSettings::SIP_AUTHFAIL_EXTENSIONS_PER_POLL => ['value' => $authPerPoll, 'field' => 'sip_authfail_extensions_per_poll'],
+        ] as $key => $item) {
+            $value = $item['value'];
+            if ($value === null) {
+                continue;
+            }
+            $stored = is_bool($value) ? ($value ? '1' : '0') : (string)$value;
+            if ($current[$item['field']] != $stored) {
+                $this->settings()->set($key, $stored);
+                $changed[] = $item['field'];
+            }
         }
         if ($sourcesChanged) {
             $this->syncApiKey();
@@ -431,6 +553,68 @@ final class Processor
         }
 
         return $path;
+    }
+
+    /**
+     * Comma-separated dialled prefix list ("810,00,+"). An empty value switches the rule off;
+     * a malformed item is a validation error rather than silently dropping the entry.
+     *
+     * @param mixed $value
+     */
+    private function prefixListValue($value, string $field): string
+    {
+        if (is_array($value) || is_bool($value) || $value === null) {
+            throw new ValidationException('invalid_prefix_list', $field);
+        }
+        $raw = trim((string)$value);
+        if ($raw === '') {
+            return '';
+        }
+        if (strlen($raw) > 255) {
+            throw new ValidationException('invalid_prefix_list', $field);
+        }
+        $items = array_values(array_filter(array_map('trim', explode(',', $raw)), static fn (string $item): bool => $item !== ''));
+        if ($items === [] || count($items) > HubSettings::PREFIX_LIST_MAX_ITEMS) {
+            throw new ValidationException('invalid_prefix_list', $field);
+        }
+        foreach ($items as $item) {
+            if (preg_match('/^\+?\d{0,8}$/', $item) !== 1 || $item === '') {
+                throw new ValidationException('invalid_prefix_list', $field);
+            }
+        }
+        // canonical form: de-duplicated, order of the admin kept
+        return implode(',', HubSettings::prefixList($raw));
+    }
+
+    /** @param mixed $value */
+    private function boundedIntValue($value, string $field, int $min, int $max): int
+    {
+        if (is_bool($value) || is_array($value) || $value === null || (is_string($value) && trim($value) === '')) {
+            throw new ValidationException('invalid_number', $field);
+        }
+        if (!is_int($value) && (!is_string($value) || preg_match('/^\d+$/', $value) !== 1)) {
+            throw new ValidationException('invalid_number', $field);
+        }
+        $number = (int)$value;
+        if ($number < $min || $number > $max) {
+            throw new ValidationException('invalid_number', $field);
+        }
+
+        return $number;
+    }
+
+    /** @param mixed $value */
+    private function timeOfDayValue($value, string $field): string
+    {
+        if (is_array($value) || is_bool($value) || $value === null) {
+            throw new ValidationException('invalid_time_of_day', $field);
+        }
+        $time = trim((string)$value);
+        if (preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $time) !== 1) {
+            throw new ValidationException('invalid_time_of_day', $field);
+        }
+
+        return $time;
     }
 
     private function settings(): HubSettings
