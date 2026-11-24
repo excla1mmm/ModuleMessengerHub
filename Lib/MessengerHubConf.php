@@ -163,6 +163,14 @@ class MessengerHubConf extends ConfigClass
             if ($fact === null) {
                 return;
             }
+            if (($data['model'] ?? '') === ConfigChangeSource::CORE_MODEL_PREFIX . 'ApiKeys') {
+                // the hub's own key path sync is not an administrator's change; one local read, only here
+                $ownKeyId = (int)(new HubSettings(new PhalconHubDatabase()))->get(HubSettings::HUB_API_KEY_ID);
+                $fact = ConfigChangeSource::fact($data, $ownKeyId);
+                if ($fact === null) {
+                    return;
+                }
+            }
             [, $states] = $this->recorder();
             for ($attempt = 0; $attempt < 3; $attempt++) {
                 $state = $states->get(ConfigChangeSource::ID);

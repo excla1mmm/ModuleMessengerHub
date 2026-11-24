@@ -203,6 +203,19 @@ check(ConfigChangeSource::fact($otherModule) === null, 'config: other modules\' 
 check(ConfigChangeSource::fact(coreModelChange('CallDetailRecords')) === null, 'config: CDR is ignored');
 check(ConfigChangeSource::fact(coreModelChange('ModuleOperations')) === null, 'config: module operation progress is ignored');
 check(ConfigChangeSource::fact(coreModelChange('RecordingStorage')) === null, 'config: the recording map pruned by cron is ignored');
+
+// Core touches ApiKeys.last_used_at once a minute for every key in use (station, 24.11.2026): not a change
+$touch = ['changedFields' => ['last_used_at']] + coreModelChange('ApiKeys', 'afterSave', '251');
+check(ConfigChangeSource::fact($touch) === null, 'config: a last_used_at touch of an API key is ignored');
+$keyEdit = ['changedFields' => ['allowed_paths', 'last_used_at']] + coreModelChange('ApiKeys', 'afterSave', '300');
+check(ConfigChangeSource::fact($keyEdit) === ['area' => 'api_keys', 'action' => 'set'], 'config: a real API key edit is still counted');
+$keyDelete = ['changedFields' => ['last_used_at']] + coreModelChange('ApiKeys', 'afterDelete', '300');
+check(ConfigChangeSource::fact($keyDelete) === ['area' => 'api_keys', 'action' => 'del'], 'config: deleting a key is counted');
+// the hub's own key path sync is the hub's doing
+$ownSync = ['changedFields' => ['allowed_paths']] + coreModelChange('ApiKeys', 'afterSave', '251');
+check(ConfigChangeSource::fact($ownSync, 251) === null, 'config: the hub key path sync is ignored');
+check(ConfigChangeSource::fact($ownSync, 0) === ['area' => 'api_keys', 'action' => 'set'], 'config: unknown own key id skips nothing');
+check(ConfigChangeSource::fact($ownSync, 7) === ['area' => 'api_keys', 'action' => 'set'], 'config: another key is still counted');
 check(ConfigChangeSource::fact(coreModelChange('PbxSettings', 'afterSave', 'MailOAuth2AccessToken')) === null, 'config: self-refreshed OAuth2 tokens are ignored');
 check(ConfigChangeSource::fact(coreModelChange('PbxSettings', 'afterDelete', 'MailOAuth2State')) === null, 'config: the OAuth2 state keys are ignored');
 check(ConfigChangeSource::fact(['source' => 'WorkerModelsEvents->invokeAction', 'action' => 'reload', 'parameters' => []]) === null, 'config: reload actions are not model changes');

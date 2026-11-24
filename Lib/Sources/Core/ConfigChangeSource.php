@@ -146,6 +146,16 @@ final class ConfigChangeSource implements SourceInterface, TickingSource
         'MailOAuth2StateExpiry',
     ];
 
+    /**
+     * Bookkeeping columns Core writes on use, not on configuration: TokenValidationService syncs
+     * ApiKeys.last_used_at once a minute for every key in use (src/PBXCoreREST/Services/
+     * TokenValidationService.php:48, 183-200 -> ApiKeys/TouchLastUsedAction.php:48), passkeys do the same.
+     * The hub polls Core every minute with its own key, so without this filter the quiet window would
+     * never close and an "API keys changed" event would be forced every MAX_WINDOW_SEC. Only field
+     * NAMES are compared (a list of strings for these models); values are never read.
+     */
+    private const array TOUCH_ONLY_FIELDS = ['last_used_at'];
+
     /** @var (callable(): int)|null */
     private $quietSec;
 
@@ -194,9 +204,11 @@ final class ConfigChangeSource implements SourceInterface, TickingSource
      * Hook side (pure, no database): one Core model-change message => one fact, or null.
      *
      * @param array<string, mixed> $data what Core passes to modelsEventChangeData
+     * @param int $ownApiKeyId id of the hub's own Core API key: its path sync is the hub's doing, not
+     *                         an administrator's change (0 = unknown, nothing is skipped)
      * @return array{area: string, action: string}|null
      */
-    public static function fact(array $data): ?array
+    public static function fact(array $data, int $ownApiKeyId = 0): ?array
     {
         if (($data['source'] ?? '') !== self::CORE_SOURCE) {
             return null;
@@ -217,6 +229,12 @@ final class ConfigChangeSource implements SourceInterface, TickingSource
         if ($action === null) {
             return null;
         }
+        if ($action === 'set' && self::touchOnly($data['changedFields'] ?? null)) {
+            return null;
+        }
+        if ($class === 'ApiKeys' && $ownApiKeyId > 0 && (string)($data['recordId'] ?? '') === (string)$ownApiKeyId) {
+            return null;
+        }
         if ($class === 'PbxSettings') {
             $recordId = $data['recordId'] ?? '';
             if (!is_string($recordId) || in_array($recordId, self::IGNORED_SETTING_KEYS, true)) {
@@ -225,6 +243,21 @@ final class ConfigChangeSource implements SourceInterface, TickingSource
         }
 
         return ['area' => self::AREA_BY_MODEL[$class] ?? self::AREA_OTHER, 'action' => $action];
+    }
+
+    /** A save that only touched bookkeeping columns (see TOUCH_ONLY_FIELDS). @param mixed $fields */
+    private static function touchOnly($fields): bool
+    {
+        if (!is_array($fields) || $fields === [] || !array_is_list($fields)) {
+            return false;
+        }
+        foreach ($fields as $field) {
+            if (!is_string($field) || !in_array($field, self::TOUCH_ONLY_FIELDS, true)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
