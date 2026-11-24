@@ -16,9 +16,12 @@ use Modules\ModuleMessengerHub\Lib\Sources\SourceRegistry;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceStateRepository;
 use Modules\ModuleMessengerHub\Lib\Storage\PhalconHubDatabase;
 use Modules\ModuleMessengerHub\Lib\Sources\Core\MissedCallSource;
+use Modules\ModuleMessengerHub\Lib\Sources\Core\QueueAbandonSource;
 use Modules\ModuleMessengerHub\Lib\Sources\Core\RecentMissedLoader;
+use Modules\ModuleMessengerHub\Lib\Settings\HubSettings;
 use Modules\ModuleMessengerHub\Lib\Support\HubLogger;
 use Modules\ModuleMessengerHub\Lib\Support\InternalNumbersLoader;
+use Modules\ModuleMessengerHub\Lib\Support\QueueNamesLoader;
 use Throwable;
 
 /**
@@ -38,17 +41,24 @@ class WorkerMessengerHubAmi extends WorkerBase
 
     private SourceRecorder $recorder;
 
+    private PhalconHubDatabase $db;
+
     private int $lastTick = 0;
 
     private const int MAP_REFRESH_SEC = 300;
     private const int MAP_RETRY_SEC = 30;
+    /** Queue wait thresholds are read from the settings every minute; a change must not wait for the map. */
+    private const int SETTINGS_REFRESH_SEC = 60;
 
     private int $nextMapLoad = 0;
+
+    private int $nextSettingsLoad = 0;
 
     public function start(array $argv): void
     {
         HubLogger::event('ami', 'started', ['pid' => getmypid()]);
         $db = new PhalconHubDatabase();
+        $this->db = $db;
         $this->recorder = new SourceRecorder(new SourceStateRepository($db), new EventStore($db));
         $this->sources = SourceRegistry::default()->amiSources();
         foreach ($this->sources as $source) {
@@ -69,6 +79,7 @@ class WorkerMessengerHubAmi extends WorkerBase
         }
 
         $this->refreshInternalNumbers(time());
+        $this->refreshQueueOptions(time());
         $this->connect();
         while ($this->needRestart === false) {
             pcntl_signal_dispatch();
@@ -107,6 +118,7 @@ class WorkerMessengerHubAmi extends WorkerBase
         }
         $this->lastTick = $now;
         $this->refreshInternalNumbers($now);
+        $this->refreshQueueOptions($now);
         foreach ($this->sources as $source) {
             try {
                 $source->tick($this->recorder, $now);
@@ -116,7 +128,7 @@ class WorkerMessengerHubAmi extends WorkerBase
         }
     }
 
-    /** Read-only copy of Core extensions/users for missed-call classification, refreshed every 5 minutes. */
+    /** Read-only copy of Core extensions/users for call classification, refreshed every 5 minutes. */
     private function refreshInternalNumbers(int $now): void
     {
         if ($now < $this->nextMapLoad) {
@@ -125,14 +137,46 @@ class WorkerMessengerHubAmi extends WorkerBase
         $this->nextMapLoad = $now + self::MAP_RETRY_SEC;
         try {
             $map = InternalNumbersLoader::load();
+            $queueNames = [];
+            try {
+                $queueNames = QueueNamesLoader::load();
+            } catch (Throwable $exception) {
+                // the queue is still reported by its number; a missing name must not block call classification
+                HubLogger::event('ami', 'queue_names_failed', ['error' => $exception::class], LOG_WARNING);
+            }
             foreach ($this->sources as $source) {
                 if ($source instanceof MissedCallSource) {
                     $source->setInternalMap($map);
+                }
+                if ($source instanceof QueueAbandonSource) {
+                    $source->setInternalMap($map);
+                    $source->setQueueNames($queueNames);
                 }
             }
             $this->nextMapLoad = $now + self::MAP_REFRESH_SEC;
         } catch (Throwable $exception) {
             HubLogger::event('ami', 'internal_numbers_failed', ['error' => $exception::class], LOG_ERR);
+        }
+    }
+
+    /** Queue wait thresholds from the hub settings (read-only, one query per minute; clamped by the source). */
+    private function refreshQueueOptions(int $now): void
+    {
+        if ($now < $this->nextSettingsLoad) {
+            return;
+        }
+        $this->nextSettingsLoad = $now + self::SETTINGS_REFRESH_SEC;
+        try {
+            $settings = new HubSettings($this->db);
+            $minWait = $settings->queueAbandonMinWaitSec();
+            $longWait = $settings->queueLongWaitSec();
+            foreach ($this->sources as $source) {
+                if ($source instanceof QueueAbandonSource) {
+                    $source->setThresholds($minWait, $longWait);
+                }
+            }
+        } catch (Throwable $exception) {
+            HubLogger::event('ami', 'queue_options_failed', ['error' => $exception::class], LOG_WARNING);
         }
     }
 

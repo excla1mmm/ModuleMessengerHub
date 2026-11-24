@@ -33,6 +33,9 @@ final class SourceRegistry
      * The employee-map provider is the only Core glue (Lib/Support/InternalNumbersLoader, Plan/11 Q12);
      * it runs lazily at poll time inside the collector worker.
      *
+     * Stage 4s-B: three more CdrConnector users (queue abandonment, out-of-work-time call, park timeout)
+     * next to missed calls; their queue names and the wait thresholds are injected by the AMI worker.
+     *
      * Stage 3b: one ModuleStatusSource per kind of problem (a wizard scenario); all read `/status` only.
      */
     public static function default(): self
@@ -40,6 +43,9 @@ final class SourceRegistry
         $sources = [
             new Core\MissedCallSource(),
             new Core\VoicemailSource(),
+            new Core\QueueAbandonSource(),
+            new Core\CallOutOfHoursSource(),
+            new Core\ParkTimeoutSource(),
             new Core\ProviderStatusSource(),
             new Core\PbxStartedSource(),
             new Core\AdviceSource(),
