@@ -239,6 +239,7 @@ if ($event instanceof HubEvent) {
     $payloadJson = (string)json_encode($event->payload, JSON_UNESCAPED_UNICODE);
     check(!str_contains($payloadJson, 'secret-old') && !str_contains($payloadJson, 'secret-new'), 'config: changed field values never reach the payload');
     check(!str_contains($payloadJson, 'MikoPBX\\\\Common'), 'config: no Core class names in the payload');
+    check($event->payload['subject']['client_number'] === '' && $event->payload['subject']['employees'] === [], 'config: no phone numbers in the subject');
 }
 
 // the same window replayed (worker restart before the cursor write) is swallowed by the dedupe key
@@ -568,6 +569,21 @@ check(count($settings->licenseWarnDays()) === 5, 'settings: at most five buckets
 check(HubSettings::warnDaysToString([7, 14, 1]) === '14,7,1', 'settings: canonical storage form');
 check(HubSettings::parseWarnDays('') === [14, 7, 1], 'settings: an empty list parses to the default');
 check(HubSettings::SECRET_KEYS === [HubSettings::HUB_API_KEY], 'settings: no new secret keys');
+
+// nothing personal or secret leaves the three events: no phone numbers, no licence key, no registration data
+$payloads = [
+    (string)json_encode($configEvent?->payload, JSON_UNESCAPED_UNICODE),
+    (string)json_encode($ipEvent->payload, JSON_UNESCAPED_UNICODE),
+    (string)json_encode($licenseEvent->payload, JSON_UNESCAPED_UNICODE),
+    (string)json_encode($expiredEvent->payload, JSON_UNESCAPED_UNICODE),
+];
+foreach ($payloads as $index => $payloadJson) {
+    check(!preg_match('~\+7|79\d{9}~', $payloadJson), 'payload ' . $index . ': no phone numbers');
+}
+foreach ([$licenseEvent, $expiredEvent] as $event) {
+    $license = $event->payload['subject']['license'];
+    check(!array_key_exists('key', $license) && !array_key_exists('companyname', $license), 'license: no licence key or registration data in the payload');
+}
 
 // the values the sources read are the same keys the settings resource exposes
 foreach ([
