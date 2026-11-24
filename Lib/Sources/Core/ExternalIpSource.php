@@ -43,14 +43,11 @@ final class ExternalIpSource implements SourceInterface
     public const string PATH = '/pbxcore/api/v3/sysinfo:getExternalIpInfo';
     public const string API_READ_PATH = '/api/v3/sysinfo';
 
-    /** How soon to look again after an urgent recheck (Core changed the network) — see confirm. */
+    /** How soon to look again after an urgent recheck (Core changed the network) or after the first sighting of a new address. */
     public const int RECHECK_RETRY_SEC = 60;
 
     /** How soon to retry a failed lookup instead of waiting the whole interval. */
     public const int FAILED_RETRY_SEC = 60;
-
-    /** A new address must be observed this many times in a row before it is announced. */
-    public const int CONFIRMATIONS = 2;
 
     /** @var (callable(): int)|null */
     private $intervalMin;
