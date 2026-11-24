@@ -17,7 +17,9 @@ notifications to **Telegram** and **MAX**.
 - **Collect events** from the PBX and from installed MIKO modules: missed call, provider down/up,
   system warnings, voicemail; call needing attention (AI Supervisor), callback request and offline
   workers (VoiceAgent); module status changes (speech recognition workers and queue, cloud speech
-  incidents, cloud AI pauses).
+  incidents, cloud AI pauses); security events — a suspected fraudulent call (dangerous international
+  destination, a burst of outgoing external calls, a call outside working hours), a new device on an
+  extension and SIP password guessing (brute force).
 - **Rules ("Уведомления")**: choose a scenario (event type), conditions (employees, call direction,
   providers, quality score) and recipients — selected chats, the employee's linked personal chat,
   or "employee, otherwise the shared chat".

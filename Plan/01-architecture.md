@@ -102,7 +102,7 @@ Router и отправка живут в одном воркере (одна т�
 | `getModuleWorkers()` | WorkerSafeScriptsCore | регистрация четырёх воркеров |
 | `createCronTasks()` | CronConf | очистка истории, страховочный «пинок» воркеров |
 | `onProviderStatusChange(array $changeData)` | `PBXCoreREST/Lib/Providers/GetAllStatusesAction.php:344` | провайдер отключился/восстановился |
-| `onExtensionStatusChange(array $changeData)` | `PBXCoreREST/Lib/Extensions/GetAllStatusesAction.php:436` | сотрудник онлайн/офлайн (этап 4, шумно) |
+| `onExtensionStatusChange(array $changeData)` | `PBXCoreREST/Lib/Extensions/GetAllStatusesAction.php:436` | новое устройство у сотрудника (4s-A: `device_added` → сырые пары ip/User-Agent в курсор, событие собирает коллектор); онлайн/офлайн — этап 4 |
 | `onAfterPbxStarted()` | `Core/System/Configs/PbxConf.php:187` | событие «АТС запущена» |
 | `onAfterExecuteRestAPIRoute(Micro $app)` | `PBXCoreREST/Providers/RouterProvider.php:735` | кандидат для входов в систему (этап 5, проверить) |
 | `onAfterModuleEnable/Disable` | модульный менеджер | пересчёт доступности источников |
