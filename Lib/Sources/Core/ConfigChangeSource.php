@@ -17,15 +17,15 @@ use Modules\ModuleMessengerHub\Lib\Sources\TickingSource;
  *
  * Where the fact comes from (read-only Core contract, never changed by the hub):
  *  - Core publishes one message per ORM write of a main-DB model:
- *    `src/Common/Models/ModelsBase.php:399-414` (publishModelChangeEvent) puts
+ *    `src/Common/Models/ModelsBase.php:393-414` (publishModelChangeEvent) puts
  *    {source: 'ModelsBase->sendChangesToBackend', model, recordId, action, changedFields} on the
  *    model-change tube;
- *  - `src/Core/Workers/WorkerModelsEvents.php:604-634` (processModelChanges) decodes it and calls
+ *  - `src/Core/Workers/WorkerModelsEvents.php:605-631` (processModelChanges) decodes it and calls
  *    `hookModulesMethod(MODELS_EVENT_CHANGE_DATA, [$receivedMessage])` on every enabled module;
- *  - the CDR database is not tracked at all (`ModelsBase::processSettingsChanges`,
+ *  - the CDR database is not tracked at all (`ModelsBase::processSettingsChanges`, `ModelsBase.php:293-299`,
  *    `$doNotTrackThisDB`), so call records never reach the hook.
  * `changedFields` is NOT used: for PbxSettings it carries old/new VALUES
- * (`ModelsBase.php:317-330`) and those may hold passwords. Only the model name, the action and a
+ * (`ModelsBase.php:322-329`) and those may hold passwords. Only the model name, the action and a
  * count ever leave this class.
  *
  * The hook is called for every model write of the PBX, so it must stay cheap: fact() is a pure map

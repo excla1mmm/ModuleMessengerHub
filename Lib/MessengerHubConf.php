@@ -109,7 +109,7 @@ class MessengerHubConf extends ConfigClass
 
     /**
      * Core reports one ORM write of a main-DB model (WorkerModelsEvents::processModelChanges,
-     * src/Core/Workers/WorkerModelsEvents.php:604-634). The hook only folds the fact into the source
+     * src/Core/Workers/WorkerModelsEvents.php:605-631). The hook only folds the fact into the source
      * cursor: ConfigChangeSource::fact() filters out everything the hub does not care about (its own
      * tables, other modules, CDR, service tables, self-rewritten settings keys) before any database
      * access, and the collector worker coalesces the facts into one event after a quiet window.

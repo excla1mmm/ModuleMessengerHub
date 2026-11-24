@@ -18,6 +18,11 @@ notifications to **Telegram** and **MAX**.
   system warnings, voicemail; call needing attention (AI Supervisor), callback request and offline
   workers (VoiceAgent); module status changes (speech recognition workers and queue, cloud speech
   incidents, cloud AI pauses).
+- **PBX configuration and infrastructure events**: configuration changes (one message naming the areas
+  that changed — routing, providers, numbers, firewall, API keys, modules and so on, never field values),
+  an external IP address change, and license expiry reminders 14/7/1 days before and once after the end
+  date. The thresholds (change-coalescing window, external-IP and license poll intervals, the reminder
+  day list) are set on the "Настройки" tab.
 - **Rules ("Уведомления")**: choose a scenario (event type), conditions (employees, call direction,
   providers, quality score) and recipients — selected chats, the employee's linked personal chat,
   or "employee, otherwise the shared chat".
