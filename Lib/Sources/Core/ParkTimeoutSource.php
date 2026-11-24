@@ -103,6 +103,7 @@ final class ParkTimeoutSource implements SourceInterface, AmiEventSource
         $slot = trim((string)($fields['dst_num'] ?? ''));
         $caller = trim((string)($fields['src_num'] ?? ''));
         $parker = self::peerFromChannel((string)($fields['PARKER'] ?? ''));
+        $did = trim((string)($fields['did'] ?? ''));
         $startedAt = MissedCallSource::strToTs((string)($fields['start'] ?? ''));
         $endedAt = MissedCallSource::strToTs((string)($fields['endtime'] ?? ''));
 
@@ -116,12 +117,13 @@ final class ParkTimeoutSource implements SourceInterface, AmiEventSource
                 'subject' => [
                     'call' => [
                         'linkedid' => $linkedid,
-                        'direction' => 'incoming',
+                        // a parked call can be inbound, outbound or internal: only a DID proves "incoming"
+                        'direction' => $did !== '' ? 'incoming' : 'unknown',
                         'started_at' => $startedAt > 0 ? $startedAt : ($endedAt > 0 ? $endedAt : $now),
                         'park_slot' => $slot,
                         'parked_by' => $parker,
                         'parked_sec' => self::parkedSec($startedAt, $endedAt),
-                        'did' => trim((string)($fields['did'] ?? '')),
+                        'did' => $did,
                     ],
                     'client_number' => $caller,
                     'employees' => [],

@@ -431,6 +431,7 @@ if (count($rows) === 1) {
     check($call['parked_by'] === '233', 'park: parked-by extension extracted from the PARKER channel');
     check($call['parked_sec'] === 45, 'park: parked duration = endtime - start');
     check($payload['subject']['client_number'] === '79000000001', 'park: the caller number');
+    check($call['direction'] === 'incoming', 'park: a DID makes the parked call incoming');
 }
 $park->onAmiEvent(fixture('park-timeout.json'), $h20->recorder, $t0 + 30);
 check($h20->count() === 1, 'park: a repeated event is deduped');
@@ -445,11 +446,13 @@ check(ParkTimeoutSource::peerFromChannel('PJSIP/204-WS-0000000a') === '204-WS', 
 check(ParkTimeoutSource::peerFromChannel('') === '', 'park: empty channel -> empty parker');
 $noParker = fixture('park-timeout.json');
 $decoded = AgiDataDecoder::decode((string)$noParker['AgiData']);
-unset($decoded['PARKER']);
+unset($decoded['PARKER'], $decoded['did']);
 $h21 = new CallsHarness();
 $h21->states->setEnabled(ParkTimeoutSource::ID, true, 0);
 $park->onAmiEvent(cdrEvent($decoded), $h21->recorder, $t0);
-check($h21->count() === 1 && $h21->payload(0)['subject']['call']['parked_by'] === '', 'park: a missing PARKER leaves the field empty');
+$parkNoParker = $h21->payload(0)['subject']['call'] ?? [];
+check($h21->count() === 1 && $parkNoParker['parked_by'] === '', 'park: a missing PARKER leaves the field empty');
+check(($parkNoParker['direction'] ?? '') === 'unknown', 'park: without a DID the direction is not claimed');
 $hOff21 = new CallsHarness();
 $hOff21->states->setEnabled(ParkTimeoutSource::ID, false, 0);
 $parkOff = new ParkTimeoutSource();

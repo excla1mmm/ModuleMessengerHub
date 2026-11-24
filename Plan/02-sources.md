@@ -157,8 +157,9 @@ interface SourceInterface
 парковки»), `did`, `linkedid`, `PARKER` (канал того, кто парковал) — `lua/extensions.lua:1954-1994`.
 `PARKER` — имя канала, а не номер: внутренний номер извлекается тем же правилом, что и в ядре
 (`CUT(PARKER,/,2)`, `ResParkingConf.php:193`, плюс отсечение `@`-домена и `-суффикса` канала как в
-`getAccountName()`, `extensions.lua:233-257`). Payload: `subject.call` = `linkedid`, `direction` =
-`incoming`, `started_at`, `park_slot`, `parked_by`, `parked_sec`, `did`; `subject.client_number` —
+`getAccountName()`, `extensions.lua:233-257`). Payload: `subject.call` = `linkedid`, `direction` (`incoming`, только если в событии
+есть DID — парковать можно и исходящий или внутренний звонок, поэтому без DID направление не заявляется:
+`unknown`), `started_at`, `park_slot`, `parked_by`, `parked_sec`, `did`; `subject.client_number` —
 клиент. `dedupe_key = park_timeout:{linkedid}`, severity `warning`. Ограничение: повторная парковка того
 же `linkedid` после таймаута даст тот же ключ и не оповестит второй раз (ключ согласован в ТЗ).
 
