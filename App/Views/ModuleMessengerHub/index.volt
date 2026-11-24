@@ -211,6 +211,70 @@
             </form>
             <span class="mh-meta">{{ t._('module_messenger_hub_SettingsPrivacy') }}</span>
         </section>
+
+        <section class="mh-section mh-form-col">
+            <h3 class="mh-group-title">{{ t._('module_messenger_hub_SettingsSecurity') }}</h3>
+            <form class="ui form mh-settings-form" aria-label="{{ t._('module_messenger_hub_SettingsSecurity') }}" onsubmit="return false">
+                <div class="field" id="mh-toll-prefixes-field">
+                    <label for="mh-toll-prefixes-input">{{ t._('module_messenger_hub_SettingsTollPrefixes') }}</label>
+                    <input id="mh-toll-prefixes-input" class="mh-input-s mh-mono" type="text" autocomplete="off" spellcheck="false" placeholder="810,00,+">
+                    <span class="mh-help"></span>
+                </div>
+                <div class="field" id="mh-toll-home-field">
+                    <label for="mh-toll-home-input">{{ t._('module_messenger_hub_SettingsTollHomePrefixes') }}</label>
+                    <input id="mh-toll-home-input" class="mh-input-s mh-mono" type="text" autocomplete="off" spellcheck="false" placeholder="+7,8107,007">
+                    <span class="mh-help"></span>
+                </div>
+                <div class="field" id="mh-toll-burst-field">
+                    <label for="mh-toll-burst-input">{{ t._('module_messenger_hub_SettingsTollBurstCalls') }}</label>
+                    <input id="mh-toll-burst-input" class="mh-input-xs" type="number" min="2" max="1000" step="1" value="20">
+                    <span class="mh-help"></span>
+                </div>
+                <div class="field" id="mh-toll-window-field">
+                    <label for="mh-toll-window-input">{{ t._('module_messenger_hub_SettingsTollBurstWindow') }}</label>
+                    <input id="mh-toll-window-input" class="mh-input-xs" type="number" min="1" max="1440" step="1" value="10">
+                    <span class="mh-help"></span>
+                </div>
+                <div class="mh-switch-row">
+                    <label class="ui toggle checkbox" id="mh-toll-offhours">
+                        <input type="checkbox" class="hidden" aria-label="{{ t._('module_messenger_hub_SettingsTollOffHours') }}">
+                        <span class="mh-track"></span>
+                    </label>
+                    <span>{{ t._('module_messenger_hub_SettingsTollOffHours') }}</span>
+                </div>
+                <div class="field" id="mh-toll-from-field">
+                    <label for="mh-toll-from-input">{{ t._('module_messenger_hub_SettingsTollOffHoursFrom') }}</label>
+                    <input id="mh-toll-from-input" class="mh-input-xs mh-mono" type="text" inputmode="numeric" autocomplete="off" placeholder="22:00">
+                    <span class="mh-help"></span>
+                </div>
+                <div class="field" id="mh-toll-to-field">
+                    <label for="mh-toll-to-input">{{ t._('module_messenger_hub_SettingsTollOffHoursTo') }}</label>
+                    <input id="mh-toll-to-input" class="mh-input-xs mh-mono" type="text" inputmode="numeric" autocomplete="off" placeholder="07:00">
+                    <span class="mh-help"></span>
+                </div>
+                <div class="field" id="mh-authfail-threshold-field">
+                    <label for="mh-authfail-threshold-input">{{ t._('module_messenger_hub_SettingsAuthFailThreshold') }}</label>
+                    <input id="mh-authfail-threshold-input" class="mh-input-xs" type="number" min="1" max="1000" step="1" value="10">
+                    <span class="mh-help"></span>
+                </div>
+                <div class="field" id="mh-authfail-window-field">
+                    <label for="mh-authfail-window-input">{{ t._('module_messenger_hub_SettingsAuthFailWindow') }}</label>
+                    <input id="mh-authfail-window-input" class="mh-input-xs" type="number" min="1" max="1440" step="1" value="10">
+                    <span class="mh-help"></span>
+                </div>
+                <div class="field" id="mh-authfail-quiet-field">
+                    <label for="mh-authfail-quiet-input">{{ t._('module_messenger_hub_SettingsAuthFailQuiet') }}</label>
+                    <input id="mh-authfail-quiet-input" class="mh-input-xs" type="number" min="5" max="1440" step="1" value="30">
+                    <span class="mh-help"></span>
+                </div>
+                <div class="field" id="mh-authfail-perpoll-field">
+                    <label for="mh-authfail-perpoll-input">{{ t._('module_messenger_hub_SettingsAuthFailPerPoll') }}</label>
+                    <input id="mh-authfail-perpoll-input" class="mh-input-xs" type="number" min="5" max="200" step="1" value="25">
+                    <span class="mh-help"></span>
+                </div>
+            </form>
+            <span class="mh-meta">{{ t._('module_messenger_hub_SettingsPrivacy') }}</span>
+        </section>
     </div>
   </div>
 
