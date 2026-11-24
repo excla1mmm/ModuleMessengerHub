@@ -14,6 +14,8 @@ use Modules\ModuleMessengerHub\bin\WorkerMessengerHubDiscovery;
 use Modules\ModuleMessengerHub\Lib\Api\HubApiKey;
 use Modules\ModuleMessengerHub\Lib\Events\EventStore;
 use Modules\ModuleMessengerHub\Lib\Settings\HubSettings;
+use Modules\ModuleMessengerHub\Lib\Sources\Core\ConfigChangeSource;
+use Modules\ModuleMessengerHub\Lib\Sources\Core\ExternalIpSource;
 use Modules\ModuleMessengerHub\Lib\Sources\Core\PbxStartedSource;
 use Modules\ModuleMessengerHub\Lib\Sources\Core\ProviderStatusSource;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceRecorder;
@@ -102,6 +104,72 @@ class MessengerHubConf extends ConfigClass
             $recorder->record($event, time());
         } catch (Throwable $exception) {
             HubLogger::event('hook', 'pbx_started_failed', ['error' => $exception::class], LOG_ERR);
+        }
+    }
+
+    /**
+     * Core reports one ORM write of a main-DB model (WorkerModelsEvents::processModelChanges,
+     * src/Core/Workers/WorkerModelsEvents.php:605-631). The hook only folds the fact into the source
+     * cursor: ConfigChangeSource::fact() filters out everything the hub does not care about (its own
+     * tables, other modules, CDR, service tables, self-rewritten settings keys) before any database
+     * access, and the collector worker coalesces the facts into one event after a quiet window.
+     * Changed field VALUES are never stored or logged (PbxSettings changes carry old/new values).
+     *
+     * @param mixed $data {source, model, recordId, action, changedFields}
+     */
+    public function modelsEventChangeData($data): void
+    {
+        try {
+            if (!is_array($data)) {
+                return;
+            }
+            $fact = ConfigChangeSource::fact($data);
+            if ($fact === null) {
+                return;
+            }
+            [, $states] = $this->recorder();
+            for ($attempt = 0; $attempt < 3; $attempt++) {
+                $state = $states->get(ConfigChangeSource::ID);
+                if (!$state['enabled']) {
+                    return;
+                }
+                $cursor = $state['cursor'];
+                $new = ConfigChangeSource::applyFact($cursor, $fact, time());
+                if ($new === $cursor || $states->compareAndSaveCursor(ConfigChangeSource::ID, $cursor, $new)) {
+                    return;
+                }
+            }
+            HubLogger::event('hook', 'config_change_conflict', [], LOG_WARNING);
+        } catch (Throwable $exception) {
+            HubLogger::event('hook', 'config_change_failed', ['error' => $exception::class], LOG_ERR);
+        }
+    }
+
+    /**
+     * Core applied the network configuration (src/Core/System/Network.php:1015 and 1216). The external
+     * address may have changed, so the next collector pass re-checks it instead of waiting for the
+     * regular interval. Only a flag is written — no network I/O inside a Core hook.
+     */
+    public function onAfterNetworkConfigured(): void
+    {
+        try {
+            [, $states] = $this->recorder();
+            for ($attempt = 0; $attempt < 3; $attempt++) {
+                $state = $states->get(ExternalIpSource::ID);
+                if (!$state['enabled']) {
+                    return;
+                }
+                $cursor = $state['cursor'];
+                if (($cursor['recheck'] ?? false) === true) {
+                    return;
+                }
+                if ($states->compareAndSaveCursor(ExternalIpSource::ID, $cursor, ['recheck' => true] + $cursor)) {
+                    return;
+                }
+            }
+            HubLogger::event('hook', 'external_ip_recheck_conflict', [], LOG_WARNING);
+        } catch (Throwable $exception) {
+            HubLogger::event('hook', 'external_ip_recheck_failed', ['error' => $exception::class], LOG_ERR);
         }
     }
 

@@ -1,0 +1,24 @@
+{
+  "@attributes": {
+    "companyname": "Example LLC",
+    "contact": "Ivan Ivanov",
+    "email": "admin@example.com",
+    "tel": "+7 900 000-00-00",
+    "key": "MIKO-AAAAA-BBBBB-CCCCC-DDDDD"
+  },
+  "product": {
+    "@attributes": {
+      "name": "MikoPBX",
+      "expired": {},
+      "trial": "1"
+    },
+    "feature": {
+      "@attributes": {
+        "name": "MikoPBX trial",
+        "count": "1",
+        "counteach": "0",
+        "captured": "1"
+      }
+    }
+  }
+}

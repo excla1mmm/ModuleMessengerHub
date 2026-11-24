@@ -32,6 +32,11 @@ final class HubSettings
     /** Stage 4s-B: queue wait thresholds of core.queue_abandoned (seconds, 0 disables the check). */
     public const string QUEUE_ABANDON_MIN_WAIT_SEC = 'queue_abandon_min_wait_sec';
     public const string QUEUE_LONG_WAIT_SEC = 'queue_long_wait_sec';
+    /** Stage 4s-C thresholds of the PBX configuration and infrastructure sources (Plan/02). */
+    public const string CONFIG_CHANGE_QUIET_SEC = 'config_change_quiet_sec';
+    public const string EXTERNAL_IP_POLL_MIN = 'external_ip_poll_min';
+    public const string LICENSE_POLL_HOURS = 'license_poll_hours';
+    public const string LICENSE_WARN_DAYS = 'license_warn_days';
 
     public const array SECRET_KEYS = [self::HUB_API_KEY];
 
@@ -44,6 +49,10 @@ final class HubSettings
         self::MAX_CA_BUNDLE_PATH => '',
         self::QUEUE_ABANDON_MIN_WAIT_SEC => '0',
         self::QUEUE_LONG_WAIT_SEC => '0',
+        self::CONFIG_CHANGE_QUIET_SEC => '60',
+        self::EXTERNAL_IP_POLL_MIN => '15',
+        self::LICENSE_POLL_HOURS => '6',
+        self::LICENSE_WARN_DAYS => '14,7,1',
     ];
 
     /** Agreed bounds of the journal retention (Plan/06, settings resource). */
@@ -53,6 +62,22 @@ final class HubSettings
     /** Agreed bounds of the queue wait thresholds (Plan/02, 4s-B): 0 = the check is off. */
     public const int QUEUE_WAIT_MIN_SEC = 0;
     public const int QUEUE_WAIT_MAX_SEC = 3600;
+    /** Bounds of the config-change quiet window (4s-C): long enough to coalesce a save, short enough to stay useful. */
+    public const int CONFIG_QUIET_MIN_SEC = 10;
+    public const int CONFIG_QUIET_MAX_SEC = 3600;
+
+    /** Bounds of the external-IP poll: the request leaves the PBX for an outside service (checkip.amazonaws.com). */
+    public const int EXTERNAL_IP_POLL_MIN_MIN = 5;
+    public const int EXTERNAL_IP_POLL_MIN_MAX = 1440;
+
+    /** Bounds of the license poll: the request goes to the MIKO license server (cached 2 minutes by Core). */
+    public const int LICENSE_POLL_HOURS_MIN = 1;
+    public const int LICENSE_POLL_HOURS_MAX = 168;
+
+    /** Bucket list bounds: at most five reminders, each in 1..365 days before expiry. */
+    public const int LICENSE_WARN_MAX_BUCKETS = 5;
+    public const int LICENSE_WARN_MIN_DAYS = 1;
+    public const int LICENSE_WARN_MAX_DAYS = 365;
 
     public function __construct(private readonly HubDatabase $db)
     {
@@ -132,5 +157,93 @@ final class HubSettings
         }
 
         return max(self::QUEUE_WAIT_MIN_SEC, min(self::QUEUE_WAIT_MAX_SEC, (int)$value));
+    }
+    /** Quiet window of core.config_changed: a burst of model changes becomes one event after it. */
+    public function configChangeQuietSec(): int
+    {
+        return self::clamp(
+            (int)$this->get(self::CONFIG_CHANGE_QUIET_SEC),
+            self::CONFIG_QUIET_MIN_SEC,
+            self::CONFIG_QUIET_MAX_SEC,
+            (int)self::DEFAULTS[self::CONFIG_CHANGE_QUIET_SEC]
+        );
+    }
+
+    /** Minutes between two external-IP checks (core.external_ip_changed). */
+    public function externalIpPollMin(): int
+    {
+        return self::clamp(
+            (int)$this->get(self::EXTERNAL_IP_POLL_MIN),
+            self::EXTERNAL_IP_POLL_MIN_MIN,
+            self::EXTERNAL_IP_POLL_MIN_MAX,
+            (int)self::DEFAULTS[self::EXTERNAL_IP_POLL_MIN]
+        );
+    }
+
+    /** Hours between two license checks (core.license_expiring). */
+    public function licensePollHours(): int
+    {
+        return self::clamp(
+            (int)$this->get(self::LICENSE_POLL_HOURS),
+            self::LICENSE_POLL_HOURS_MIN,
+            self::LICENSE_POLL_HOURS_MAX,
+            (int)self::DEFAULTS[self::LICENSE_POLL_HOURS]
+        );
+    }
+
+    /**
+     * Reminder buckets in days before expiry, newest first, unique, at most LICENSE_WARN_MAX_BUCKETS.
+     * The stored value is a comma separated list ("14,7,1").
+     *
+     * @return list<int>
+     */
+    public function licenseWarnDays(): array
+    {
+        return self::parseWarnDays($this->get(self::LICENSE_WARN_DAYS));
+    }
+
+    /**
+     * Parses and normalises a bucket list; anything unparsable falls back to the default list,
+     * values outside 1..365 are dropped.
+     *
+     * @return list<int>
+     */
+    public static function parseWarnDays(string $raw): array
+    {
+        $days = [];
+        foreach (preg_split('~[^0-9]+~', $raw) ?: [] as $item) {
+            if ($item === '' || !ctype_digit($item)) {
+                continue;
+            }
+            $day = (int)$item;
+            if ($day >= self::LICENSE_WARN_MIN_DAYS && $day <= self::LICENSE_WARN_MAX_DAYS) {
+                $days[$day] = true;
+            }
+        }
+        if ($days === []) {
+            return self::parseWarnDays((string)self::DEFAULTS[self::LICENSE_WARN_DAYS]);
+        }
+        $days = array_keys($days);
+        rsort($days, SORT_NUMERIC);
+
+        return array_slice($days, 0, self::LICENSE_WARN_MAX_BUCKETS);
+    }
+
+    /** Canonical storage form of a bucket list ("14,7,1"). @param list<int> $days */
+    public static function warnDaysToString(array $days): string
+    {
+        rsort($days, SORT_NUMERIC);
+
+        return implode(',', array_slice(array_values(array_unique($days)), 0, self::LICENSE_WARN_MAX_BUCKETS));
+    }
+
+    /** Keeps a stored number inside its bounds; a zero/garbage value (empty string, text) means the default. */
+    private static function clamp(int $value, int $min, int $max, int $fallback): int
+    {
+        if ($value <= 0) {
+            return $fallback;
+        }
+
+        return max($min, min($max, $value));
     }
 }

@@ -112,6 +112,10 @@ final class Processor
             'max_ca_bundle_path' => $this->settings()->maxCaBundlePath(),
             'queue_abandon_min_wait_sec' => $this->settings()->queueAbandonMinWaitSec(),
             'queue_long_wait_sec' => $this->settings()->queueLongWaitSec(),
+            'config_change_quiet_sec' => $this->settings()->configChangeQuietSec(),
+            'external_ip_poll_min' => $this->settings()->externalIpPollMin(),
+            'license_poll_hours' => $this->settings()->licensePollHours(),
+            'license_warn_days' => HubSettings::warnDaysToString($this->settings()->licenseWarnDays()),
         ];
     }
 
@@ -133,6 +137,10 @@ final class Processor
             'max_ca_bundle_path' => (string)HubSettings::DEFAULTS[HubSettings::MAX_CA_BUNDLE_PATH],
             'queue_abandon_min_wait_sec' => (int)HubSettings::DEFAULTS[HubSettings::QUEUE_ABANDON_MIN_WAIT_SEC],
             'queue_long_wait_sec' => (int)HubSettings::DEFAULTS[HubSettings::QUEUE_LONG_WAIT_SEC],
+            'config_change_quiet_sec' => (int)HubSettings::DEFAULTS[HubSettings::CONFIG_CHANGE_QUIET_SEC],
+            'external_ip_poll_min' => (int)HubSettings::DEFAULTS[HubSettings::EXTERNAL_IP_POLL_MIN],
+            'license_poll_hours' => (int)HubSettings::DEFAULTS[HubSettings::LICENSE_POLL_HOURS],
+            'license_warn_days' => (string)HubSettings::DEFAULTS[HubSettings::LICENSE_WARN_DAYS],
         ];
     }
 
@@ -223,6 +231,42 @@ final class Processor
         if (array_key_exists('queue_long_wait_sec', $data)) {
             $queueLongWait = $this->waitSecValue($data['queue_long_wait_sec'], 'queue_long_wait_sec');
         }
+        // Stage 4s-C thresholds of the PBX configuration and infrastructure sources (Plan/02); optional even in
+        // a full replacement, like the 4s-B fields, so older clients that PUT the stage-2 payload keep working.
+        $quietSec = null;
+        if (array_key_exists('config_change_quiet_sec', $data)) {
+            $quietSec = $this->intRangeValue(
+                $data['config_change_quiet_sec'],
+                'config_change_quiet_sec',
+                HubSettings::CONFIG_QUIET_MIN_SEC,
+                HubSettings::CONFIG_QUIET_MAX_SEC
+            );
+        }
+
+        $externalIpMin = null;
+        if (array_key_exists('external_ip_poll_min', $data)) {
+            $externalIpMin = $this->intRangeValue(
+                $data['external_ip_poll_min'],
+                'external_ip_poll_min',
+                HubSettings::EXTERNAL_IP_POLL_MIN_MIN,
+                HubSettings::EXTERNAL_IP_POLL_MIN_MAX
+            );
+        }
+
+        $licenseHours = null;
+        if (array_key_exists('license_poll_hours', $data)) {
+            $licenseHours = $this->intRangeValue(
+                $data['license_poll_hours'],
+                'license_poll_hours',
+                HubSettings::LICENSE_POLL_HOURS_MIN,
+                HubSettings::LICENSE_POLL_HOURS_MAX
+            );
+        }
+
+        $licenseDays = null;
+        if (array_key_exists('license_warn_days', $data)) {
+            $licenseDays = $this->warnDaysValue($data['license_warn_days']);
+        }
 
         $now = time();
         $sourcesChanged = false;
@@ -265,6 +309,22 @@ final class Processor
         if ($queueLongWait !== null && $current['queue_long_wait_sec'] !== $queueLongWait) {
             $this->settings()->set(HubSettings::QUEUE_LONG_WAIT_SEC, (string)$queueLongWait);
             $changed[] = 'queue_long_wait_sec';
+        }
+        if ($quietSec !== null && $current['config_change_quiet_sec'] !== $quietSec) {
+            $this->settings()->set(HubSettings::CONFIG_CHANGE_QUIET_SEC, (string)$quietSec);
+            $changed[] = 'config_change_quiet_sec';
+        }
+        if ($externalIpMin !== null && $current['external_ip_poll_min'] !== $externalIpMin) {
+            $this->settings()->set(HubSettings::EXTERNAL_IP_POLL_MIN, (string)$externalIpMin);
+            $changed[] = 'external_ip_poll_min';
+        }
+        if ($licenseHours !== null && $current['license_poll_hours'] !== $licenseHours) {
+            $this->settings()->set(HubSettings::LICENSE_POLL_HOURS, (string)$licenseHours);
+            $changed[] = 'license_poll_hours';
+        }
+        if ($licenseDays !== null && $current['license_warn_days'] !== $licenseDays) {
+            $this->settings()->set(HubSettings::LICENSE_WARN_DAYS, $licenseDays);
+            $changed[] = 'license_warn_days';
         }
         if ($sourcesChanged) {
             $this->syncApiKey();
@@ -472,12 +532,69 @@ final class Processor
 
         return $seconds;
     }
+    /** Integer field with an explicit range; a numeric string is accepted like the retention field. */
+    private function intRangeValue(mixed $value, string $field, int $min, int $max): int
+    {
+        if (is_bool($value) || is_array($value) || $value === null || (is_string($value) && trim($value) === '')) {
+            throw new ValidationException('invalid_number', $field);
+        }
+        if (!is_int($value) && (!is_string($value) || preg_match('/^\d+$/', $value) !== 1)) {
+            throw new ValidationException('invalid_number', $field);
+        }
+        $number = (int)$value;
+        if ($number < $min || $number > $max) {
+            throw new ValidationException('invalid_number', $field);
+        }
+
+        return $number;
+    }
+
+    /**
+     * "14,7,1" (or an array of days) => the canonical "14,7,1": unique, newest first, 1..365,
+     * at most HubSettings::LICENSE_WARN_MAX_BUCKETS entries, never empty (an empty list would silence
+     * every license reminder).
+     *
+     * @param mixed $value
+     */
+    private function warnDaysValue($value): string
+    {
+        if (is_array($value)) {
+            $value = implode(',', array_map(static fn (mixed $item): string => (string)$item, $value));
+        }
+        if (!is_string($value)) {
+            throw new ValidationException('invalid_license_warn_days', 'license_warn_days');
+        }
+        $raw = trim($value);
+        if ($raw === '') {
+            throw new ValidationException('invalid_license_warn_days', 'license_warn_days');
+        }
+        $days = [];
+        $items = 0;
+        foreach (preg_split('~[\s,;]+~', $raw) ?: [] as $item) {
+            if ($item === '') {
+                continue;
+            }
+            $items++;
+            if (!ctype_digit($item)) {
+                throw new ValidationException('invalid_license_warn_days', 'license_warn_days');
+            }
+            $day = (int)$item;
+            if ($day < HubSettings::LICENSE_WARN_MIN_DAYS || $day > HubSettings::LICENSE_WARN_MAX_DAYS) {
+                throw new ValidationException('invalid_license_warn_days', 'license_warn_days');
+            }
+            $days[$day] = true;
+        }
+        if ($days === [] || $items > HubSettings::LICENSE_WARN_MAX_BUCKETS) {
+            throw new ValidationException('invalid_license_warn_days', 'license_warn_days');
+        }
+
+        return HubSettings::warnDaysToString(array_keys($days));
+    }
 
     private function settings(): HubSettings
     {
         return $this->settings ?? new HubSettings($this->database());
     }
-
     private function states(): SourceStateRepository
     {
         $repository = $this->states ?? new SourceStateRepository($this->database());

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Modules\ModuleMessengerHub\Lib\Sources;
 
 use InvalidArgumentException;
+use Modules\ModuleMessengerHub\Lib\Settings\HubSettings;
+use Modules\ModuleMessengerHub\Lib\Storage\PhalconHubDatabase;
 
 /**
  * The list of all event sources the hub knows about (Plan/02-sources.md).
@@ -37,9 +39,14 @@ final class SourceRegistry
      * next to missed calls; their queue names and the wait thresholds are injected by the AMI worker.
      *
      * Stage 3b: one ModuleStatusSource per kind of problem (a wizard scenario); all read `/status` only.
+     * Stage 4s-C: the PBX configuration, external IP and license sources take their thresholds from the
+     * hub settings through lazy closures (Lib/Settings/HubSettings).
      */
     public static function default(): self
     {
+        // stage 4s-C thresholds live in HubSettings; the closures are resolved lazily at poll/tick time
+        // so the registry itself stays Core-free and instantiable in unit checks
+        $settings = static fn (): HubSettings => new HubSettings(new PhalconHubDatabase());
         $sources = [
             new Core\MissedCallSource(),
             new Core\VoicemailSource(),
@@ -49,6 +56,12 @@ final class SourceRegistry
             new Core\ProviderStatusSource(),
             new Core\PbxStartedSource(),
             new Core\AdviceSource(),
+            new Core\ConfigChangeSource(static fn (): int => $settings()->configChangeQuietSec()),
+            new Core\ExternalIpSource(static fn (): int => $settings()->externalIpPollMin()),
+            new Core\LicenseExpirySource(
+                static fn (): int => $settings()->licensePollHours(),
+                static fn (): array => $settings()->licenseWarnDays()
+            ),
             new Modules\AiAttentionCallSource(
                 static fn (): array => \Modules\ModuleMessengerHub\Lib\Support\InternalNumbersLoader::load()
             ),

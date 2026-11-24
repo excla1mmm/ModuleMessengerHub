@@ -121,7 +121,7 @@ const MAP = [
 
 // ======================= registry =======================
 $registry = SourceRegistry::default();
-check(count($registry->all()) === 17, 'registry: seventeen sources (8 core + 9 module)');
+check(count($registry->all()) === 20, 'registry: seventeen sources (8 core + 9 module)');
 check($registry->find(AiAttentionCallSource::ID) instanceof AiAttentionCallSource, 'registry: attention_call');
 check($registry->find('local_stt.workers') !== null, 'registry: local STT workers');
 check($registry->find('local_stt.backlog') !== null, 'registry: local STT backlog');

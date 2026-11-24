@@ -1,0 +1,45 @@
+{
+  "@attributes": {
+    "companyname": "Example LLC",
+    "contact": "Ivan Ivanov",
+    "email": "admin@example.com",
+    "tel": "+7 900 000-00-00",
+    "key": "MIKO-AAAAA-BBBBB-CCCCC-DDDDD"
+  },
+  "product": [
+    {
+      "@attributes": {
+        "name": "MikoPBX",
+        "expired": "2026-12-31",
+        "trial": "0"
+      },
+      "feature": [
+        {
+          "@attributes": {
+            "name": "MikoPBX license",
+            "count": "1",
+            "counteach": "0",
+            "captured": "1"
+          }
+        }
+      ]
+    },
+    {
+      "@attributes": {
+        "name": "Smart IVR",
+        "expired": "2027-03-15",
+        "trial": "0"
+      },
+      "feature": [
+        {
+          "@attributes": {
+            "name": "IVR builder",
+            "count": "3",
+            "counteach": "1",
+            "captured": "0"
+          }
+        }
+      ]
+    }
+  ]
+}
