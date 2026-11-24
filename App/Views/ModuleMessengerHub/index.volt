@@ -208,6 +208,16 @@
                     <input id="mh-max-ca-input" class="mh-input-s mh-mono" type="text" autocomplete="off" spellcheck="false" placeholder="{{ t._('module_messenger_hub_SettingsMaxCaNone') }}">
                     <span class="mh-help" id="mh-max-ca-help">{{ t._('module_messenger_hub_SettingsMaxCaHelp') }}</span>
                 </div>
+                <div class="field" id="mh-queue-min-wait-field">
+                    <label for="mh-queue-min-wait-input">{{ t._('module_messenger_hub_SettingsQueueMinWait') }}</label>
+                    <input id="mh-queue-min-wait-input" class="mh-input-xs" type="number" min="0" max="3600" step="1" value="0">
+                    <span class="mh-help" id="mh-queue-min-wait-help">{{ t._('module_messenger_hub_SettingsQueueMinWaitHelp') }}</span>
+                </div>
+                <div class="field" id="mh-queue-long-wait-field">
+                    <label for="mh-queue-long-wait-input">{{ t._('module_messenger_hub_SettingsQueueLongWait') }}</label>
+                    <input id="mh-queue-long-wait-input" class="mh-input-xs" type="number" min="0" max="3600" step="1" value="0">
+                    <span class="mh-help" id="mh-queue-long-wait-help">{{ t._('module_messenger_hub_SettingsQueueLongWaitHelp') }}</span>
+                </div>
             </form>
             <span class="mh-meta">{{ t._('module_messenger_hub_SettingsPrivacy') }}</span>
         </section>

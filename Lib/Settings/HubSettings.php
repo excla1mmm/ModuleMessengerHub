@@ -29,6 +29,10 @@ final class HubSettings
     public const string PROXY_URL = 'proxy_url';
     public const string MAX_CA_BUNDLE_PATH = 'max_ca_bundle_path';
 
+    /** Stage 4s-B: queue wait thresholds of core.queue_abandoned (seconds, 0 disables the check). */
+    public const string QUEUE_ABANDON_MIN_WAIT_SEC = 'queue_abandon_min_wait_sec';
+    public const string QUEUE_LONG_WAIT_SEC = 'queue_long_wait_sec';
+
     public const array SECRET_KEYS = [self::HUB_API_KEY];
 
     public const array DEFAULTS = [
@@ -38,11 +42,17 @@ final class HubSettings
         self::MASK_PHONE_DEFAULT => '0',
         self::PROXY_URL => '',
         self::MAX_CA_BUNDLE_PATH => '',
+        self::QUEUE_ABANDON_MIN_WAIT_SEC => '0',
+        self::QUEUE_LONG_WAIT_SEC => '0',
     ];
 
     /** Agreed bounds of the journal retention (Plan/06, settings resource). */
     public const int RETENTION_MIN_DAYS = 1;
     public const int RETENTION_MAX_DAYS = 365;
+
+    /** Agreed bounds of the queue wait thresholds (Plan/02, 4s-B): 0 = the check is off. */
+    public const int QUEUE_WAIT_MIN_SEC = 0;
+    public const int QUEUE_WAIT_MAX_SEC = 3600;
 
     public function __construct(private readonly HubDatabase $db)
     {
@@ -100,5 +110,27 @@ final class HubSettings
     public function maxCaBundlePath(): string
     {
         return trim($this->get(self::MAX_CA_BUNDLE_PATH));
+    }
+
+    /** Minimum queue wait (seconds) before an unanswered queue leg is reported; 0 = any abandonment. */
+    public function queueAbandonMinWaitSec(): int
+    {
+        return $this->waitSec(self::QUEUE_ABANDON_MIN_WAIT_SEC);
+    }
+
+    /** Optional "long wait" threshold of a queue leg, answered or not; 0 = off. */
+    public function queueLongWaitSec(): int
+    {
+        return $this->waitSec(self::QUEUE_LONG_WAIT_SEC);
+    }
+
+    private function waitSec(string $key): int
+    {
+        $value = trim($this->get($key));
+        if ($value === '' || preg_match('/^\d+$/', $value) !== 1) {
+            return (int)(self::DEFAULTS[$key] ?? '0');
+        }
+
+        return max(self::QUEUE_WAIT_MIN_SEC, min(self::QUEUE_WAIT_MAX_SEC, (int)$value));
     }
 }

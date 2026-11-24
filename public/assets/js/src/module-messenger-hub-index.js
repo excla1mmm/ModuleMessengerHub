@@ -669,6 +669,18 @@
                     return client + ' → ' + employees;
                 }
                 return client !== '' ? client : employees;
+            case 'core.queue_abandoned':
+                var queueCall = subject.call || {};
+                var queueText = queueLabel(queueCall);
+                return queueText !== '' ? queueText : String(subject.client_number || '');
+            case 'core.call_out_of_hours':
+                return String(subject.client_number || (subject.call && subject.call.did) || '');
+            case 'core.park_timeout':
+                var parkCall = subject.call || {};
+                var parkText = parkCall.park_slot ? tf('module_messenger_hub_MessageParkSlot', { slot: parkCall.park_slot }) : '';
+                var parkClient = String(subject.client_number || '');
+                if (parkText !== '' && parkClient !== '') { return parkText + ' · ' + parkClient; }
+                return parkText !== '' ? parkText : parkClient;
             case 'ai_supervisor.attention_call':
                 if (facts.scores && facts.scores.quality !== null && facts.scores.quality !== undefined) {
                     return tf('module_messenger_hub_BriefScore', { score: facts.scores.quality });
@@ -695,6 +707,14 @@
                 }
                 return facts.summary || '';
         }
+    }
+
+    // "Продажи (800)" from a queue event; the queue name is optional (Core CallQueues may be empty).
+    function queueLabel(call) {
+        var number = String((call && call.queue_number) || '').trim();
+        var name = String((call && call.queue_name) || '').trim();
+        if (name === '') { return number; }
+        return number === '' ? name : name + ' (' + number + ')';
     }
 
     // «Портнов Алексей» (204) → «Портнов А. (204)», as in the journal mockup
@@ -1993,6 +2013,10 @@
             $('#mh-public-url-input').val(data.pbx_public_url || '');
             $('#mh-proxy-input').val(data.proxy_url || '');
             $('#mh-max-ca-input').val(data.max_ca_bundle_path || '');
+            $('#mh-queue-min-wait-input').val(data.queue_abandon_min_wait_sec || 0);
+            $('#mh-queue-long-wait-input').val(data.queue_long_wait_sec || 0);
+            clearFieldError('#mh-queue-min-wait-field');
+            clearFieldError('#mh-queue-long-wait-field');
             clearFieldError('#mh-max-ca-field');
             $('#mh-mask-default').toggleClass('checked', data.mask_phone_default === true);
             $('#mh-mask-default input').prop('checked', data.mask_phone_default === true);
@@ -2067,6 +2091,32 @@
             $('#mh-mask-default').toggleClass('checked', !checked);
             showToast(t('module_messenger_hub_CommonSaveFailed'));
         });
+    }
+
+    // Queue wait thresholds (0..3600 s). 0 turns the check off; the source clamps again on its side.
+    function saveQueueWait(inputSelector, fieldSelector, key) {
+        var raw = String($(inputSelector).val() || '').trim();
+        var seconds = /^\d+$/.test(raw) ? parseInt(raw, 10) : -1;
+        var previous = state.settings ? Number(state.settings[key] || 0) : 0;
+        if (seconds < 0 || seconds > 3600) {
+            markFieldError(fieldSelector, t('module_messenger_hub_SettingsQueueWaitError'));
+            $(inputSelector).val(previous);
+            return;
+        }
+        clearFieldError(fieldSelector);
+        var payload = {};
+        payload[key] = seconds;
+        saveSetting(payload, fieldSelector, function () {
+            $(inputSelector).val(previous);
+        });
+    }
+
+    function saveQueueMinWait() {
+        saveQueueWait('#mh-queue-min-wait-input', '#mh-queue-min-wait-field', 'queue_abandon_min_wait_sec');
+    }
+
+    function saveQueueLongWait() {
+        saveQueueWait('#mh-queue-long-wait-input', '#mh-queue-long-wait-field', 'queue_long_wait_sec');
     }
 
     function fmtCountdown(seconds) {
@@ -2611,6 +2661,9 @@
     var SCENARIO_ICON_BY_SOURCE = {
         'core.missed_call': 'phone',
         'core.voicemail': 'mic',
+        'core.queue_abandoned': 'phone',
+        'core.call_out_of_hours': 'warning',
+        'core.park_timeout': 'phone',
         'ai_supervisor.attention_call': 'sparkle',
         'ai_supervisor.workers': 'robot',
         'local_stt.workers': 'mic',
@@ -3447,6 +3500,8 @@
         $('#mh-proxy-input').on('change', saveProxy);
         $('#mh-max-ca-input').on('change', saveMaxCaBundle);
         $('#mh-mask-default input').on('change', saveMaskDefault);
+        $('#mh-queue-min-wait-input').on('change', saveQueueMinWait);
+        $('#mh-queue-long-wait-input').on('change', saveQueueLongWait);
 
         bindBotsContainer();
         bindChatFound();

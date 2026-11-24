@@ -110,6 +110,8 @@ final class Processor
             'mask_phone_default' => $this->settings()->maskPhoneDefault(),
             'proxy_url' => $this->settings()->proxyUrl(),
             'max_ca_bundle_path' => $this->settings()->maxCaBundlePath(),
+            'queue_abandon_min_wait_sec' => $this->settings()->queueAbandonMinWaitSec(),
+            'queue_long_wait_sec' => $this->settings()->queueLongWaitSec(),
         ];
     }
 
@@ -129,6 +131,8 @@ final class Processor
             'mask_phone_default' => HubSettings::DEFAULTS[HubSettings::MASK_PHONE_DEFAULT] === '1',
             'proxy_url' => (string)HubSettings::DEFAULTS[HubSettings::PROXY_URL],
             'max_ca_bundle_path' => (string)HubSettings::DEFAULTS[HubSettings::MAX_CA_BUNDLE_PATH],
+            'queue_abandon_min_wait_sec' => (int)HubSettings::DEFAULTS[HubSettings::QUEUE_ABANDON_MIN_WAIT_SEC],
+            'queue_long_wait_sec' => (int)HubSettings::DEFAULTS[HubSettings::QUEUE_LONG_WAIT_SEC],
         ];
     }
 
@@ -209,6 +213,17 @@ final class Processor
             throw new ValidationException('max_ca_bundle_path_required', 'max_ca_bundle_path');
         }
 
+        // Stage 4s-B source options: optional even in a full replacement, so existing clients that
+        // PUT the stage-2 payload keep working; PATCH is what the interface uses.
+        $queueMinWait = null;
+        if (array_key_exists('queue_abandon_min_wait_sec', $data)) {
+            $queueMinWait = $this->waitSecValue($data['queue_abandon_min_wait_sec'], 'queue_abandon_min_wait_sec');
+        }
+        $queueLongWait = null;
+        if (array_key_exists('queue_long_wait_sec', $data)) {
+            $queueLongWait = $this->waitSecValue($data['queue_long_wait_sec'], 'queue_long_wait_sec');
+        }
+
         $now = time();
         $sourcesChanged = false;
         foreach ($updates as $sourceId => $enabled) {
@@ -242,6 +257,14 @@ final class Processor
         if ($caBundle !== null && $current['max_ca_bundle_path'] !== $caBundle) {
             $this->settings()->set(HubSettings::MAX_CA_BUNDLE_PATH, $caBundle);
             $changed[] = 'max_ca_bundle_path';
+        }
+        if ($queueMinWait !== null && $current['queue_abandon_min_wait_sec'] !== $queueMinWait) {
+            $this->settings()->set(HubSettings::QUEUE_ABANDON_MIN_WAIT_SEC, (string)$queueMinWait);
+            $changed[] = 'queue_abandon_min_wait_sec';
+        }
+        if ($queueLongWait !== null && $current['queue_long_wait_sec'] !== $queueLongWait) {
+            $this->settings()->set(HubSettings::QUEUE_LONG_WAIT_SEC, (string)$queueLongWait);
+            $changed[] = 'queue_long_wait_sec';
         }
         if ($sourcesChanged) {
             $this->syncApiKey();
@@ -431,6 +454,23 @@ final class Processor
         }
 
         return $path;
+    }
+
+    /** Queue wait threshold in seconds: an integer 0..3600, 0 = the check is off. @param mixed $value */
+    private function waitSecValue($value, string $field): int
+    {
+        if (is_bool($value) || is_array($value) || $value === null || (is_string($value) && trim($value) === '')) {
+            throw new ValidationException('invalid_wait_seconds', $field);
+        }
+        if (!is_int($value) && (!is_string($value) || !preg_match('/^\d+$/', $value))) {
+            throw new ValidationException('invalid_wait_seconds', $field);
+        }
+        $seconds = (int)$value;
+        if ($seconds < HubSettings::QUEUE_WAIT_MIN_SEC || $seconds > HubSettings::QUEUE_WAIT_MAX_SEC) {
+            throw new ValidationException('invalid_wait_seconds', $field);
+        }
+
+        return $seconds;
     }
 
     private function settings(): HubSettings
