@@ -483,6 +483,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => 'Pilvipuheentunnistuksen häiriö on suljettu',
     'module_messenger_hub_MessageStatusPausedUser' => 'Ylläpitäjä keskeytti käsittelyn',
     'module_messenger_hub_MessageStatusPausedMaintenance' => 'Käsittely on keskeytetty huollon ajaksi',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => 'Käsittely on pysäytetty: palautus on estetty, järjestelmänvalvojan on tarkistettava se',
     'module_messenger_hub_MessageStatusResumed' => 'Käsittely jatkuu',
     'module_messenger_hub_MessageStatusCloudAiManual' => 'Analyysi keskeytettiin käsin',
     'module_messenger_hub_MessageStatusCloudAiLicense' => 'Pilvi-AI:n lisenssi puuttuu',

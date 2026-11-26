@@ -483,6 +483,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => 'A felhő beszédfelismerési incidenst lezárták',
     'module_messenger_hub_MessageStatusPausedUser' => 'A feldolgozást egy adminisztrátor szüneteltette',
     'module_messenger_hub_MessageStatusPausedMaintenance' => 'A feldolgozás karbantartás miatt szünetel',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => 'A feldolgozás leállt: a helyreállítás blokkolva van, rendszergazdai ellenőrzés szükséges',
     'module_messenger_hub_MessageStatusResumed' => 'A feldolgozás folytatódott',
     'module_messenger_hub_MessageStatusCloudAiManual' => 'Az elemzést kézzel szüneteltették',
     'module_messenger_hub_MessageStatusCloudAiLicense' => 'Hiányzik a felhő AI licenc',

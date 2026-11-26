@@ -483,6 +483,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => 'Incidentul de recunoaștere vocală în cloud a fost închis',
     'module_messenger_hub_MessageStatusPausedUser' => 'Procesarea a fost suspendată de un administrator',
     'module_messenger_hub_MessageStatusPausedMaintenance' => 'Procesarea este suspendată pentru mentenanță',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => 'Procesarea este oprită: recuperarea este blocată, un administrator trebuie să o verifice',
     'module_messenger_hub_MessageStatusResumed' => 'Procesarea a fost reluată',
     'module_messenger_hub_MessageStatusCloudAiManual' => 'Analiza a fost suspendată manual',
     'module_messenger_hub_MessageStatusCloudAiLicense' => 'Lipsește licența AI în cloud',

@@ -483,6 +483,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => 'Үүлэн яриа таних доголдол хаагдлаа',
     'module_messenger_hub_MessageStatusPausedUser' => 'Администратор боловсруулалтыг түр зогсоосон',
     'module_messenger_hub_MessageStatusPausedMaintenance' => 'Боловсруулалт засвар үйлчилгээний улмаас түр зогссон',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => 'Боловсруулалт зогссон: сэргээлт хаагдсан, администратор шалгах шаардлагатай',
     'module_messenger_hub_MessageStatusResumed' => 'Боловсруулалт үргэлжиллээ',
     'module_messenger_hub_MessageStatusCloudAiManual' => 'Шинжилгээг гараар түр зогсоосон',
     'module_messenger_hub_MessageStatusCloudAiLicense' => 'Үүлэн AI-ийн лиценз байхгүй',

@@ -14,6 +14,9 @@
 - `docs/publishing.md` checklist updated.
 
 ### Fixed
+- Cloud STT pause with the reason `recovery_blocked` (CloudSTT `/status`, `critical`, state `down`) has its own
+  text in the message and the wizard preview instead of «The module state changed»; its `critical` severity from
+  `/status` is kept (EGOR-38).
 - Core keeps the old permissions of the hub key in its token cache for about 5 minutes after a key change
   (also inside its own API worker). For 6 minutes after the hub creates, updates or repairs its key, and on the
   first collector pass after install or update, `api_unauthorized`/`api_forbidden` from source polls are treated

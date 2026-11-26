@@ -483,6 +483,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => 'Bulut konuşma tanıma arızası kapatıldı',
     'module_messenger_hub_MessageStatusPausedUser' => 'İşlemeyi bir yönetici duraklattı',
     'module_messenger_hub_MessageStatusPausedMaintenance' => 'İşleme bakım için duraklatıldı',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => 'İşleme durduruldu: kurtarma engellendi, bir yöneticinin kontrol etmesi gerekiyor',
     'module_messenger_hub_MessageStatusResumed' => 'İşleme devam edildi',
     'module_messenger_hub_MessageStatusCloudAiManual' => 'Analiz elle duraklatıldı',
     'module_messenger_hub_MessageStatusCloudAiLicense' => 'Bulut YZ lisansı yok',

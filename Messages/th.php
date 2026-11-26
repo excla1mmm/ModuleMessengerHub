@@ -483,6 +483,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => 'เหตุการณ์ผิดปกติในการรู้จำเสียงบนคลาวด์ถูกปิดแล้ว',
     'module_messenger_hub_MessageStatusPausedUser' => 'ผู้ดูแลระบบหยุดการประมวลผล',
     'module_messenger_hub_MessageStatusPausedMaintenance' => 'การประมวลผลหยุดชั่วคราวเพื่อบำรุงรักษา',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => 'การประมวลผลหยุดแล้ว: การกู้คืนถูกบล็อก ผู้ดูแลระบบต้องตรวจสอบ',
     'module_messenger_hub_MessageStatusResumed' => 'การประมวลผลกลับมาทำงาน',
     'module_messenger_hub_MessageStatusCloudAiManual' => 'การวิเคราะห์ถูกหยุดด้วยตนเอง',
     'module_messenger_hub_MessageStatusCloudAiLicense' => 'ไม่มีไลเซนส์ AI บนคลาวด์',

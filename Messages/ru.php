@@ -506,6 +506,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => 'Инцидент облачного распознавания закрыт',
     'module_messenger_hub_MessageStatusPausedUser' => 'Обработка приостановлена администратором',
     'module_messenger_hub_MessageStatusPausedMaintenance' => 'Обработка приостановлена на время обслуживания',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => 'Обработка остановлена: восстановление заблокировано, нужна проверка администратора',
     'module_messenger_hub_MessageStatusResumed' => 'Обработка возобновлена',
     'module_messenger_hub_MessageStatusCloudAiManual' => 'Анализ приостановлен вручную',
     'module_messenger_hub_MessageStatusCloudAiLicense' => 'Нет лицензии на облачный ИИ',

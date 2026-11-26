@@ -483,6 +483,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => 'El incidente de reconocimiento de voz en la nube se cerró',
     'module_messenger_hub_MessageStatusPausedUser' => 'El administrador puso el procesamiento en pausa',
     'module_messenger_hub_MessageStatusPausedMaintenance' => 'El procesamiento está en pausa por mantenimiento',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => 'El procesamiento se ha detenido: la recuperación está bloqueada, un administrador debe revisarla',
     'module_messenger_hub_MessageStatusResumed' => 'El procesamiento se reanudó',
     'module_messenger_hub_MessageStatusCloudAiManual' => 'El análisis se pausó manualmente',
     'module_messenger_hub_MessageStatusCloudAiLicense' => 'Falta la licencia de IA en la nube',

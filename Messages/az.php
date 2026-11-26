@@ -483,6 +483,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => 'Bulud nitqin tanınması insidenti bağlandı',
     'module_messenger_hub_MessageStatusPausedUser' => 'Emal administrator tərəfindən dayandırıldı',
     'module_messenger_hub_MessageStatusPausedMaintenance' => 'Emal texniki xidmət üçün dayandırıldı',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => 'Emal dayandırıldı: bərpa bloklanıb, administrator yoxlamalıdır',
     'module_messenger_hub_MessageStatusResumed' => 'Emal bərpa olundu',
     'module_messenger_hub_MessageStatusCloudAiManual' => 'Analiz əl ilə dayandırıldı',
     'module_messenger_hub_MessageStatusCloudAiLicense' => 'Bulud AI lisenziyası yoxdur',

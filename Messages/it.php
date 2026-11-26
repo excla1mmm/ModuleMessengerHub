@@ -483,6 +483,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => 'Incidente di riconoscimento vocale cloud chiuso',
     'module_messenger_hub_MessageStatusPausedUser' => 'Elaborazione messa in pausa da un amministratore',
     'module_messenger_hub_MessageStatusPausedMaintenance' => 'Elaborazione in pausa per manutenzione',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => 'Elaborazione interrotta: il ripristino è bloccato, è necessario un controllo dell’amministratore',
     'module_messenger_hub_MessageStatusResumed' => 'Elaborazione ripresa',
     'module_messenger_hub_MessageStatusCloudAiManual' => 'Analisi messa in pausa manualmente',
     'module_messenger_hub_MessageStatusCloudAiLicense' => 'Manca la licenza IA cloud',

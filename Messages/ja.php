@@ -483,6 +483,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => 'クラウド音声認識のインシデントは終了しました',
     'module_messenger_hub_MessageStatusPausedUser' => '管理者が処理を一時停止しました',
     'module_messenger_hub_MessageStatusPausedMaintenance' => 'メンテナンスのため処理を一時停止しています',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => '処理が停止しました: 復旧がブロックされています。管理者による確認が必要です',
     'module_messenger_hub_MessageStatusResumed' => '処理を再開しました',
     'module_messenger_hub_MessageStatusCloudAiManual' => '分析が手動で一時停止されました',
     'module_messenger_hub_MessageStatusCloudAiLicense' => 'クラウドAIのライセンスがありません',

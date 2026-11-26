@@ -538,6 +538,23 @@ statusPass($cloudBoth, new StatusPathReader([$cloudSttPath => statusFixture('clo
 check((statusRows($hp)[1]['event_type'] ?? '') === 'cloud_stt.resumed', 'cloud STT: resume event');
 check((statusRows($hp)[1]['severity'] ?? '') === HubEvent::SEVERITY_INFO, 'cloud STT: resume is info');
 
+// recovery block (CloudSTT 1.120+ develop): `processing_paused` / `recovery_blocked`, the module says critical
+$hr = hubTestDatabase();
+$rs = new SourceStateRepository($hr);
+$re = new EventStore($hr);
+statusPass($cloudBoth, new StatusPathReader([$cloudSttPath => statusFixture('cloud-stt-ok')]), $rs, $re, $t);
+statusPass($cloudBoth, new StatusPathReader([$cloudSttPath => statusFixture('cloud-stt-recovery-blocked')]), $rs, $re, $t + 60);
+$row = onlyEvent(statusRows($hr));
+check(($row['event_type'] ?? '') === 'cloud_stt.paused', 'cloud STT: a recovery block is a pause event');
+check(($row['severity'] ?? '') === HubEvent::SEVERITY_CRITICAL, 'cloud STT: a recovery block keeps the critical severity of /status');
+check(($row['dedupe_key'] ?? '') === 'cloud_stt.paused:processing_paused:recovery_blocked:1793200000', 'cloud STT: recovery block key');
+check(($row['payload']['subject']['module_status']['ref'] ?? '') === 'recovery_blocked', 'cloud STT: recovery block ref in the payload');
+statusPass($cloudBoth, new StatusPathReader([$cloudSttPath => statusFixture('cloud-stt-ok')]), $rs, $re, $t + 120);
+check(
+    (statusRows($hr)[1]['event_type'] ?? '') === 'cloud_stt.resumed' && (statusRows($hr)[1]['severity'] ?? '') === HubEvent::SEVERITY_INFO,
+    'cloud STT: a lifted recovery block resumes as info'
+);
+
 // ======================= cloud AI: silent not_configured, reason severities =======================
 $ha = hubTestDatabase();
 $as = new SourceStateRepository($ha);
@@ -1072,6 +1089,28 @@ $resumedEvent = new HubEvent(
 $renderedResumed = $templates->forEvent('cloud_stt.resumed')?->render($resumedEvent, $context);
 check(str_contains($renderedResumed?->title ?? '', 'возобновлено'), 'template: resume title');
 check(in_array('Обработка возобновлена', $renderedResumed?->lines ?? [], true), 'template: resume line');
+
+// Cloud STT recovery block: the reason has its own words, never the neutral "state changed" line
+$profileCloudPause = ModuleStatusSource::profileFor(ModuleStatusSource::SOURCE_CLOUD_STT_PAUSED);
+$blockedOnset = $profileCloudPause === null ? null : ModuleStatusSource::buildBatch(
+    $profileCloudPause,
+    ModuleStatusSource::snapshot(statusFixture('cloud-stt-recovery-blocked')),
+    ['issues' => [], 'state' => 'ok', 'counters' => []],
+    $t
+);
+$blockedEvent = $blockedOnset?->events[0] ?? null;
+check($blockedEvent?->severity === HubEvent::SEVERITY_CRITICAL, 'template fixture: recovery block onset is critical');
+$renderedBlocked = $blockedEvent === null ? null : $templates->forEvent($blockedEvent->eventType)?->render($blockedEvent, $context);
+$blockedLines = $renderedBlocked?->lines ?? [];
+check(
+    in_array('Обработка остановлена: восстановление заблокировано, нужна проверка администратора', $blockedLines, true),
+    'template: recovery block reason in words'
+);
+check(
+    !in_array('Изменилось состояние модуля', $blockedLines, true)
+    && !str_contains(implode(' ', $blockedLines) . ($renderedBlocked?->title ?? ''), 'recovery_blocked'),
+    'template: recovery block is neither the neutral fallback nor the raw ref'
+);
 
 // the AI Supervisor event type keeps working when the payload comes from /status
 $aiStatusSnapshot = ModuleStatusSource::snapshot(statusFixture('ai-supervisor-status'));

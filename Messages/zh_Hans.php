@@ -483,6 +483,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => '云端语音识别故障已关闭',
     'module_messenger_hub_MessageStatusPausedUser' => '管理员暂停了处理',
     'module_messenger_hub_MessageStatusPausedMaintenance' => '因维护暂停处理',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => '处理已停止：恢复被阻止，需要管理员检查',
     'module_messenger_hub_MessageStatusResumed' => '处理已恢复',
     'module_messenger_hub_MessageStatusCloudAiManual' => '分析已手动暂停',
     'module_messenger_hub_MessageStatusCloudAiLicense' => '缺少云端 AI 许可证',

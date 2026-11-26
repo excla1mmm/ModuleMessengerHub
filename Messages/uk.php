@@ -483,6 +483,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => 'Інцидент хмарного розпізнавання мовлення закрито',
     'module_messenger_hub_MessageStatusPausedUser' => 'Обробку призупинив адміністратор',
     'module_messenger_hub_MessageStatusPausedMaintenance' => 'Обробку призупинено на час обслуговування',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => 'Обробку зупинено: відновлення заблоковано, потрібна перевірка адміністратора',
     'module_messenger_hub_MessageStatusResumed' => 'Обробку відновлено',
     'module_messenger_hub_MessageStatusCloudAiManual' => 'Аналіз призупинено вручну',
     'module_messenger_hub_MessageStatusCloudAiLicense' => 'Немає ліцензії на хмарний ШІ',
