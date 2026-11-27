@@ -14,6 +14,13 @@
 - `docs/publishing.md` checklist updated.
 
 ### Fixed
+- Voicemail audio was never delivered for a real message: Core publishes the `.webm` name before
+  WorkerWav2Webm creates it, so preflight saw `attachment.path_missing` and sent the "unavailable" line.
+  `PathGuard` now takes the `.wav` INBOX copy (then `.webm`, `.mp3`); a `.wav` removed under the converter
+  is retried and picks up the finished `.webm`.
+- Security: for `core.voicemail` only `<monitor>/Y/m/d/INBOX/<linkedid>.(webm|wav|mp3)` of the event's own
+  call is accepted, so a forged `voicemail_end` can no longer send another call recording to a chat.
+  Roots are checked right after `realpath()`, before the file size.
 - Core keeps the old permissions of the hub key in its token cache for about 5 minutes after a key change
   (also inside its own API worker). For 6 minutes after the hub creates, updates or repairs its key, and on the
   first collector pass after install or update, `api_unauthorized`/`api_forbidden` from source polls are treated

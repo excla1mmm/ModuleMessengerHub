@@ -36,7 +36,11 @@ final class RecordingLocator
     {
         $source = $plan->source;
         if (($source['type'] ?? '') === 'path') {
-            $resolved = $this->paths->resolve((string)($source['path'] ?? ''), $plan->probe);
+            $resolved = $this->paths->resolve(
+                (string)($source['path'] ?? ''),
+                $plan->probe,
+                (string)($source['linkedid'] ?? '')
+            );
             if (isset($resolved['path'], $resolved['bytes'])) {
                 return new LocateResult(path: $resolved['path'], bytes: $resolved['bytes']);
             }
