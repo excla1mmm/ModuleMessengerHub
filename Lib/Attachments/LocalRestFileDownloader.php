@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Modules\ModuleMessengerHub\Lib\Attachments;
 
+use Modules\ModuleMessengerHub\Lib\Api\LocalRestBase;
+
 /**
- * Core REST downloader over http://127.0.0.1 (call recording by one-time token).
+ * Core REST downloader over http://127.0.0.1:<WEBPort> (call recording by one-time token).
  *
+ * - the base URL comes from LocalRestBase (workers: Lib/Support/CoreWebPort::baseUrl()), any other base is refused;
  * - only `/pbxcore/api/v3/...` paths are accepted; no redirects are followed (SSRF guard);
- * - TLS verification is never disabled (the local URL is HTTP anyway);
+ * - plain HTTP only and no proxy from the environment: the key and the token stay on the PBX;
  * - the URL and query carry the playback token, so nothing here logs or throws them;
  * - the destination is written directly and removed on any failure.
  */
@@ -16,14 +19,14 @@ final class LocalRestFileDownloader implements RestFileDownloader
 {
     public function __construct(
         private readonly string $apiKey,
-        private readonly string $baseUrl = 'http://127.0.0.1',
+        private readonly string $baseUrl,
         private readonly int $timeoutSec = 900,
     ) {
     }
 
     public function download(string $pathAndQuery, string $destination, int $maxBytes): string
     {
-        if (!str_starts_with($pathAndQuery, '/pbxcore/api/v3/cdr:')) {
+        if (!str_starts_with($pathAndQuery, '/pbxcore/api/v3/cdr:') || !LocalRestBase::isLocal($this->baseUrl)) {
             return 'api_bad_path';
         }
         $handle = @fopen($destination, 'wb');
@@ -65,9 +68,9 @@ final class LocalRestFileDownloader implements RestFileDownloader
             CURLOPT_LOW_SPEED_LIMIT => 1024, // a stalled CDR/S3 transfer aborts instead of hanging
             CURLOPT_LOW_SPEED_TIME => 60,
             CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_PROTOCOLS => CURLPROTO_HTTP,
+            // http_proxy/all_proxy from the environment must not receive the Bearer key and the token
+            CURLOPT_PROXY => '',
             CURLOPT_HTTPHEADER => $headers,
         ]);
         $ok = curl_exec($curl);

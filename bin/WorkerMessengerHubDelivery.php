@@ -37,6 +37,7 @@ use Modules\ModuleMessengerHub\Lib\Storage\HubDatabase;
 use Modules\ModuleMessengerHub\Lib\Storage\PhalconHubDatabase;
 use Modules\ModuleMessengerHub\Lib\Support\ArrayTexts;
 use Modules\ModuleMessengerHub\Lib\Support\CoreTexts;
+use Modules\ModuleMessengerHub\Lib\Support\CoreWebPort;
 use Modules\ModuleMessengerHub\Lib\Support\HubLogger;
 use Modules\ModuleMessengerHub\Lib\Support\Texts;
 use Throwable;
@@ -156,12 +157,14 @@ class WorkerMessengerHubDelivery extends WorkerBase
     {
         $temp = new TempDir($moduleRoot);
         $paths = new PathGuard(new CoreRecordingRoots($temp->probeDir()));
+        // re-read on every pipeline rebuild: a changed web port reaches the next rebuild
+        $baseUrl = CoreWebPort::baseUrl();
 
         return new AttachmentService(
             new Converter(new RealProcessRunner(), ToolFinder::system()),
             new RecordingLocator(
-                new LocalRestClient($apiKey),
-                new LocalRestFileDownloader($apiKey),
+                new LocalRestClient($apiKey, $baseUrl),
+                new LocalRestFileDownloader($apiKey, $baseUrl),
                 $paths
             ),
             $paths,

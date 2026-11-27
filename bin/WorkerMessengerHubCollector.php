@@ -26,6 +26,7 @@ use Modules\ModuleMessengerHub\Lib\Sources\SourceRegistry;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceTicker;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceStateRepository;
 use Modules\ModuleMessengerHub\Lib\Storage\PhalconHubDatabase;
+use Modules\ModuleMessengerHub\Lib\Support\CoreWebPort;
 use Modules\ModuleMessengerHub\Lib\Support\HubLogger;
 use Throwable;
 
@@ -52,13 +53,13 @@ class WorkerMessengerHubCollector extends WorkerBase
         $apiKey = new HubApiKey($settings);
         // one context and one guard for the whole worker lifetime: the 5-minute repair throttle must
         // survive the periodic collector rebuild, and a recreated key must reach the very next poll
-        $context = new SourceContext(new LocalRestClient(''));
+        $context = new SourceContext(new LocalRestClient('', CoreWebPort::baseUrl()));
         $keyGuard = new ApiKeyGuard(
             $apiKey,
             [],
             ApiKeyGuard::DEFAULT_WINDOW_SEC,
             static function (string $plainKey) use ($context): void {
-                $context->rest = new LocalRestClient($plainKey);
+                $context->rest = new LocalRestClient($plainKey, CoreWebPort::baseUrl());
             }
         );
         $waker = new BeanstalkDeliveryWaker();
@@ -100,7 +101,7 @@ class WorkerMessengerHubCollector extends WorkerBase
                         // station: 401 on the new /status paths until the TTL ended)
                         TokenValidationService::clearCache();
                     }
-                    $context->rest = new LocalRestClient($plainKey);
+                    $context->rest = new LocalRestClient($plainKey, CoreWebPort::baseUrl());
                     $keyGuard->updatePaths($paths);
                     $collector = new Collector(
                         $registry->pollSources(),
