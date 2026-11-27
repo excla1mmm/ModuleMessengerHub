@@ -20,6 +20,10 @@
   re-read on every client rebuild in the workers; an unreadable or invalid value falls back to 80 with one
   `web_port_*` error line). Both clients send the hub key only to that loopback base, ignore
   `http_proxy`/`all_proxy` from the environment and speak plain HTTP only (EGOR-50).
+- Admin UI: `esc()` now also escapes `"` and `'`, so AI summaries, caller numbers, rule titles and chat ids can no
+  longer break out of `title`/`aria-label`/`data-*` attributes in the journal and settings (stored XSS, EGOR-52).
+  Employee, provider and event-type names in Fomantic dropdowns are escaped too. The compiled JS ships without
+  an inline source map (597 KB → 162 KB).
 - Core keeps the old permissions of the hub key in its token cache for about 5 minutes after a key change
   (also inside its own API worker). For 6 minutes after the hub creates, updates or repairs its key, and on the
   first collector pass after install or update, `api_unauthorized`/`api_forbidden` from source polls are treated
