@@ -14,6 +14,12 @@
 - `docs/publishing.md` checklist updated.
 
 ### Fixed
+- The local Core REST client and the recording downloader used `http://127.0.0.1` (port 80) while nginx
+  listens only on the PBX web port: after a web port change every REST source stayed `api_unavailable` and
+  recordings were never downloaded. The base URL is now `http://127.0.0.1:<WEBPort>` (`PbxSettings::WEB_PORT`,
+  re-read on every client rebuild in the workers; an unreadable or invalid value falls back to 80 with one
+  `web_port_*` error line). Both clients send the hub key only to that loopback base, ignore
+  `http_proxy`/`all_proxy` from the environment and speak plain HTTP only (EGOR-50).
 - Core keeps the old permissions of the hub key in its token cache for about 5 minutes after a key change
   (also inside its own API worker). For 6 minutes after the hub creates, updates or repairs its key, and on the
   first collector pass after install or update, `api_unauthorized`/`api_forbidden` from source polls are treated
