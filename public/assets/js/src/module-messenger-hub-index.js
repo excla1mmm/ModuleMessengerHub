@@ -106,8 +106,14 @@
         return '<span class="mh-muted">' + esc(day) + '</span> ' + fmtTime(ts);
     }
 
+    // HTML-escapes text for element content and double- or single-quoted attributes alike.
     function esc(value) {
-        return $('<div/>').text(String(value === null || value === undefined ? '' : value)).html();
+        return String(value === null || value === undefined ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
     function startOfToday() {
@@ -239,9 +245,9 @@
     function menuToValues(items) {
         return items.map(function (item) {
             if (item.group) {
-                return { type: 'header', name: item.group };
+                return { type: 'header', name: esc(item.group) };
             }
-            return { name: item.text, value: item.value };
+            return { name: esc(item.text), value: item.value };
         });
     }
 
@@ -854,10 +860,10 @@
             var audio = attachmentLine(delivery);
             var rawCode = delivery.last_error_code || '';
             html += '<dt class="mh-truncate">' + esc(recipientTitle(delivery)) + '</dt>'
-                + '<dd' + (status.bad ? ' class="mh-error-text"' : '') + (rawCode !== '' ? ' title="' + esc(rawCode).replace(/"/g, '&quot;') + '"' : '') + '>'
+                + '<dd' + (status.bad ? ' class="mh-error-text"' : '') + (rawCode !== '' ? ' title="' + esc(rawCode) + '"' : '') + '>'
                 + esc(status.text)
                 + (audio ? '<div class="mh-meta' + (audio.bad ? ' mh-error-text' : '') + '"'
-                    + (audio.code !== '' ? ' title="' + esc(audio.code).replace(/"/g, '&quot;') + '"' : '') + '>' + esc(audio.text) + '</div>' : '')
+                    + (audio.code !== '' ? ' title="' + esc(audio.code) + '"' : '') + '>' + esc(audio.text) + '</div>' : '')
                 + '</dd>';
             if (delivery.status === 'failed' && !delivery.bot_deleted && !delivery.chat_deleted) {
                 retryable = true;
@@ -2989,7 +2995,7 @@
             var selectedUsers = w.filters.user_ids.map(String);
             $employees.dropdown({
                 values: state.employees.map(function (employee) {
-                    return { name: employee.label, value: String(employee.id), selected: selectedUsers.indexOf(String(employee.id)) >= 0 };
+                    return { name: esc(employee.label), value: String(employee.id), selected: selectedUsers.indexOf(String(employee.id)) >= 0 };
                 }),
                 placeholder: t('module_messenger_hub_FilterAll'),
                 fullTextSearch: true,
@@ -3005,7 +3011,7 @@
             var selectedProviders = w.filters.providers.map(String);
             $providers.dropdown({
                 values: state.providers.map(function (provider) {
-                    return { name: provider.label, value: String(provider.id), selected: selectedProviders.indexOf(String(provider.id)) >= 0 };
+                    return { name: esc(provider.label), value: String(provider.id), selected: selectedProviders.indexOf(String(provider.id)) >= 0 };
                 }),
                 placeholder: t('module_messenger_hub_FilterAll'),
                 fullTextSearch: true,

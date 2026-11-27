@@ -41,7 +41,7 @@ Lib/MessengerHubConf.php              Core hooks
 Lib/Events/                           HubEvent, EventStore (INSERT OR IGNORE on dedupe_key)
 Lib/Sources/                          SourceInterface, AmiEventSource, Collector, SourceRegistry (register adapters in default()),
                                       SourceRecorder (push sources), SourceStateRepository, availability
-Lib/Api/                              RestReader, LocalRestClient (127.0.0.1 + hub key), HubApiKey (own read-only Core key)
+Lib/Api/                              RestReader, LocalRestClient (127.0.0.1:<WEBPort> from LocalRestBase + hub key), HubApiKey (own read-only Core key)
 Lib/Settings/HubSettings.php          key/value settings, SECRET_KEYS
 Lib/Storage/                          HubDatabase port: PhalconHubDatabase (prod), PdoHubDatabase (Tests/support)
 Lib/Support/HubLogger.php             syslog lines, secrets masked (NOTICE is not visible on the station; errors use LOG_ERR)

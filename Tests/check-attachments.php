@@ -102,6 +102,25 @@ final class FakeRunner implements ProcessRunner
     }
 }
 
+/** A converter run during which WorkerWav2Webm deletes the voicemail `.wav` (the conversion fails). */
+final class VanishingRunner implements ProcessRunner
+{
+    /** @var list<list<string>> */
+    public array $commands = [];
+
+    public function __construct(private readonly string $vanish)
+    {
+    }
+
+    public function run(array $command, int $timeoutSec): ProcessResult
+    {
+        $this->commands[] = $command;
+        @unlink($this->vanish);
+
+        return new ProcessResult(1, false);
+    }
+}
+
 final class MapRest implements RestReader
 {
     /** @var array<string, array<mixed>|SourceException> */
@@ -410,7 +429,13 @@ $base = sys_get_temp_dir() . '/mh-attach-' . bin2hex(random_bytes(4));
 @mkdir($base . '/module/tmp', 0700, true);
 @mkdir($base . '/monitor', 0755, true);
 @mkdir($base . '/probe', 0700, true);
-file_put_contents($base . '/monitor/rec.webm', str_repeat('x', 128));
+file_put_contents($base . '/monitor/rec.webm', str_repeat('x', 128)); // a call recording, never a voicemail
+// Core VoiceMailConf::getCopyFilename: <monitor>/Y/m/d/INBOX/<linkedid>.wav, published as .webm
+$vmDir = $base . '/monitor/2026/11/27/INBOX';
+@mkdir($vmDir, 0755, true);
+$vmFile = $vmDir . '/v1.webm';
+file_put_contents($vmFile, str_repeat('x', 128));
+$vmSource = ['type' => 'path', 'path' => $vmFile, 'linkedid' => 'v1'];
 file_put_contents($base . '/probe/tone.mp3', str_repeat('y', 128));
 
 $texts = hubTestTexts();
@@ -419,12 +444,13 @@ $plannerNoLink = new AttachmentPlanner($texts, new LinkBuilder(''));
 $message = new RenderedMessage(title: '🎙 Голосовая почта');
 
 $plan = $plannerWithLink->plan(
-    event('core.voicemail', ['subject' => ['call' => ['linkedid' => 'v1']], 'attachments' => [['kind' => 'recording', 'path' => $base . '/monitor/rec.webm']]]),
+    event('core.voicemail', ['subject' => ['call' => ['linkedid' => 'v1']], 'attachments' => [['kind' => 'recording', 'path' => $vmFile]]]),
     rule('recording'),
     $message
 );
 check($plan !== null && $plan->available(), 'voicemail: recording plan');
 check($plan !== null && $plan->source['type'] === 'path', 'voicemail: source is the AMI path');
+check($plan !== null && ($plan->source['linkedid'] ?? '') === 'v1', 'voicemail: the path source is bound to the event linkedid');
 check($plan !== null && $plan->fragments === [], 'voicemail: the whole file');
 check($plan !== null && $plan->fallbackLine !== '', 'voicemail: fallback line present');
 check($plan !== null && $plan->captionBase !== '', 'voicemail: caption base has title and time');
@@ -489,24 +515,69 @@ check($probePlan !== null && $probePlan->probe === true, 'probe: the plan keeps 
 
 // ---------- 3. path allow-list ----------
 
+$guard = new PathGuard(new StaticRoots($base . '/monitor', $base . '/probe'));
+$ok = $guard->resolve($vmFile, false, 'v1');
+check(($ok['path'] ?? '') === realpath($vmFile), 'voicemail: the INBOX copy of the event call is allowed');
+check(($ok['bytes'] ?? 0) === 128, 'voicemail: the size is returned with the path');
+
+// the .webm is published before WorkerWav2Webm made it: the .wav copy is used (EGOR-53)
+file_put_contents($vmDir . '/v2.wav', str_repeat('w', 200));
+$ok = $guard->resolve($vmDir . '/v2.webm', false, 'v2');
+check(($ok['path'] ?? '') === realpath($vmDir . '/v2.wav'), 'voicemail: a not yet converted .webm falls back to the .wav sibling');
+// ffmpeg is writing the .webm: the complete .wav still wins
+file_put_contents($vmDir . '/v2.webm', 'partial');
+$ok = $guard->resolve($vmDir . '/v2.webm', false, 'v2');
+check(($ok['path'] ?? '') === realpath($vmDir . '/v2.wav'), 'voicemail: a .webm under conversion never wins over the .wav');
+// the conversion finished and the .wav is gone: the .webm is used
+@unlink($vmDir . '/v2.wav');
+$ok = $guard->resolve($vmDir . '/v2.webm', false, 'v2');
+check(($ok['path'] ?? '') === realpath($vmDir . '/v2.webm'), 'voicemail: after the conversion the .webm is used');
+// an empty .webm just opened by ffmpeg is skipped, not reported as the file
+file_put_contents($vmDir . '/v3.webm', '');
+file_put_contents($vmDir . '/v3.mp3', str_repeat('m', 64));
+$ok = $guard->resolve($vmDir . '/v3.webm', false, 'v3');
+check(($ok['path'] ?? '') === realpath($vmDir . '/v3.mp3'), 'voicemail: an empty sibling is skipped');
+check(($guard->resolve($vmDir . '/v-missing.webm', false, 'v-missing')['code'] ?? '') === PathGuard::CODE_MISSING, 'voicemail: no sibling at all is path_missing');
+
+// narrowing: only this event's voicemail, never another recording
+check(($guard->resolve($base . '/monitor/rec.webm', false, 'rec')['code'] ?? '') === PathGuard::CODE_REJECTED, 'voicemail: a call recording outside INBOX is rejected');
+check(($guard->resolve($vmFile, false, 'other-call')['code'] ?? '') === PathGuard::CODE_REJECTED, 'voicemail: a voicemail of another call is rejected');
+check(($guard->resolve($vmFile, false)['code'] ?? '') === PathGuard::CODE_REJECTED, 'voicemail: a path without the event linkedid is rejected');
+check(($guard->resolve($vmDir . '/..', false, '..')['code'] ?? '') === PathGuard::CODE_REJECTED, 'voicemail: a dot linkedid is rejected');
+file_put_contents($vmDir . '/v1.txt', 'x');
+check(($guard->resolve($vmDir . '/v1.txt', false, 'v1')['code'] ?? '') === PathGuard::CODE_REJECTED, 'voicemail: a foreign extension is rejected');
+@mkdir($base . '/monitor/2026/11/27/other', 0755, true);
+file_put_contents($base . '/monitor/2026/11/27/other/v1.wav', 'x');
+check(($guard->resolve($base . '/monitor/2026/11/27/other/v1.wav', false, 'v1')['code'] ?? '') === PathGuard::CODE_REJECTED, 'voicemail: a directory other than INBOX is rejected');
+
 $outside = $base . '/outside.txt';
 file_put_contents($outside, 'secret');
-file_put_contents($base . '/monitor/empty', '');
-@mkdir($base . '/monitor/dir');
-@symlink($outside, $base . '/monitor/link');
+@mkdir($base . '/outside/2026/11/27/INBOX', 0755, true);
+file_put_contents($base . '/outside/2026/11/27/INBOX/v1.wav', str_repeat('s', 64));
+check(($guard->resolve($base . '/monitor/../outside/2026/11/27/INBOX/v1.wav', false, 'v1')['code'] ?? '') === PathGuard::CODE_REJECTED, 'voicemail: traversal outside the root is rejected');
+@mkdir($base . '/monitor/2026/11/28', 0755, true);
+@symlink($base . '/outside/2026/11/27/INBOX', $base . '/monitor/2026/11/28/INBOX');
+check(($guard->resolve($base . '/monitor/2026/11/28/INBOX/v1.wav', false, 'v1')['code'] ?? '') === PathGuard::CODE_REJECTED, 'voicemail: an INBOX symlinked out of the root is rejected');
+@symlink($outside, $vmDir . '/v4.wav');
+check(($guard->resolve($vmDir . '/v4.webm', false, 'v4')['code'] ?? '') === PathGuard::CODE_REJECTED, 'voicemail: a symlinked sibling is rejected');
+@mkdir($vmDir . '/v5.wav');
+check(($guard->resolve($vmDir . '/v5.webm', false, 'v5')['code'] ?? '') === PathGuard::CODE_MISSING, 'voicemail: a directory is not a recording');
+check(($guard->resolve('relative/v1.webm', false, 'v1')['code'] ?? '') === PathGuard::CODE_REJECTED, 'path: a relative path is rejected');
 
-$guard = new PathGuard(new StaticRoots($base . '/monitor', $base . '/probe'));
-$ok = $guard->resolve($base . '/monitor/rec.webm', false);
-check(($ok['path'] ?? '') === realpath($base . '/monitor/rec.webm'), 'path: a file inside the monitor root is allowed');
-check(($guard->resolve($base . '/monitor/../outside.txt', false)['code'] ?? '') === PathGuard::CODE_REJECTED, 'path: traversal outside the root is rejected');
-check(($guard->resolve($base . '/monitor/link', false)['code'] ?? '') === PathGuard::CODE_REJECTED, 'path: a symlink out of the root is rejected');
-check(($guard->resolve($base . '/monitor/missing.webm', false)['code'] ?? '') === PathGuard::CODE_MISSING, 'path: a missing file is a code, not a path');
-check(($guard->resolve($base . '/monitor/empty', false)['code'] ?? '') === PathGuard::CODE_MISSING, 'path: an empty file is rejected');
-check(($guard->resolve($base . '/monitor/dir', false)['code'] ?? '') === PathGuard::CODE_MISSING, 'path: a directory is rejected');
-check(($guard->resolve('relative/rec.webm', false)['code'] ?? '') === PathGuard::CODE_REJECTED, 'path: a relative path is rejected');
+// upgrade: a plan frozen before EGOR-53 has no linkedid; the INBOX stem is used, the INBOX rule stays
+$legacy = AttachmentPlan::fromArray(['mode' => 'recording', 'source' => ['type' => 'path', 'path' => $vmFile], 'fallback_line' => 'l', 'caption_base' => 'c']);
+check($legacy !== null && ($legacy->source['linkedid'] ?? '') === 'v1', 'upgrade: a legacy voicemail plan gets the stem as linkedid');
+check($legacy !== null && isset($guard->resolve($vmFile, false, (string)$legacy->source['linkedid'])['path']), 'upgrade: a legacy voicemail plan still delivers');
+$legacyForged = AttachmentPlan::fromArray(['mode' => 'recording', 'source' => ['type' => 'path', 'path' => $base . '/monitor/rec.webm'], 'fallback_line' => 'l', 'caption_base' => 'c']);
+check($legacyForged !== null && ($guard->resolve($base . '/monitor/rec.webm', false, (string)$legacyForged->source['linkedid'])['code'] ?? '') === PathGuard::CODE_REJECTED, 'upgrade: a legacy plan outside INBOX is still rejected');
+
+// probe events: the module probe dir only, roots checked before the file itself
+file_put_contents($base . '/monitor/empty', '');
 check(isset($guard->resolve($base . '/probe/tone.mp3', true)['path']), 'probe: the module probe dir is allowed for a probe event');
 check(($guard->resolve($base . '/probe/tone.mp3', false)['code'] ?? '') === PathGuard::CODE_REJECTED, 'probe: the probe dir is not a real-event root');
-check(($guard->resolve($base . '/monitor/rec.webm', true)['code'] ?? '') === PathGuard::CODE_REJECTED, 'probe: a real recording is not a probe source');
+check(($guard->resolve($vmFile, true)['code'] ?? '') === PathGuard::CODE_REJECTED, 'probe: a real recording is not a probe source');
+check(($guard->resolve($base . '/monitor/empty', true)['code'] ?? '') === PathGuard::CODE_REJECTED, 'probe: the root is checked before the size');
+check(($guard->resolve($base . '/probe/missing.mp3', true)['code'] ?? '') === PathGuard::CODE_MISSING, 'probe: a missing probe file is path_missing');
 
 // ---------- 4. converter: argument arrays, nice, timeout, fallback ----------
 
@@ -570,9 +641,9 @@ check(in_array($toolDir . '/lame', $soxCommands[2], true), 'converter: lame is t
 $rest = new MapRest();
 $downloader = new MapDownloader();
 $locator = new RecordingLocator($rest, $downloader, $guard);
-$pathPlan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $base . '/monitor/rec.webm'], [], 'line', 'caption');
+$pathPlan = new AttachmentPlan('recording', $vmSource, [], 'line', 'caption');
 $located = $locator->locate($pathPlan, $base . '/module/tmp/src1');
-check($located->ok() && $located->path === realpath($base . '/monitor/rec.webm'), 'locator: a path source is read in place');
+check($located->ok() && $located->path === realpath($vmFile), 'locator: a path source is read in place');
 
 $cdrPlan = new AttachmentPlan('recording', ['type' => 'cdr', 'linkedid' => 'mikopbx-1', 'cdr_id' => 501], [], 'line', 'caption');
 $rest->routes['/pbxcore/api/v3/cdr/501'] = ['download_url' => '/pbxcore/api/v3/cdr:download?token=abc123'];
@@ -608,7 +679,7 @@ $rest->routes['/pbxcore/api/v3/cdr'] = [
 $located = $locator->locate($linkedOnly, $base . '/module/tmp/src6');
 check($located->ok(), 'locator: the grouped CDR response is searched for a recording');
 $downloader->error = '';
-check((new \Modules\ModuleMessengerHub\Lib\Attachments\LocalRestFileDownloader('key'))->download('https://evil.example/x', $base . '/module/tmp/x', 100) === 'api_bad_path', 'downloader: non-Core paths are rejected');
+check((new \Modules\ModuleMessengerHub\Lib\Attachments\LocalRestFileDownloader('key', 'http://127.0.0.1:80'))->download('https://evil.example/x', $base . '/module/tmp/x', 100) === 'api_bad_path', 'downloader: non-Core paths are rejected');
 
 // ---------- 6. prepared cache and attachment service ----------
 
@@ -617,7 +688,7 @@ $runner = new FakeRunner();
 $rest = new MapRest();
 $downloader = new MapDownloader();
 $pipeline = pipelineFor($db, $base, $runner, $rest, $downloader, 1);
-$monitorPlan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $base . '/monitor/rec.webm'], [], 'line', 'caption');
+$monitorPlan = new AttachmentPlan('recording', $vmSource, [], 'line', 'caption');
 $files = 0;
 $heartbeat = static function (int $at) use (&$files): void {
     $files++;
@@ -650,7 +721,7 @@ $probePipeline = new AttachmentService(
 $probePrepared = $probePipeline->prepare(8, $probeSourcePlan, ChannelLimits::telegram(), 'w1', 1792000250, $heartbeat);
 check($probePrepared->state === 'ready' && is_file($base . '/module/tmp/probe/keep.wav'), 'service: a probe source in the module temp tree is not deleted after conversion');
 
-$busyPlan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $base . '/monitor/rec.webm'], [], 'line', 'caption');
+$busyPlan = new AttachmentPlan('recording', $vmSource, [], 'line', 'caption');
 $cacheKey = $busyPlan->cacheKey(9);
 $repo = new PreparedRecordingsRepository($db);
 check($repo->claim(9, $cacheKey, 'other-worker', 1792000300, 1800), 'cache: another worker took the lease');
@@ -665,18 +736,18 @@ $downloader->error = '';
 $rest->routes['/pbxcore/api/v3/cdr/501'] = ['download_url' => '/pbxcore/api/v3/cdr:download?token=abc123'];
 
 $smallLimits = new ChannelLimits(4096, 1024, 0, 1000, 100, 10, false, 0);
-$smallPlan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $base . '/monitor/rec.webm'], [], 'line', 'caption');
+$smallPlan = new AttachmentPlan('recording', $vmSource, [], 'line', 'caption');
 $small = $pipeline->prepare(11, $smallPlan, $smallLimits, 'w1', 1792000600, $heartbeat);
 check($small->state === 'ready' && isset($small->files[0]['path']), 'service: the cache keeps the file; channel limits are checked per send');
 
 // a lost lease releases the cache row instead of holding `preparing`
-$lostPlan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $base . '/monitor/rec.webm'], [], 'line', 'caption');
+$lostPlan = new AttachmentPlan('recording', $vmSource, [], 'line', 'caption');
 $lost = $pipeline->prepare(30, $lostPlan, ChannelLimits::telegram(), 'w1', 1792000800, static fn (int $at): bool => false);
 check($lost->state === 'busy', 'cache: a lost heartbeat returns busy');
 check($repo->find($lostPlan->cacheKey(30)) === null, 'cache: a lost lease releases the cache row immediately');
 
 // a conversion timeout is retryable, not a six-hour failed cache row
-$timeoutPlan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $base . '/monitor/rec.webm'], [], 'line', 'caption');
+$timeoutPlan = new AttachmentPlan('recording', $vmSource, [], 'line', 'caption');
 $timeoutRunner = new FakeRunner();
 $timeoutRunner->queue(new ProcessResult(-1, true));
 $localPaths = new PathGuard(new StaticRoots($base . '/monitor', $base . '/probe'));
@@ -691,6 +762,26 @@ $timeoutPipeline = new AttachmentService(
 $timeout = $timeoutPipeline->prepare(31, $timeoutPlan, ChannelLimits::telegram(), 'w1', 1792000800, $heartbeat);
 check($timeout->state === 'retry' && $timeout->code === Converter::CODE_TIMEOUT, 'cache: a conversion timeout is retryable');
 check($repo->find($timeoutPlan->cacheKey(31)) === null, 'cache: a timeout does not leave a failed row for six hours');
+
+// EGOR-53: WorkerWav2Webm deletes the voicemail .wav under our converter -> retry, then the .webm is used
+file_put_contents($vmDir . '/v9.wav', str_repeat('w', 128));
+$racePlan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $vmDir . '/v9.webm', 'linkedid' => 'v9'], [], 'line', 'caption');
+$racePipeline = new AttachmentService(
+    new Converter(new VanishingRunner($vmDir . '/v9.wav'), tools(fakeToolDir($base . '/race-tools'))),
+    new RecordingLocator(new MapRest(), new MapDownloader(), $localPaths),
+    $localPaths,
+    $repo,
+    new TempDir($base . '/module'),
+    $db
+);
+check($racePipeline->preflight($racePlan)->ok, 'race: the .wav passes preflight before the .webm exists');
+$race = $racePipeline->prepare(32, $racePlan, ChannelLimits::telegram(), 'w1', 1792000900, $heartbeat);
+check($race->state === 'retry' && $race->code === PathGuard::CODE_MISSING, 'race: a .wav removed under the converter is retried, not failed');
+check($repo->find($racePlan->cacheKey(32)) === null, 'race: no failed cache row is left behind');
+file_put_contents($vmDir . '/v9.webm', str_repeat('o', 128));
+$race = pipelineFor($db, $base, new FakeRunner(), new MapRest(), new MapDownloader(), 33)
+    ->prepare(32, $racePlan, ChannelLimits::telegram(), 'w1', 1792000910, $heartbeat);
+check($race->state === 'ready' && isset($race->files[0]['path']), 'race: the retry converts the finished .webm');
 
 // saving parts never shortens a lease extended for a long upload
 $dbLease = hubTestDatabase();
@@ -713,7 +804,7 @@ $db = hubTestDatabase();
 $runner = new FakeRunner();
 $pipeline = pipelineFor($db, $base, $runner, new MapRest(), new MapDownloader(), 12);
 $channel = new AttachChannel(new ChannelLimits(4096, 1024, 0, 1000, 100, 50 * 1024 * 1024, false, 0));
-$plan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $base . '/monitor/rec.webm'], [], 'Запись доступна в АТС.', 'Запись');
+$plan = new AttachmentPlan('recording', $vmSource, [], 'Запись доступна в АТС.', 'Запись');
 $eventId = newEventId($db);
 $parts = [
     'text' => ['state' => 'failed', 'id' => '', 'code' => 'telegram.401.unauthorized'],
@@ -748,7 +839,7 @@ check(outbox($db, $rowId)['status'] === 'sent', 'legacy: the row completes');
 $db = hubTestDatabase();
 $channel = new AttachChannel(new ChannelLimits(4096, 1024, 0, 1000, 100, 50 * 1024 * 1024, false, 0));
 $eventId = newEventId($db);
-$plan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $base . '/monitor/rec.webm'], [], 'Запись доступна в АТС.', 'Запись');
+$plan = new AttachmentPlan('recording', $vmSource, [], 'Запись доступна в АТС.', 'Запись');
 $parts = [
     'text' => ['state' => 'sent', 'id' => 't1', 'code' => ''],
     'note' => ['state' => 'none'],
@@ -766,7 +857,7 @@ $db = hubTestDatabase();
 $runner = new FakeRunner();
 $pipeline = pipelineFor($db, $base, $runner, new MapRest(), new MapDownloader(), 11);
 $channel = new AttachChannel(new ChannelLimits(4096, 1024, 0, 1000, 100, 10, false, 0));
-$plan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $base . '/monitor/rec.webm'], [], 'Запись доступна в АТС.', 'Запись');
+$plan = new AttachmentPlan('recording', $vmSource, [], 'Запись доступна в АТС.', 'Запись');
 $eventId = newEventId($db);
 $rowId = seedAttachDelivery($db, $eventId, json_encode($plan->toArray(), JSON_THROW_ON_ERROR));
 $stats = deliver($db, $channel, $pipeline, 1792000000);
@@ -847,7 +938,7 @@ $db = hubTestDatabase();
 $runner = new FakeRunner();
 $pipeline = pipelineFor($db, $base, $runner, new MapRest(), new MapDownloader(), 15);
 $channel = new AttachChannel(new ChannelLimits(4096, 1024, 0, 1000, 100, 50 * 1024 * 1024, false, 1));
-$plan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $base . '/monitor/rec.webm'], [], 'Запись доступна в АТС.', 'Запись');
+$plan = new AttachmentPlan('recording', $vmSource, [], 'Запись доступна в АТС.', 'Запись');
 $eventId = newEventId($db);
 $rowId = seedAttachDelivery($db, $eventId, json_encode($plan->toArray(), JSON_THROW_ON_ERROR));
 deliver($db, $channel, $pipeline, 1792000000);
@@ -863,7 +954,7 @@ $rest = new MapRest();
 $downloader = new MapDownloader();
 $pipeline = pipelineFor($db, $base, $runner, $rest, $downloader, 3);
 $channel = new AttachChannel(new ChannelLimits(4096, 1024, 0, 1000, 100, 50 * 1024 * 1024, false, 0));
-$plan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $base . '/monitor/rec.webm'], [['start_ms' => 0, 'end_ms' => 1000]], 'Запись доступна в АТС.', 'Запись');
+$plan = new AttachmentPlan('recording', $vmSource, [['start_ms' => 0, 'end_ms' => 1000]], 'Запись доступна в АТС.', 'Запись');
 $eventId = newEventId($db);
 $rowId = seedAttachDelivery($db, $eventId, json_encode($plan->toArray(), JSON_THROW_ON_ERROR));
 $channel->sendResults = [SendResult::sent(['t1'])];
@@ -890,7 +981,7 @@ $db = hubTestDatabase();
 $runner = new FakeRunner();
 $pipeline = pipelineFor($db, $base, $runner, new MapRest(), new MapDownloader(), 4);
 $channel = new AttachChannel(new ChannelLimits(4096, 1024, 0, 1000, 100, 50 * 1024 * 1024, false, 0));
-$plan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $base . '/monitor/missing.webm'], [], 'Запись доступна в АТС.', 'Запись');
+$plan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $vmDir . '/v-missing.webm', 'linkedid' => 'v-missing'], [], 'Запись доступна в АТС.', 'Запись');
 $eventId = newEventId($db);
 $rowId = seedAttachDelivery($db, $eventId, json_encode($plan->toArray(), JSON_THROW_ON_ERROR));
 $stats = deliver($db, $channel, $pipeline, 1792000000);
@@ -900,6 +991,40 @@ check($channel->attachments === [] && count($runner->commands) === 0, 'preflight
 $parts = json_decode((string)outbox($db, $rowId)['delivery_parts_json'], true);
 check(($parts['attachment']['state'] ?? '') === 'skipped', 'preflight: the journal shows a skipped attachment');
 check(($parts['attachment']['code'] ?? '') === 'attachment.path_missing', 'preflight: the journal keeps the real reason');
+
+// EGOR-53: a real voicemail_end names the .webm before WorkerWav2Webm made it; the .wav copy is sent
+$db = hubTestDatabase();
+$runner = new FakeRunner();
+$pipeline = pipelineFor($db, $base, $runner, new MapRest(), new MapDownloader(), 41);
+$channel = new AttachChannel(new ChannelLimits(4096, 1024, 0, 1000, 100, 50 * 1024 * 1024, false, 0));
+file_put_contents($vmDir . '/v10.wav', str_repeat('w', 128));
+$plan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $vmDir . '/v10.webm', 'linkedid' => 'v10'], [], 'Запись доступна в АТС.', 'Запись');
+$eventId = newEventId($db);
+$rowId = seedAttachDelivery($db, $eventId, json_encode($plan->toArray(), JSON_THROW_ON_ERROR));
+$stats = deliver($db, $channel, $pipeline, 1792000000);
+check($stats['sent'] === 1 && outbox($db, $rowId)['status'] === 'sent', 'voicemail: the row is sent');
+check(count($channel->messages) === 1 && !in_array('Запись доступна в АТС.', $channel->messages[0]->lines, true), 'voicemail: no "unavailable" line while the .webm is converted');
+check(count($channel->attachments) === 1, 'voicemail: the audio is delivered from the .wav copy');
+$voicemailSource = '';
+foreach ($runner->commands as $command) {
+    if (in_array(realpath($vmDir . '/v10.wav'), $command, true)) {
+        $voicemailSource = 'wav';
+    }
+}
+check($voicemailSource === 'wav', 'voicemail: the converter read the .wav sibling');
+
+// a forged voicemail_end pointing at a call recording never reaches the chat
+$db = hubTestDatabase();
+$runner = new FakeRunner();
+$pipeline = pipelineFor($db, $base, $runner, new MapRest(), new MapDownloader(), 42);
+$channel = new AttachChannel(new ChannelLimits(4096, 1024, 0, 1000, 100, 50 * 1024 * 1024, false, 0));
+$plan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $base . '/monitor/rec.webm', 'linkedid' => 'rec'], [], 'Запись доступна в АТС.', 'Запись');
+$eventId = newEventId($db);
+$rowId = seedAttachDelivery($db, $eventId, json_encode($plan->toArray(), JSON_THROW_ON_ERROR));
+deliver($db, $channel, $pipeline, 1792000000);
+$parts = json_decode((string)outbox($db, $rowId)['delivery_parts_json'], true);
+check($channel->attachments === [] && count($runner->commands) === 0, 'forged path: no conversion and no audio');
+check(($parts['attachment']['code'] ?? '') === PathGuard::CODE_REJECTED, 'forged path: the journal says path_rejected');
 
 // late CDR failure: the text goes first, then the short note
 $db = hubTestDatabase();
@@ -957,7 +1082,7 @@ check(outbox($db, $rowId)['status'] === 'failed', 'reclaimed text: a second unkn
 $db = hubTestDatabase();
 $channel = new AttachChannel(new ChannelLimits(4096, 1024, 0, 1000, 100, 50 * 1024 * 1024, false, 0));
 $eventId = newEventId($db);
-$plan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $base . '/monitor/rec.webm'], [], 'Запись доступна в АТС.', 'Запись');
+$plan = new AttachmentPlan('recording', $vmSource, [], 'Запись доступна в АТС.', 'Запись');
 $parts = [
     'text' => ['state' => 'sending', 'id' => '', 'code' => ''],
     'note' => ['state' => 'none'],
@@ -976,7 +1101,7 @@ $db = hubTestDatabase();
 $runner = new FakeRunner();
 $pipeline = pipelineFor($db, $base, $runner, new MapRest(), new MapDownloader(), 8);
 $channel = new AttachChannel(new ChannelLimits(4096, 1024, 0, 1000, 100, 50 * 1024 * 1024, false, 3600));
-$plan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $base . '/monitor/rec.webm'], [], 'Запись доступна в АТС.', 'Запись');
+$plan = new AttachmentPlan('recording', $vmSource, [], 'Запись доступна в АТС.', 'Запись');
 $eventId = newEventId($db);
 $rowId = seedAttachDelivery($db, $eventId, json_encode($plan->toArray(), JSON_THROW_ON_ERROR));
 $channel->attachmentResults = [
@@ -998,7 +1123,7 @@ $db = hubTestDatabase();
 $runner = new FakeRunner();
 $pipeline = pipelineFor($db, $base, $runner, new MapRest(), new MapDownloader(), 9);
 $channel = new AttachChannel(new ChannelLimits(4096, 1024, 0, 1000, 100, 50 * 1024 * 1024, false, 0));
-$plan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $base . '/monitor/rec.webm'], [], 'Запись доступна в АТС.', 'Запись');
+$plan = new AttachmentPlan('recording', $vmSource, [], 'Запись доступна в АТС.', 'Запись');
 $eventId = newEventId($db);
 seedAttachDelivery($db, $eventId, json_encode($plan->toArray(), JSON_THROW_ON_ERROR), 1);
 seedAttachDelivery($db, $eventId, json_encode($plan->toArray(), JSON_THROW_ON_ERROR), 2);
@@ -1012,7 +1137,7 @@ $db = hubTestDatabase();
 $runner = new FakeRunner();
 $pipeline = pipelineFor($db, $base, $runner, new MapRest(), new MapDownloader(), 19);
 $channel = new AttachChannel(new ChannelLimits(4096, 1024, 0, 1000, 100, 50 * 1024 * 1024, false, 0));
-$plan = new AttachmentPlan('recording', ['type' => 'path', 'path' => $base . '/monitor/rec.webm'], [], 'Запись доступна в АТС.', 'Запись');
+$plan = new AttachmentPlan('recording', $vmSource, [], 'Запись доступна в АТС.', 'Запись');
 $eventId = newEventId($db);
 $rowId = seedAttachDelivery($db, $eventId, json_encode($plan->toArray(), JSON_THROW_ON_ERROR));
 $channel->attachmentResults = array_fill(0, 7, AttachmentResult::of(SendResult::retry(0, 'telegram.500.server_error')));
@@ -1116,7 +1241,7 @@ $db = hubTestDatabase();
 $channel = new AttachChannel(new ChannelLimits(4096, 1024, 0, 1000, 100, 50 * 1024 * 1024, false, 0));
 $eventId = newEventId($db);
 $parts = ['text' => ['state' => 'sent', 'id' => 't1', 'code' => ''], 'note' => ['state' => 'pending'], 'attachment' => ['state' => 'skipped', 'code' => 'attachment.too_big'], 'audio' => [['state' => 'skipped', 'id' => '', 'code' => 'attachment.too_big', 'token' => '', 'not_ready' => 0, 'attempts' => 0, 'start_ms' => 0, 'end_ms' => 0]]];
-$rowId = seedAttachDelivery($db, $eventId, json_encode((new AttachmentPlan('recording', ['type' => 'path', 'path' => $base . '/monitor/rec.webm'], [], 'Запись доступна в АТС.', 'Запись'))->toArray(), JSON_THROW_ON_ERROR), 1, json_encode($parts, JSON_THROW_ON_ERROR));
+$rowId = seedAttachDelivery($db, $eventId, json_encode((new AttachmentPlan('recording', $vmSource, [], 'Запись доступна в АТС.', 'Запись'))->toArray(), JSON_THROW_ON_ERROR), 1, json_encode($parts, JSON_THROW_ON_ERROR));
 $channel->sendResults = [SendResult::retry(0, 'http.timeout', true), SendResult::retry(0, 'http.timeout', true)];
 deliver($db, $channel, pipelineFor($db, $base, new FakeRunner(), new MapRest(), new MapDownloader(), 21), 1792000000);
 check(outbox($db, $rowId)['status'] === 'pending', 'note: the first unknown outcome is retried');

@@ -42,7 +42,11 @@ final class AttachmentService implements AttachmentPipeline
             return new PreflightResult(false, Converter::CODE_MISSING);
         }
         if (($plan->source['type'] ?? '') === 'path') {
-            $resolved = $this->paths->resolve((string)($plan->source['path'] ?? ''), $plan->probe);
+            $resolved = $this->paths->resolve(
+                (string)($plan->source['path'] ?? ''),
+                $plan->probe,
+                (string)($plan->source['linkedid'] ?? '')
+            );
             if (!isset($resolved['path'])) {
                 return new PreflightResult(false, (string)($resolved['code'] ?? PathGuard::CODE_REJECTED));
             }
@@ -153,6 +157,14 @@ final class AttachmentService implements AttachmentPipeline
                     $this->prepared->discard($cacheKey, $owner, time());
 
                     return PrepareResult::retry($converted->code);
+                }
+                clearstatcache(true, $located->path);
+                if (($plan->source['type'] ?? '') === 'path' && !is_file($located->path)) {
+                    // WorkerWav2Webm removed the voicemail `.wav` under the converter: the `.webm`
+                    // sibling is ready now, so the next attempt resolves to it
+                    $this->prepared->discard($cacheKey, $owner, time());
+
+                    return PrepareResult::retry(PathGuard::CODE_MISSING);
                 }
                 $this->prepared->markFailed($id, $owner, $converted->code, time());
 

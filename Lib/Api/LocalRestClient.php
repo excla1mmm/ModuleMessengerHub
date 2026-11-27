@@ -7,15 +7,17 @@ namespace Modules\ModuleMessengerHub\Lib\Api;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceException;
 
 /**
- * RestReader over http://127.0.0.1 with the hub's own restricted API key (Plan/01-architecture.md, Q1).
+ * RestReader over http://127.0.0.1:<WEBPort> with the hub's own restricted API key (Plan/01-architecture.md, Q1).
  *
+ * The base URL comes from LocalRestBase (workers: Lib/Support/CoreWebPort::baseUrl()); any other base is
+ * refused, so the key goes only to the PBX itself. No proxy from the environment, no redirects, HTTP only.
  * Never logs the key, URLs with query strings or response bodies.
  */
 final class LocalRestClient implements PagedRestReader
 {
     public function __construct(
         private readonly string $apiKey,
-        private readonly string $baseUrl = 'http://127.0.0.1',
+        private readonly string $baseUrl,
         private readonly int $timeoutSec = 15,
     ) {
     }
@@ -62,6 +64,9 @@ final class LocalRestClient implements PagedRestReader
         if ($this->apiKey === '') {
             throw new SourceException('api_key_missing');
         }
+        if (!LocalRestBase::isLocal($this->baseUrl)) {
+            throw new SourceException('api_bad_path');
+        }
         $url = $this->baseUrl . $path . ($query === [] ? '' : '?' . http_build_query($query));
 
         $curl = curl_init($url);
@@ -69,6 +74,10 @@ final class LocalRestClient implements PagedRestReader
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT => $this->timeoutSec,
             CURLOPT_CONNECTTIMEOUT => 5,
+            // http_proxy/all_proxy from the environment must not receive the Bearer key
+            CURLOPT_PROXY => '',
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_PROTOCOLS => CURLPROTO_HTTP,
             CURLOPT_HTTPHEADER => [
                 'Accept: application/json',
                 'Authorization: Bearer ' . $this->apiKey,
