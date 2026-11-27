@@ -21,6 +21,12 @@
 - Security: for `core.voicemail` only `<monitor>/Y/m/d/INBOX/<linkedid>.(webm|wav|mp3)` of the event's own
   call is accepted, so a forged `voicemail_end` can no longer send another call recording to a chat.
   Roots are checked right after `realpath()`, before the file size.
+- The local Core REST client and the recording downloader used `http://127.0.0.1` (port 80) while nginx
+  listens only on the PBX web port: after a web port change every REST source stayed `api_unavailable` and
+  recordings were never downloaded. The base URL is now `http://127.0.0.1:<WEBPort>` (`PbxSettings::WEB_PORT`,
+  re-read on every client rebuild in the workers; an unreadable or invalid value falls back to 80 with one
+  `web_port_*` error line). Both clients send the hub key only to that loopback base, ignore
+  `http_proxy`/`all_proxy` from the environment and speak plain HTTP only (EGOR-50).
 - Admin UI: `esc()` now also escapes `"` and `'`, so AI summaries, caller numbers, rule titles and chat ids can no
   longer break out of `title`/`aria-label`/`data-*` attributes in the journal and settings (stored XSS, EGOR-52).
   Employee, provider and event-type names in Fomantic dropdowns are escaped too. The compiled JS ships without

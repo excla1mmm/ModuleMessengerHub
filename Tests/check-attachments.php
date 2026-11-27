@@ -679,7 +679,7 @@ $rest->routes['/pbxcore/api/v3/cdr'] = [
 $located = $locator->locate($linkedOnly, $base . '/module/tmp/src6');
 check($located->ok(), 'locator: the grouped CDR response is searched for a recording');
 $downloader->error = '';
-check((new \Modules\ModuleMessengerHub\Lib\Attachments\LocalRestFileDownloader('key'))->download('https://evil.example/x', $base . '/module/tmp/x', 100) === 'api_bad_path', 'downloader: non-Core paths are rejected');
+check((new \Modules\ModuleMessengerHub\Lib\Attachments\LocalRestFileDownloader('key', 'http://127.0.0.1:80'))->download('https://evil.example/x', $base . '/module/tmp/x', 100) === 'api_bad_path', 'downloader: non-Core paths are rejected');
 
 // ---------- 6. prepared cache and attachment service ----------
 
