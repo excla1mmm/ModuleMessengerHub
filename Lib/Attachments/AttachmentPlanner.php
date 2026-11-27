@@ -129,7 +129,13 @@ final class AttachmentPlanner
         }
 
         if ($path !== '') {
-            return ['type' => 'path', 'path' => $path];
+            if ($probe) {
+                return ['type' => 'path', 'path' => $path];
+            }
+            // PathGuard accepts only the INBOX copy named after the event's own call
+            $callLinkedid = trim((string)($payload['subject']['call']['linkedid'] ?? ''));
+
+            return ['type' => 'path', 'path' => $path, 'linkedid' => $callLinkedid];
         }
         if ($eventType !== 'ai_supervisor.attention_call' || $probe) {
             // a probe event may only reference the module probe directory: no CDR lookup

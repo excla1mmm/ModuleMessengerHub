@@ -14,6 +14,13 @@
 - `docs/publishing.md` checklist updated.
 
 ### Fixed
+- Voicemail audio was never delivered for a real message: Core publishes the `.webm` name before
+  WorkerWav2Webm creates it, so preflight saw `attachment.path_missing` and sent the "unavailable" line.
+  `PathGuard` now takes the `.wav` INBOX copy (then `.webm`, `.mp3`); a `.wav` removed under the converter
+  is retried and picks up the finished `.webm`.
+- Security: for `core.voicemail` only `<monitor>/Y/m/d/INBOX/<linkedid>.(webm|wav|mp3)` of the event's own
+  call is accepted, so a forged `voicemail_end` can no longer send another call recording to a chat.
+  Roots are checked right after `realpath()`, before the file size.
 - The local Core REST client and the recording downloader used `http://127.0.0.1` (port 80) while nginx
   listens only on the PBX web port: after a web port change every REST source stayed `api_unavailable` and
   recordings were never downloaded. The base URL is now `http://127.0.0.1:<WEBPort>` (`PbxSettings::WEB_PORT`,

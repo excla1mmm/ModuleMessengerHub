@@ -16,7 +16,7 @@ final class AttachmentPlan
 {
     /**
      * @param list<array{start_ms: int, end_ms: int}> $fragments empty = the whole recording
-     * @param array<string, mixed> $source {type: path, path} or {type: cdr, linkedid, cdr_id}
+     * @param array<string, mixed> $source {type: path, path, linkedid} or {type: cdr, linkedid, cdr_id}
      */
     public function __construct(
         public readonly string $mode,
@@ -68,6 +68,12 @@ final class AttachmentPlan
             return null;
         }
         $source = is_array($data['source'] ?? null) ? $data['source'] : [];
+        $probe = ($data['probe'] ?? false) === true;
+        if (!$probe && ($source['type'] ?? '') === 'path' && !array_key_exists('linkedid', $source)) {
+            // a plan frozen before EGOR-53 has no linkedid: Core names the INBOX copy after it, and
+            // PathGuard still demands the INBOX directory and a matching stem
+            $source['linkedid'] = (string)preg_replace('~\.[^./]*\z~', '', basename((string)($source['path'] ?? '')));
+        }
         $fragments = [];
         foreach (is_array($data['fragments'] ?? null) ? $data['fragments'] : [] as $fragment) {
             if (!is_array($fragment)) {
@@ -86,7 +92,7 @@ final class AttachmentPlan
             fragments: $fragments,
             fallbackLine: (string)($data['fallback_line'] ?? ''),
             captionBase: (string)($data['caption_base'] ?? ''),
-            probe: ($data['probe'] ?? false) === true,
+            probe: $probe,
             unavailableCode: (string)($data['unavailable_code'] ?? ''),
         );
     }
