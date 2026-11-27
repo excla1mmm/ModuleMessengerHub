@@ -23,6 +23,10 @@
   first collector pass after install or update, `api_unauthorized`/`api_forbidden` from source polls are treated
   as transient: the previous availability is kept, nothing is emitted or reset, key self-healing is not
   triggered, and one `key_cache_grace` line is logged per source (#1). The deadline is stored in hub settings.
+- The AMI worker flushed buffered sources (missed calls, abandoned queue calls) only on the next UserEvent,
+  because Core's `waitUserEvent()` never returns while AMI is alive: the last missed call of a quiet evening
+  waited for the next call. `AmiSourceTicker` now ticks from the AMI idle callback (`setOnIdleCallback`, 1 s,
+  Core 2026.1+, re-registered on every reconnect) and on the WorkerSafeScriptsCore ping (fallback for older Core).
 
 ### Changed
 - Stage 3b-6 (station acceptance, docs only): hub 6.7 with AI Supervisor, Cloud AI Supervisor and Local STT
