@@ -483,6 +483,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => 'Το περιστατικό αναγνώρισης ομιλίας στο cloud έκλεισε',
     'module_messenger_hub_MessageStatusPausedUser' => 'Η επεξεργασία τέθηκε σε παύση από διαχειριστή',
     'module_messenger_hub_MessageStatusPausedMaintenance' => 'Η επεξεργασία είναι σε παύση για συντήρηση',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => 'Η επεξεργασία διακόπηκε: η ανάκτηση είναι αποκλεισμένη, απαιτείται έλεγχος από διαχειριστή',
     'module_messenger_hub_MessageStatusResumed' => 'Η επεξεργασία συνεχίστηκε',
     'module_messenger_hub_MessageStatusCloudAiManual' => 'Η ανάλυση τέθηκε σε παύση χειροκίνητα',
     'module_messenger_hub_MessageStatusCloudAiLicense' => 'Λείπει η άδεια cloud AI',

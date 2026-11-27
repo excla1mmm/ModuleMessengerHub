@@ -483,6 +483,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => 'Hændelsen i cloud-talegenkendelse er lukket',
     'module_messenger_hub_MessageStatusPausedUser' => 'Behandlingen blev sat på pause af en administrator',
     'module_messenger_hub_MessageStatusPausedMaintenance' => 'Behandlingen er sat på pause til vedligeholdelse',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => 'Behandlingen er stoppet: gendannelsen er blokeret, en administrator skal kontrollere den',
     'module_messenger_hub_MessageStatusResumed' => 'Behandlingen er genoptaget',
     'module_messenger_hub_MessageStatusCloudAiManual' => 'Analysen blev sat på pause manuelt',
     'module_messenger_hub_MessageStatusCloudAiLicense' => 'Cloud-AI-licensen mangler',

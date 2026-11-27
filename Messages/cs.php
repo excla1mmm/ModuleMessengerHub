@@ -483,6 +483,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => 'Incident cloudového rozpoznávání řeči byl uzavřen',
     'module_messenger_hub_MessageStatusPausedUser' => 'Zpracování pozastavil administrátor',
     'module_messenger_hub_MessageStatusPausedMaintenance' => 'Zpracování pozastaveno kvůli údržbě',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => 'Zpracování zastaveno: obnova je zablokována, je nutná kontrola administrátorem',
     'module_messenger_hub_MessageStatusResumed' => 'Zpracování obnoveno',
     'module_messenger_hub_MessageStatusCloudAiManual' => 'Analýza pozastavena ručně',
     'module_messenger_hub_MessageStatusCloudAiLicense' => 'Chybí licence pro cloudové AI',

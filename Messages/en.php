@@ -506,6 +506,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => 'The cloud speech recognition incident is resolved',
     'module_messenger_hub_MessageStatusPausedUser' => 'Processing was paused by an administrator',
     'module_messenger_hub_MessageStatusPausedMaintenance' => 'Processing is paused for maintenance',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => 'Processing stopped: recovery is blocked, an administrator must check it',
     'module_messenger_hub_MessageStatusResumed' => 'Processing resumed',
     'module_messenger_hub_MessageStatusCloudAiManual' => 'Analysis was paused manually',
     'module_messenger_hub_MessageStatusCloudAiLicense' => 'The cloud AI licence is missing',

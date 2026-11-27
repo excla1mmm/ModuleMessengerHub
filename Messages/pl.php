@@ -512,6 +512,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => 'Incydent chmurowego rozpoznawania mowy został zamknięty',
     'module_messenger_hub_MessageStatusPausedUser' => 'Administrator wstrzymał przetwarzanie',
     'module_messenger_hub_MessageStatusPausedMaintenance' => 'Przetwarzanie wstrzymane z powodu konserwacji',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => 'Przetwarzanie zatrzymane: odzyskiwanie jest zablokowane, wymagana kontrola administratora',
     'module_messenger_hub_MessageStatusResumed' => 'Przetwarzanie wznowione',
     'module_messenger_hub_MessageStatusCloudAiManual' => 'Analiza wstrzymana ręcznie',
     'module_messenger_hub_MessageStatusCloudAiLicense' => 'Brak licencji chmury AI',

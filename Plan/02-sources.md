@@ -353,7 +353,7 @@ interface SourceInterface
 | ModuleCloudAISupervisor | `cloud_ai.paused` / `cloud_ai.resumed` | `GET …/module-cloud-ai-supervisor/runtime` (с первого релиза, v1.2): `pause.paused`, `pause.pause_reason` (= `ref`), `pause.paused_at` (= `since`), `summary.analysis_pending` (счётчик) | ✅ `read` на `/runtime` (`RestRequestContext::isAdministrator` принимает `read` для GET) | `<source>:processing_paused:<reason>:<episode since>` | 3b-5 ✅ |
 | ModuleLocalSpeechToText | `local_stt.worker_offline` (+ `…_online`) | `GET …/module-local-speech-to-text/workers` (`id`, `status`, `last_seen`, `created_at`): офлайн = статус не `online` или `last_seen` старше 900 с (`STTWorker::markStaleOffline`); `ref` = первые 12 hex `sha256("ModuleLocalSpeechToText:<id>")` | ⚠️ модуль требует `admin` на `/workers` для ключа: ключ хаба получает `admin` ровно на этот путь (Plan/07) | `<source>:worker_offline:<ref>:<episode since>`, `since` = `last_seen` (нет — `created_at`) | 3b-5 ✅ |
 | ModuleLocalSpeechToText | `local_stt.backlog_no_workers` (+ `…_resolved`) | `/workers` (как выше) и, только пока ни один воркер не онлайн, `GET …/module-local-speech-to-text/jobs?status=pending&limit=1` (число задач — `pagination.total_items`; самая старая — вторым запросом `offset=total-1`, список идёт по `id` по убыванию): есть ждущие задачи и нет онлайн-воркера ≥ 600 с, `ref = queue`, `since` = max(последний `last_seen`, `created_at` самой старой ждущей задачи) | ⚠️ `admin` ровно на `/workers` и `/jobs` | `<source>:backlog_no_workers:queue:<episode since>` | 3b-5 ✅ |
-| ModuleCloudSpeechToText | `cloud_stt.incident` (+ `…_resolved`), `cloud_stt.paused` / `cloud_stt.resumed` | `GET …/module-cloud-speech-to-text/status` (с 1.120): `incident_open` (ref = публичный id инцидента) и `processing_paused` (ref `user`/`maintenance`) | ✅ `read` только на `/status` | `<source>:<code>:<ref>:<episode since>`, подтверждённый инцидент не алертит повторно | 3b-1 ✅; единственный модуль с `/status` (решение 23.11.2026) |
+| ModuleCloudSpeechToText | `cloud_stt.incident` (+ `…_resolved`), `cloud_stt.paused` / `cloud_stt.resumed` | `GET …/module-cloud-speech-to-text/status` (с 1.120): `incident_open` (ref = публичный id инцидента) и `processing_paused` (ref `user`/`maintenance`/`recovery_blocked`) | ✅ `read` только на `/status` | `<source>:<code>:<ref>:<episode since>`, подтверждённый инцидент не алертит повторно | 3b-1 ✅; единственный модуль с `/status` (решение 23.11.2026) |
 | ModuleVoiceAgent | `voice_agent.callback_request` | `GET /pbxcore/api/v3/module-voice-agent/callbacks` — новые заявки на перезвон | ✅ `read` | `va_callback:{id}` | 1 ✅ (1.3) |
 | ModuleVoiceAgent | `voice_agent.runtime_down/up` | `GET …/module-voice-agent/runtime` (`health`, `agents`) | ✅ `read` | `va_runtime:{state}:{since}` | 1 ✅ (1.3) |
 
@@ -504,7 +504,8 @@ Router сравнивает его с `subject.module_status.ref` событий
   `model_unavailable` / `daily_limit_reached` / `source_unavailable` — `warning`, `insufficient_funds` /
   `low_balance` — `critical`.
 - **Серьёзность**: `local_stt.worker_offline` — warning, `local_stt.backlog_no_workers` — critical;
-  `cloud_stt.incident` — как у инцидента; `cloud_stt.paused` и `cloud_ai.paused` — по причине;
+  `cloud_stt.incident` — как у инцидента; `cloud_stt.paused` — как отдаёт `/status` (`warning` для чистой паузы, `critical` для
+  `recovery_blocked` и зависшего обслуживания); `cloud_ai.paused` — по причине;
   recovery-события — info.
 - **ИИ Супервайзер** читает `/workers` (`read`): `ref` = первые 12 hex `sha256("ModuleAISupervisor:<id>")`,
   `since` = `last_seen`, офлайн — собственный статус модуля, воркеры, молчащие дольше 30 суток, не считаются.

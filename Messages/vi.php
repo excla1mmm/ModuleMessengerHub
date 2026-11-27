@@ -483,6 +483,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => 'Sự cố nhận dạng giọng nói trên đám mây đã được đóng',
     'module_messenger_hub_MessageStatusPausedUser' => 'Quản trị viên đã tạm dừng xử lý',
     'module_messenger_hub_MessageStatusPausedMaintenance' => 'Xử lý tạm dừng để bảo trì',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => 'Đã dừng xử lý: khôi phục bị chặn, quản trị viên cần kiểm tra',
     'module_messenger_hub_MessageStatusResumed' => 'Xử lý đã tiếp tục',
     'module_messenger_hub_MessageStatusCloudAiManual' => 'Phân tích đã tạm dừng thủ công',
     'module_messenger_hub_MessageStatusCloudAiLicense' => 'Thiếu giấy phép AI đám mây',

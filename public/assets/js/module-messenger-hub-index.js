@@ -313,6 +313,7 @@ function _typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === "functi
   var STATUS_PAUSE_KEYS = {
     user: 'MessageStatusPausedUser',
     maintenance: 'MessageStatusPausedMaintenance',
+    recovery_blocked: 'MessageStatusPausedRecoveryBlocked',
     manual: 'MessageStatusCloudAiManual',
     license_missing: 'MessageStatusCloudAiLicense',
     auth_invalid: 'MessageStatusCloudAiAuth',

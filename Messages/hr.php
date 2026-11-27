@@ -483,6 +483,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => 'Incident cloud prepoznavanja govora je zatvoren',
     'module_messenger_hub_MessageStatusPausedUser' => 'Administrator je pauzirao obradu',
     'module_messenger_hub_MessageStatusPausedMaintenance' => 'Obrada je pauzirana zbog održavanja',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => 'Obrada je zaustavljena: oporavak je blokiran, administrator ga mora provjeriti',
     'module_messenger_hub_MessageStatusResumed' => 'Obrada je nastavljena',
     'module_messenger_hub_MessageStatusCloudAiManual' => 'Analiza je ručno pauzirana',
     'module_messenger_hub_MessageStatusCloudAiLicense' => 'Nedostaje licenca za cloud AI',

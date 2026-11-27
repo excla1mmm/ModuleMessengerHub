@@ -483,6 +483,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => 'Die Störung in der Cloud-Spracherkennung wurde behoben',
     'module_messenger_hub_MessageStatusPausedUser' => 'Die Verarbeitung wurde vom Administrator pausiert',
     'module_messenger_hub_MessageStatusPausedMaintenance' => 'Die Verarbeitung ist wegen Wartung pausiert',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => 'Die Verarbeitung ist gestoppt: Die Wiederherstellung ist blockiert, ein Administrator muss sie prüfen',
     'module_messenger_hub_MessageStatusResumed' => 'Die Verarbeitung wurde fortgesetzt',
     'module_messenger_hub_MessageStatusCloudAiManual' => 'Die Analyse wurde manuell pausiert',
     'module_messenger_hub_MessageStatusCloudAiLicense' => 'Die Cloud-KI-Lizenz fehlt',

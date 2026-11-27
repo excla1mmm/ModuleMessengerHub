@@ -1,0 +1,15 @@
+{
+  "state": "down",
+  "since": 1793200000,
+  "issues": [
+    {
+      "code": "processing_paused",
+      "ref": "recovery_blocked",
+      "severity": "critical",
+      "since": 1793200000
+    }
+  ],
+  "counters": {
+    "incidents_open": 0
+  }
+}

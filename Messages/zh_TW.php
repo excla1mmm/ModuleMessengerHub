@@ -483,6 +483,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => '雲端語音辨識異常已關閉',
     'module_messenger_hub_MessageStatusPausedUser' => '管理員暫停了處理',
     'module_messenger_hub_MessageStatusPausedMaintenance' => '因維護暫停處理',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => '處理已停止：復原遭到封鎖，需要管理員檢查',
     'module_messenger_hub_MessageStatusResumed' => '處理已恢復',
     'module_messenger_hub_MessageStatusCloudAiManual' => '分析已手動暫停',
     'module_messenger_hub_MessageStatusCloudAiLicense' => '缺少雲端 AI 授權',

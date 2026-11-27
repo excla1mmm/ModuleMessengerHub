@@ -512,6 +512,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => 'De storing in cloudspraakherkenning is opgelost',
     'module_messenger_hub_MessageStatusPausedUser' => 'De verwerking is door een beheerder gepauzeerd',
     'module_messenger_hub_MessageStatusPausedMaintenance' => 'De verwerking is gepauzeerd voor onderhoud',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => 'De verwerking is gestopt: het herstel is geblokkeerd, een beheerder moet het controleren',
     'module_messenger_hub_MessageStatusResumed' => 'De verwerking is hervat',
     'module_messenger_hub_MessageStatusCloudAiManual' => 'De analyse is handmatig gepauzeerd',
     'module_messenger_hub_MessageStatusCloudAiLicense' => 'De cloud-AI-licentie ontbreekt',

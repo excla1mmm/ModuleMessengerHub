@@ -483,6 +483,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => 'Incidenten i molntaligenkänning har stängts',
     'module_messenger_hub_MessageStatusPausedUser' => 'Bearbetningen pausades av en administratör',
     'module_messenger_hub_MessageStatusPausedMaintenance' => 'Bearbetningen är pausad för underhåll',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => 'Bearbetningen har stoppats: återställningen är blockerad, en administratör måste kontrollera den',
     'module_messenger_hub_MessageStatusResumed' => 'Bearbetningen återupptogs',
     'module_messenger_hub_MessageStatusCloudAiManual' => 'Analysen pausades manuellt',
     'module_messenger_hub_MessageStatusCloudAiLicense' => 'Moln-AI-licensen saknas',

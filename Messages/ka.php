@@ -483,6 +483,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => 'ღრუბლოვანი მეტყველების ამოცნობის ინციდენტი დაიხურა',
     'module_messenger_hub_MessageStatusPausedUser' => 'დამუშავება ადმინისტრატორმა შეაჩერა',
     'module_messenger_hub_MessageStatusPausedMaintenance' => 'დამუშავება შეჩერებულია ტექნიკური მომსახურების გამო',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => 'დამუშავება შეჩერდა: აღდგენა დაბლოკილია, საჭიროა ადმინისტრატორის შემოწმება',
     'module_messenger_hub_MessageStatusResumed' => 'დამუშავება განახლდა',
     'module_messenger_hub_MessageStatusCloudAiManual' => 'ანალიზი ხელით შეჩერდა',
     'module_messenger_hub_MessageStatusCloudAiLicense' => 'ღრუბლოვანი AI-ის ლიცენზია არ არის',

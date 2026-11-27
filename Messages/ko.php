@@ -483,6 +483,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => '클라우드 음성 인식 장애가 종료되었습니다',
     'module_messenger_hub_MessageStatusPausedUser' => '관리자가 처리를 일시 중지했습니다',
     'module_messenger_hub_MessageStatusPausedMaintenance' => '유지보수로 처리가 일시 중지되었습니다',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => '처리가 중지되었습니다: 복구가 차단되어 관리자의 확인이 필요합니다',
     'module_messenger_hub_MessageStatusResumed' => '처리가 재개되었습니다',
     'module_messenger_hub_MessageStatusCloudAiManual' => '분석이 수동으로 일시 중지되었습니다',
     'module_messenger_hub_MessageStatusCloudAiLicense' => '클라우드 AI 라이선스가 없습니다',

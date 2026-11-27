@@ -512,6 +512,7 @@ return [
     'module_messenger_hub_MessageStatusIncidentResolved' => 'O incidente de reconhecimento de fala na nuvem foi encerrado',
     'module_messenger_hub_MessageStatusPausedUser' => 'O processamento foi colocado em pausa por um administrador',
     'module_messenger_hub_MessageStatusPausedMaintenance' => 'O processamento está em pausa para manutenção',
+    'module_messenger_hub_MessageStatusPausedRecoveryBlocked' => 'O processamento foi interrompido: a recuperação está bloqueada, um administrador tem de a verificar',
     'module_messenger_hub_MessageStatusResumed' => 'O processamento foi retomado',
     'module_messenger_hub_MessageStatusCloudAiManual' => 'A análise foi colocada em pausa manualmente',
     'module_messenger_hub_MessageStatusCloudAiLicense' => 'Falta a licença de IA na nuvem',
