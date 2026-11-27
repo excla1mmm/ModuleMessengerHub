@@ -11,6 +11,7 @@ use MikoPBX\Core\System\Util;
 use MikoPBX\Core\Workers\WorkerBase;
 use Modules\ModuleMessengerHub\Lib\Events\EventStore;
 use Modules\ModuleMessengerHub\Lib\Sources\AmiEventSource;
+use Modules\ModuleMessengerHub\Lib\Sources\AmiSourceTicker;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceRecorder;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceRegistry;
 use Modules\ModuleMessengerHub\Lib\Sources\SourceStateRepository;
@@ -27,7 +28,8 @@ use Throwable;
 /**
  * Listens to AMI UserEvents for push sources (Plan/01-architecture.md, decision Q2):
  * Core's own AMI connection (Util::getAstManager), AMI "Filter" per UserEvent, reconnect on empty result,
- * answers the WorkerSafeScriptsCore ping.
+ * answers the WorkerSafeScriptsCore ping. Buffered sources are flushed by AmiSourceTicker from the AMI idle callback,
+ * because waitUserEvent() does not return while the connection is alive.
  */
 class WorkerMessengerHubAmi extends WorkerBase
 {
@@ -43,7 +45,9 @@ class WorkerMessengerHubAmi extends WorkerBase
 
     private PhalconHubDatabase $db;
 
-    private int $lastTick = 0;
+    private AmiSourceTicker $ticker;
+
+    private bool $idleTickLogged = false;
 
     private const int MAP_REFRESH_SEC = 300;
     private const int MAP_RETRY_SEC = 30;
@@ -78,6 +82,14 @@ class WorkerMessengerHubAmi extends WorkerBase
             HubLogger::event('ami', 'recent_missed_failed', ['error' => $exception::class], LOG_WARNING);
         }
 
+        $this->ticker = new AmiSourceTicker(
+            $this->sources,
+            $this->recorder,
+            function (int $now): void {
+                $this->refreshInternalNumbers($now);
+                $this->refreshQueueOptions($now);
+            },
+        );
         $this->refreshInternalNumbers(time());
         $this->refreshQueueOptions(time());
         $this->connect();
@@ -88,7 +100,7 @@ class WorkerMessengerHubAmi extends WorkerBase
                 usleep(100000);
                 $this->connect();
             }
-            $this->tick();
+            $this->ticker->tick();
         }
         HubLogger::event('ami', 'stopped', ['pid' => getmypid()]);
     }
@@ -97,6 +109,7 @@ class WorkerMessengerHubAmi extends WorkerBase
     public function callback(array $parameters): void
     {
         if ($this->replyOnPingRequest($parameters)) {
+            $this->ticker->tick(); // Core < 2026.1 has no idle callback: the ping is the only wake-up on a quiet PBX
             return;
         }
         $name = (string)($parameters['UserEvent'] ?? '');
@@ -107,25 +120,7 @@ class WorkerMessengerHubAmi extends WorkerBase
                 HubLogger::event('ami', 'source_failed', ['user_event' => $name, 'error' => $exception::class], LOG_ERR);
             }
         }
-        $this->tick();
-    }
-
-    private function tick(): void
-    {
-        $now = time();
-        if ($now === $this->lastTick) {
-            return;
-        }
-        $this->lastTick = $now;
-        $this->refreshInternalNumbers($now);
-        $this->refreshQueueOptions($now);
-        foreach ($this->sources as $source) {
-            try {
-                $source->tick($this->recorder, $now);
-            } catch (Throwable $exception) {
-                HubLogger::event('ami', 'tick_failed', ['error' => $exception::class], LOG_ERR);
-            }
-        }
+        $this->ticker->tick();
     }
 
     /** Read-only copy of Core extensions/users for call classification, refreshed every 5 minutes. */
@@ -188,6 +183,11 @@ class WorkerMessengerHubAmi extends WorkerBase
             $this->am->sendRequestTimeout('Filter', ['Operation' => 'Add', 'Filter' => 'UserEvent: ' . $name]);
         }
         $this->am->addEventHandler('userevent', [$this, 'callback']);
+        $idle = $this->ticker->attachTo($this->am);
+        if (!$this->idleTickLogged) {
+            $this->idleTickLogged = true;
+            HubLogger::event('ami', 'idle_tick', ['mode' => $idle ? 'idle_callback' : 'ping_only']);
+        }
     }
 }
 

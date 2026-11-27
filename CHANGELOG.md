@@ -21,11 +21,19 @@
 - Security: for `core.voicemail` only `<monitor>/Y/m/d/INBOX/<linkedid>.(webm|wav|mp3)` of the event's own
   call is accepted, so a forged `voicemail_end` can no longer send another call recording to a chat.
   Roots are checked right after `realpath()`, before the file size.
+- Admin UI: `esc()` now also escapes `"` and `'`, so AI summaries, caller numbers, rule titles and chat ids can no
+  longer break out of `title`/`aria-label`/`data-*` attributes in the journal and settings (stored XSS, EGOR-52).
+  Employee, provider and event-type names in Fomantic dropdowns are escaped too. The compiled JS ships without
+  an inline source map (597 KB → 162 KB).
 - Core keeps the old permissions of the hub key in its token cache for about 5 minutes after a key change
   (also inside its own API worker). For 6 minutes after the hub creates, updates or repairs its key, and on the
   first collector pass after install or update, `api_unauthorized`/`api_forbidden` from source polls are treated
   as transient: the previous availability is kept, nothing is emitted or reset, key self-healing is not
   triggered, and one `key_cache_grace` line is logged per source (#1). The deadline is stored in hub settings.
+- The AMI worker flushed buffered sources (missed calls, abandoned queue calls) only on the next UserEvent,
+  because Core's `waitUserEvent()` never returns while AMI is alive: the last missed call of a quiet evening
+  waited for the next call. `AmiSourceTicker` now ticks from the AMI idle callback (`setOnIdleCallback`, 1 s,
+  Core 2026.1+, re-registered on every reconnect) and on the WorkerSafeScriptsCore ping (fallback for older Core).
 
 ### Changed
 - Stage 3b-6 (station acceptance, docs only): hub 6.7 with AI Supervisor, Cloud AI Supervisor and Local STT
